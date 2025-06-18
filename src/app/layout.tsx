@@ -14,7 +14,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="font-raleway min-h-screen bg-gradient-to-br from-flyadeal-purple via-flyadeal-dark-blue to-flyadeal-light-blue">
+      <body className="font-raleway min-h-screen bg-slate-100">
         <Providers>
           {children}
         </Providers>

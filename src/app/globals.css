@@ -19,27 +19,28 @@
 
 body {
   font-family: 'Raleway', sans-serif;
-  background: linear-gradient(135deg, #522D6D 0%, #1877B8 50%, #2CB3E2 100%);
   min-height: 100vh;
-  color: white;
+  color: #000000;
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
-  
+
   .glass-morphism {
-    background: rgba(255, 255, 255, 0.1);
+    background: linear-gradient(135deg, rgba(82, 45, 109, 0.25) 0%, rgba(24, 119, 184, 0.25) 50%, rgba(44, 179, 226, 0.25) 100%);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .glass-morphism-dark {
+    background: linear-gradient(135deg, rgba(82, 45, 109, 0.35) 0%, rgba(24, 119, 184, 0.35) 50%, rgba(44, 179, 226, 0.35) 100%);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 12px;
-  }
-  
-  .glass-morphism-dark {
-    background: rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   }
 }

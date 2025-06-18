@@ -122,10 +122,10 @@ function LoginPage() {
           <div className="w-16 h-16 mx-auto mb-4 bg-flyadeal-yellow rounded-full flex items-center justify-center">
             <Plane className="w-8 h-8 text-flyadeal-purple" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2 font-raleway">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2 font-raleway">
             Welcome to Flyadeal Intranet
           </h1>
-          <p className="text-white/70">
+          <p className="text-gray-600">
             Sign in with your Microsoft account to access the portal
           </p>
 
@@ -527,29 +527,29 @@ function DashboardPage() {
     <div className="min-h-screen">
       <Navigation />
 
-      <main className="pt-20 p-6">
+      <main className="pt-28 p-6">
         <div className="max-w-7xl mx-auto">
           {/* Welcome Header */}
           <div className="mb-8">
             <GlassmorphismContainer className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h1 className="text-3xl font-bold text-white mb-2">
+                  <h1 className="text-3xl font-bold text-gray-800 mb-2">
                     Welcome back, {session?.user?.name?.split(' ')[0]}! 👋
                   </h1>
-                  <p className="text-white/70">
+                  <p className="text-gray-600">
                     Here's what's happening at Flyadeal today
                   </p>
                 </div>
                 <div className="text-right">
-                  <div className="text-white/90 text-lg font-semibold">
+                  <div className="text-gray-800 text-lg font-semibold">
                     {currentTime.toLocaleTimeString('en-US', { 
                       hour: '2-digit', 
                       minute: '2-digit',
                       hour12: true 
                     })}
                   </div>
-                  <div className="text-white/70 text-sm">
+                  <div className="text-gray-600 text-sm">
                     {currentTime.toLocaleDateString('en-US', { 
                       weekday: 'long',
                       year: 'numeric',
@@ -567,7 +567,7 @@ function DashboardPage() {
             <GlassmorphismContainer className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-white/70 text-sm">Today's Flights</p>
+                  <p className="text-gray-600 text-sm">Today's Flights</p>
                   <p className="text-2xl font-bold text-flyadeal-yellow">24</p>
                 </div>
                 <Plane className="w-8 h-8 text-flyadeal-yellow/60" />
@@ -577,7 +577,7 @@ function DashboardPage() {
             <GlassmorphismContainer className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-white/70 text-sm">On Time Performance</p>
+                  <p className="text-gray-600 text-sm">On Time Performance</p>
                   <p className="text-2xl font-bold text-green-400">89%</p>
                 </div>
                 <Clock className="w-8 h-8 text-green-400/60" />
@@ -587,9 +587,9 @@ function DashboardPage() {
             <GlassmorphismContainer className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-white/70 text-sm">Weather</p>
-                  <p className="text-2xl font-bold text-white">{weather.temp}°C</p>
-                  <p className="text-xs text-white/70">{weather.condition}</p>
+                  <p className="text-gray-600 text-sm">Weather</p>
+                  <p className="text-2xl font-bold text-gray-800">{weather.temp}°C</p>
+                  <p className="text-xs text-gray-600">{weather.condition}</p>
                 </div>
                 <Thermometer className="w-8 h-8 text-orange-400/60" />
               </div>
@@ -598,7 +598,7 @@ function DashboardPage() {
             <GlassmorphismContainer className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-white/70 text-sm">Active Offers</p>
+                  <p className="text-gray-600 text-sm">Active Offers</p>
                   <p className="text-2xl font-bold text-flyadeal-yellow">{companyOffers.length}</p>
                 </div>
                 <Gift className="w-8 h-8 text-flyadeal-yellow/60" />
@@ -613,7 +613,7 @@ function DashboardPage() {
               {/* CEO Newsletter */}
               <GlassmorphismContainer className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-white flex items-center">
+                  <h2 className="text-xl font-bold text-gray-800 flex items-center">
                     <Mail className="w-5 h-5 mr-2 text-flyadeal-yellow" />
                     CEO Newsletter
                   </h2>
@@ -623,7 +623,7 @@ function DashboardPage() {
                         onClick={() => window.open(newsletter.sharePointUrl, '_blank')}
                         size="sm"
                         variant="outline"
-                        className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                        className="bg-white/10 border-gray-300 text-gray-700 hover:bg-gray-100"
                       >
                         <ExternalLink className="w-4 h-4 mr-1" />
                         SharePoint
@@ -756,12 +756,12 @@ function DashboardPage() {
               {/* Flight Operations */}
               <GlassmorphismContainer className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-white flex items-center">
+                  <h2 className="text-xl font-bold text-gray-800 flex items-center">
                     <BarChart3 className="w-5 h-5 mr-2 text-flyadeal-yellow" />
                     Live Flight Operations
                   </h2>
                   <Link href="/powerbi-final">
-                    <Button size="sm" variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white/20">
+                    <Button size="sm" variant="outline" className="bg-white/10 border-gray-300 text-gray-700 hover:bg-gray-100">
                       <ExternalLink className="w-4 h-4 mr-1" />
                       Full Dashboard
                     </Button>
@@ -773,8 +773,8 @@ function DashboardPage() {
                       <div className="flex items-center space-x-4">
                         <div className="w-2 h-2 rounded-full bg-flyadeal-yellow"></div>
                         <div>
-                          <div className="text-white font-medium">{flight.flight}</div>
-                          <div className="text-white/70 text-sm">{flight.route}</div>
+                          <div className="text-gray-800 font-medium">{flight.flight}</div>
+                          <div className="text-gray-600 text-sm">{flight.route}</div>
                         </div>
                       </div>
                       <div className="text-right">
@@ -785,7 +785,7 @@ function DashboardPage() {
                           {flight.status}
                         </div>
                         {flight.delay > 0 && (
-                          <div className="text-white/70 text-xs">+{flight.delay}m</div>
+                          <div className="text-gray-600 text-xs">+{flight.delay}m</div>
                         )}
                       </div>
                     </div>
@@ -795,7 +795,7 @@ function DashboardPage() {
 
               {/* Company News */}
               <GlassmorphismContainer className="p-6">
-                <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+                <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
                   <Newspaper className="w-5 h-5 mr-2 text-flyadeal-yellow" />
                   Company News
                 </h2>
@@ -803,10 +803,10 @@ function DashboardPage() {
                   {companyNews.map((news, index) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors cursor-pointer">
                       <div className="flex-1">
-                        <div className="text-white font-medium">{news.title}</div>
-                        <div className="text-white/70 text-sm">{news.date} • {news.category}</div>
+                        <div className="text-gray-800 font-medium">{news.title}</div>
+                        <div className="text-gray-600 text-sm">{news.date} • {news.category}</div>
                       </div>
-                      <ChevronRight className="w-5 h-5 text-white/40" />
+                      <ChevronRight className="w-5 h-5 text-gray-400" />
                     </div>
                   ))}
                 </div>
@@ -817,7 +817,7 @@ function DashboardPage() {
             <div className="space-y-6">
               {/* Company Offers */}
               <GlassmorphismContainer className="p-6">
-                <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+                <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
                   <Gift className="w-5 h-5 mr-2 text-flyadeal-yellow" />
                   Employee Offers
                 </h2>
@@ -825,11 +825,11 @@ function DashboardPage() {
                   {companyOffers.map((offer, index) => (
                     <div key={index} className="p-3 bg-white/5 border border-white/10 rounded-lg">
                       <div className="flex items-center justify-between mb-2">
-                        <div className="text-white font-medium">{offer.company}</div>
+                        <div className="text-gray-800 font-medium">{offer.company}</div>
                         <div className="text-flyadeal-yellow font-bold">{offer.discount}</div>
                       </div>
-                      <div className="text-white/70 text-sm">{offer.category}</div>
-                      <div className="text-white/50 text-xs mt-1">Expires: {offer.expires}</div>
+                      <div className="text-gray-600 text-sm">{offer.category}</div>
+                      <div className="text-gray-500 text-xs mt-1">Expires: {offer.expires}</div>
                     </div>
                   ))}
                 </div>
@@ -837,16 +837,16 @@ function DashboardPage() {
 
               {/* Upcoming Events */}
               <GlassmorphismContainer className="p-6">
-                <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+                <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
                   <Calendar className="w-5 h-5 mr-2 text-flyadeal-yellow" />
                   Upcoming Events
                 </h2>
                 <div className="space-y-3">
                   {upcomingEvents.map((event, index) => (
                     <div key={index} className="p-3 bg-white/5 border border-white/10 rounded-lg">
-                      <div className="text-white font-medium mb-1">{event.title}</div>
-                      <div className="text-white/70 text-sm">{event.date} at {event.time}</div>
-                      <div className="text-white/50 text-xs flex items-center mt-1">
+                      <div className="text-gray-800 font-medium mb-1">{event.title}</div>
+                      <div className="text-gray-600 text-sm">{event.date} at {event.time}</div>
+                      <div className="text-gray-500 text-xs flex items-center mt-1">
                         <MapPin className="w-3 h-3 mr-1" />
                         {event.location}
                       </div>
@@ -857,22 +857,22 @@ function DashboardPage() {
 
               {/* Birthdays & Anniversaries */}
               <GlassmorphismContainer className="p-6">
-                <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+                <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
                   <Users className="w-5 h-5 mr-2 text-flyadeal-yellow" />
                   Celebrations
                 </h2>
 
                 {/* Birthdays */}
                 <div className="mb-4">
-                  <h3 className="text-white/90 font-medium mb-2 flex items-center">
+                  <h3 className="text-gray-700 font-medium mb-2 flex items-center">
                     <Cake className="w-4 h-4 mr-1 text-pink-400" />
                     Birthdays
                   </h3>
                   <div className="space-y-2">
                     {announcements.birthdays.map((birthday, index) => (
                       <div key={index} className="p-2 bg-white/5 border border-white/10 rounded text-sm">
-                        <div className="text-white">{birthday.name}</div>
-                        <div className="text-white/70 text-xs">{birthday.department} • {birthday.date}</div>
+                        <div className="text-gray-800">{birthday.name}</div>
+                        <div className="text-gray-600 text-xs">{birthday.department} • {birthday.date}</div>
                       </div>
                     ))}
                   </div>
@@ -880,15 +880,15 @@ function DashboardPage() {
 
                 {/* Anniversaries */}
                 <div>
-                  <h3 className="text-white/90 font-medium mb-2 flex items-center">
+                  <h3 className="text-gray-700 font-medium mb-2 flex items-center">
                     <Award className="w-4 h-4 mr-1 text-flyadeal-yellow" />
                     Work Anniversaries
                   </h3>
                   <div className="space-y-2">
                     {announcements.anniversaries.map((anniversary, index) => (
                       <div key={index} className="p-2 bg-white/5 border border-white/10 rounded text-sm">
-                        <div className="text-white">{anniversary.name}</div>
-                        <div className="text-white/70 text-xs">{anniversary.years} years • {anniversary.department} • {anniversary.date}</div>
+                        <div className="text-gray-800">{anniversary.name}</div>
+                        <div className="text-gray-600 text-xs">{anniversary.years} years • {anniversary.department} • {anniversary.date}</div>
                       </div>
                     ))}
                   </div>
@@ -904,7 +904,7 @@ function DashboardPage() {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b bg-flyadeal-purple">
-              <h3 className="text-xl font-bold text-white">
+              <h3 className="text-xl font-bold text-gray-100">
                 {newsletterError ? 'Newsletter Error' : newsletter?.title || 'CEO Newsletter'}
               </h3>
               <div className="flex items-center space-x-2">
@@ -913,7 +913,7 @@ function DashboardPage() {
                     onClick={() => window.open(newsletter.sharePointUrl, '_blank')}
                     size="sm"
                     variant="outline"
-                    className="text-white border-white/30 hover:bg-white/20"
+                    className="text-gray-100 border-white/30 hover:bg-white/20"
                   >
                     <ExternalLink className="w-4 h-4 mr-1" />
                     Open in SharePoint
@@ -923,7 +923,7 @@ function DashboardPage() {
                   onClick={() => setNewsletterModalOpen(false)}
                   size="sm"
                   variant="ghost"
-                  className="text-white hover:bg-white/20"
+                  className="text-gray-100 hover:bg-white/20"
                 >
                   <X className="w-5 h-5" />
                 </Button>

@@ -13,14 +13,13 @@ export function GlassmorphismContainer({
   variant = 'light' 
 }: GlassmorphismContainerProps) {
   const variants = {
-    light: "bg-white/10 border-white/20",
-    dark: "bg-black/10 border-white/10", 
-    colored: "bg-flyadeal-purple/10 border-flyadeal-purple/20"
+    light: "glass-morphism",
+    dark: "glass-morphism-dark", 
+    colored: "glass-morphism"
   }
 
   return (
     <div className={cn(
-      "backdrop-blur-md rounded-xl border shadow-lg",
       variants[variant],
       className
     )}>
