@@ -65,7 +65,7 @@ Add to your `/etc/hosts` (Mac/Linux) or `C:\Windows\System32\drivers\etc\hosts` 
 
 Then update your `.env.local`:
 ```
-NEXTAUTH_URL=http://local.flyadeal.dev:3000
+NEXTAUTH_URL=http://local.flyadeal.dev:3001
 ```
 
 And run:
