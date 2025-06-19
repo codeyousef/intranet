@@ -10,7 +10,8 @@ module.exports = {
       colors: {
         flyadeal: {
           purple: '#522D6D',
-          yellow: '#D7D800',
+          yellow: '#A8A900', // Darker yellow for better contrast
+          'dark-yellow': '#D7D800', // Original yellow kept for reference
           'dark-blue': '#1877B8',
           'light-blue': '#2CB3E2',
           pink: '#B33288',
@@ -18,6 +19,7 @@ module.exports = {
           red: '#E74735',
           orange: '#F39E5C',
           green: '#177D44',
+          'bright-green': '#0D9F3E', // Brighter green for better contrast
         },
       },
       fontFamily: {

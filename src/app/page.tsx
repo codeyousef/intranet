@@ -25,6 +25,9 @@ import { Navigation } from '@/components/navigation'
 import { GlassmorphismContainer } from '@/components/glassmorphism-container'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import MazayaOffers from '@/components/mazaya-offers'
+import NewOffersGrid from '@/components/new-offers-grid'
+import { ChatButton } from '@/components/chat-button'
 import { 
   Calendar, 
   MapPin, 
@@ -60,21 +63,8 @@ const lastFetchAttempt = {
   minInterval: 5000 // Minimum 5 seconds between fetch attempts
 };
 
-// Sample flight operations data
-const sampleFlightData = [
-  { flight: 'F3-121', route: 'RUH-JED', status: 'On Time', delay: 0 },
-  { flight: 'F3-122', route: 'JED-RUH', status: 'Departed', delay: 5 },
-  { flight: 'F3-125', route: 'RUH-DMM', status: 'On Time', delay: 0 },
-  { flight: 'F3-130', route: 'JED-CAI', status: 'Delayed', delay: 15 },
-]
 
-// Sample company offers
-const companyOffers = [
-  { company: 'Hertz', discount: '30%', category: 'Car Rental', expires: '2025-07-01' },
-  { company: 'Marriott', discount: '15%', category: 'Hotels', expires: '2025-06-30' },
-  { company: 'Enterprise', discount: '25%', category: 'Car Rental', expires: '2025-08-15' },
-  { company: 'Hilton', discount: '20%', category: 'Hotels', expires: '2025-07-31' },
-]
+// Mazaya offers are now loaded from the database via the MazayaOffers component
 
 // Sample company news
 const companyNews = [
@@ -541,21 +531,30 @@ function DashboardPage() {
                     Here's what's happening at Flyadeal today
                   </p>
                 </div>
-                <div className="text-right">
-                  <div className="text-gray-800 text-lg font-semibold">
-                    {currentTime.toLocaleTimeString('en-US', { 
-                      hour: '2-digit', 
-                      minute: '2-digit',
-                      hour12: true 
-                    })}
+                <div className="text-right flex items-center space-x-6">
+                  <div className="flex items-center space-x-2">
+                    <Thermometer className="w-6 h-6 text-orange-400/60" />
+                    <div>
+                      <div className="text-gray-800 font-semibold">{weather.temp}°C</div>
+                      <div className="text-gray-600 text-xs">{weather.condition}, {weather.location}</div>
+                    </div>
                   </div>
-                  <div className="text-gray-600 text-sm">
-                    {currentTime.toLocaleDateString('en-US', { 
-                      weekday: 'long',
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
+                  <div>
+                    <div className="text-gray-800 text-lg font-semibold">
+                      {currentTime.toLocaleTimeString('en-US', { 
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        hour12: true 
+                      })}
+                    </div>
+                    <div className="text-gray-600 text-sm">
+                      {currentTime.toLocaleDateString('en-US', { 
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -563,45 +562,54 @@ function DashboardPage() {
           </div>
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
             <GlassmorphismContainer className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 text-sm">Today's Flights</p>
-                  <p className="text-2xl font-bold text-flyadeal-yellow">24</p>
+                  <p className="text-gray-600 text-sm">Growth of Guests</p>
+                  <p className="text-2xl font-bold text-flyadeal-bright-green">+12%</p>
+                </div>
+                <TrendingUp className="w-8 h-8 text-flyadeal-bright-green/60" />
+              </div>
+            </GlassmorphismContainer>
+
+            <GlassmorphismContainer className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm">Flying Hours</p>
+                  <p className="text-2xl font-bold text-flyadeal-yellow">1,245</p>
+                </div>
+                <Clock className="w-8 h-8 text-flyadeal-yellow/60" />
+              </div>
+            </GlassmorphismContainer>
+
+            <GlassmorphismContainer className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm">Flights Growth</p>
+                  <p className="text-2xl font-bold text-flyadeal-bright-green">+8%</p>
+                </div>
+                <TrendingUp className="w-8 h-8 text-flyadeal-bright-green/60" />
+              </div>
+            </GlassmorphismContainer>
+
+            <GlassmorphismContainer className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm">Guests Carried</p>
+                  <p className="text-2xl font-bold text-flyadeal-yellow">156K</p>
+                </div>
+                <Users className="w-8 h-8 text-flyadeal-yellow/60" />
+              </div>
+            </GlassmorphismContainer>
+
+            <GlassmorphismContainer className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm">Total Flights</p>
+                  <p className="text-2xl font-bold text-flyadeal-yellow">1,872</p>
                 </div>
                 <Plane className="w-8 h-8 text-flyadeal-yellow/60" />
-              </div>
-            </GlassmorphismContainer>
-
-            <GlassmorphismContainer className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm">On Time Performance</p>
-                  <p className="text-2xl font-bold text-green-400">89%</p>
-                </div>
-                <Clock className="w-8 h-8 text-green-400/60" />
-              </div>
-            </GlassmorphismContainer>
-
-            <GlassmorphismContainer className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm">Weather</p>
-                  <p className="text-2xl font-bold text-gray-800">{weather.temp}°C</p>
-                  <p className="text-xs text-gray-600">{weather.condition}</p>
-                </div>
-                <Thermometer className="w-8 h-8 text-orange-400/60" />
-              </div>
-            </GlassmorphismContainer>
-
-            <GlassmorphismContainer className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm">Active Offers</p>
-                  <p className="text-2xl font-bold text-flyadeal-yellow">{companyOffers.length}</p>
-                </div>
-                <Gift className="w-8 h-8 text-flyadeal-yellow/60" />
               </div>
             </GlassmorphismContainer>
           </div>
@@ -611,7 +619,7 @@ function DashboardPage() {
             {/* Left Column */}
             <div className="lg:col-span-2 space-y-6">
               {/* CEO Newsletter */}
-              <GlassmorphismContainer className="p-6">
+              <GlassmorphismContainer className="p-6 h-[calc(36rem+1.5rem)]">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold text-gray-800 flex items-center">
                     <Mail className="w-5 h-5 mr-2 text-flyadeal-yellow" />
@@ -630,41 +638,15 @@ function DashboardPage() {
                       </Button>
                     )}
                     <div className="flex space-x-2">
-                      {/* Hidden debug buttons - only visible in development */}
-                      {process.env.NODE_ENV === 'development' && (
-                        <>
-                          <Button
-                            onClick={resetNewsletterLoadingState}
-                            size="sm"
-                            variant="outline"
-                            className="bg-red-500/10 border-red-500/20 text-red-500 hover:bg-red-500/20"
-                            title="Debug: Reset newsletter loading state"
-                          >
-                            🔄
-                          </Button>
-                          <Button
-                            onClick={() => {
-                              const isDebugEnabled = localStorage.getItem('debug') === 'true';
-                              if (isDebugEnabled) {
-                                localStorage.removeItem('debug');
-                              } else {
-                                localStorage.setItem('debug', 'true');
-                              }
-                              window.location.reload();
-                            }}
-                            size="sm"
-                            variant="outline"
-                            className={`${
-                              typeof window !== 'undefined' && localStorage.getItem('debug') === 'true'
-                                ? 'bg-green-500/10 border-green-500/20 text-green-500 hover:bg-green-500/20'
-                                : 'bg-gray-500/10 border-gray-500/20 text-gray-500 hover:bg-gray-500/20'
-                            }`}
-                            title={`Debug: ${typeof window !== 'undefined' && localStorage.getItem('debug') === 'true' ? 'Disable' : 'Enable'} detailed logging`}
-                          >
-                            🐞
-                          </Button>
-                        </>
-                      )}
+                      <Button
+                        onClick={() => window.location.href = '/newsletter-archive'}
+                        size="sm"
+                        variant="outline"
+                        className="bg-white/10 border-gray-300 text-gray-700 hover:bg-gray-100"
+                      >
+                        <Newspaper className="w-4 h-4 mr-1" />
+                        Archive
+                      </Button>
                       <Button
                         onClick={() => setNewsletterModalOpen(true)}
                         size="sm"
@@ -678,10 +660,10 @@ function DashboardPage() {
                 </div>
 
                 {/* Newsletter Content */}
-                <div className="bg-white rounded-lg overflow-hidden">
+                <div className="bg-white rounded-lg overflow-hidden h-[calc(100%-2.5rem)]">
                   {newsletterError ? (
                     // Error state - show error message with retry button
-                    <div className="h-96 flex items-center justify-center text-gray-500">
+                    <div className="h-full flex items-center justify-center text-gray-500">
                       <div className="text-center p-6 max-w-md">
                         <X className="w-12 h-12 mx-auto mb-4 text-red-400" />
                         <p className="mb-2 text-red-500 font-medium">Error loading newsletter</p>
@@ -721,29 +703,18 @@ function DashboardPage() {
                       </div>
                     </div>
                   ) : newsletter ? (
-                    // Success state - show newsletter content
-                    <div>
-                      <div className="h-96 overflow-y-auto p-6">
+                    // Success state - show newsletter content with scrollable area
+                    <div className="h-full overflow-y-auto">
+                      <div className="p-6">
                         <div 
                           dangerouslySetInnerHTML={{ __html: newsletter.content }}
                           style={{ color: '#374151' }}
                         />
                       </div>
-                      <div className="px-6 py-3 bg-gray-50 border-t text-xs text-gray-500 flex justify-between items-center">
-                        <span>📁 {newsletter.source} • Updated: {new Date(newsletter.lastUpdated).toLocaleDateString()}</span>
-                        <a 
-                          href={newsletter.sharePointUrl}
-                          target="_blank"
-                          className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          <span>Open in SharePoint</span>
-                        </a>
-                      </div>
                     </div>
                   ) : (
                     // Loading state
-                    <div className="h-96 flex items-center justify-center text-gray-500">
+                    <div className="h-full flex items-center justify-center text-gray-500">
                       <div className="text-center">
                         <Mail className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                         <p>Loading newsletter...</p>
@@ -753,48 +724,9 @@ function DashboardPage() {
                 </div>
               </GlassmorphismContainer>
 
-              {/* Flight Operations */}
-              <GlassmorphismContainer className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                    <BarChart3 className="w-5 h-5 mr-2 text-flyadeal-yellow" />
-                    Live Flight Operations
-                  </h2>
-                  <Link href="/powerbi-final">
-                    <Button size="sm" variant="outline" className="bg-white/10 border-gray-300 text-gray-700 hover:bg-gray-100">
-                      <ExternalLink className="w-4 h-4 mr-1" />
-                      Full Dashboard
-                    </Button>
-                  </Link>
-                </div>
-                <div className="space-y-3">
-                  {sampleFlightData.map((flight, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-2 h-2 rounded-full bg-flyadeal-yellow"></div>
-                        <div>
-                          <div className="text-gray-800 font-medium">{flight.flight}</div>
-                          <div className="text-gray-600 text-sm">{flight.route}</div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className={`text-sm font-medium ${
-                          flight.status === 'On Time' ? 'text-green-400' : 
-                          flight.status === 'Delayed' ? 'text-red-400' : 'text-flyadeal-yellow'
-                        }`}>
-                          {flight.status}
-                        </div>
-                        {flight.delay > 0 && (
-                          <div className="text-gray-600 text-xs">+{flight.delay}m</div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </GlassmorphismContainer>
 
               {/* Company News */}
-              <GlassmorphismContainer className="p-6">
+              <GlassmorphismContainer className="p-6 mt-6">
                 <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
                   <Newspaper className="w-5 h-5 mr-2 text-flyadeal-yellow" />
                   Company News
@@ -815,24 +747,19 @@ function DashboardPage() {
 
             {/* Right Column */}
             <div className="space-y-6">
-              {/* Company Offers */}
+              {/* Employee Offers */}
               <GlassmorphismContainer className="p-6">
-                <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                  <Gift className="w-5 h-5 mr-2 text-flyadeal-yellow" />
-                  Employee Offers
-                </h2>
-                <div className="space-y-3">
-                  {companyOffers.map((offer, index) => (
-                    <div key={index} className="p-3 bg-white/5 border border-white/10 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-gray-800 font-medium">{offer.company}</div>
-                        <div className="text-flyadeal-yellow font-bold">{offer.discount}</div>
-                      </div>
-                      <div className="text-gray-600 text-sm">{offer.category}</div>
-                      <div className="text-gray-500 text-xs mt-1">Expires: {offer.expires}</div>
-                    </div>
-                  ))}
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                    <Gift className="w-5 h-5 mr-2 text-flyadeal-yellow" />
+                    New Offers
+                  </h2>
+                  <Link href="/mazaya" className="text-sm text-flyadeal-purple hover:underline flex items-center">
+                    View all offers
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Link>
                 </div>
+                <NewOffersGrid />
               </GlassmorphismContainer>
 
               {/* Upcoming Events */}
@@ -992,6 +919,9 @@ function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Chat Button */}
+      <ChatButton />
     </div>
   )
 }

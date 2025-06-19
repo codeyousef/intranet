@@ -30,20 +30,15 @@ async function getGraphToken() {
 }
 
 export async function GET(request: NextRequest) {
-  console.log('\n📬 === Newsletter API Request ===');
-
   try {
-    // Get Graph token (we know this works)
-    console.log('📬 Getting Graph API token...');
+    // Get Graph token
     const token = await getGraphToken();
-    console.log('✅ Graph token acquired successfully');
 
     // Site details from your test results
     const siteId = 'flyadeal.sharepoint.com,e6589590-5aca-4d4a-a14e-1a7b9f51396d,94ed5344-9dd1-42c9-b663-cb57c49ab1d4';
     const fileName = 'last-newsletter.html';
 
     // First, let's find the correct drive and folder structure
-    console.log('📬 Getting site drives...');
     const drivesResponse = await fetch(
         `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
         {
@@ -59,11 +54,9 @@ export async function GET(request: NextRequest) {
     }
 
     const drivesData = await drivesResponse.json();
-    console.log(`📬 Found ${drivesData.value.length} drives`);
 
     // Try to find the file in each drive
     for (const drive of drivesData.value) {
-      console.log(`📬 Searching in drive: ${drive.name} (${drive.id})`);
 
       // Search for the file
       try {
@@ -83,7 +76,6 @@ export async function GET(request: NextRequest) {
           if (searchData.value && searchData.value.length > 0) {
             // Found the file!
             const file = searchData.value[0];
-            console.log(`✅ Found file: ${file.name} at path: ${file.parentReference.path}`);
 
             // Get the file content
             const contentResponse = await fetch(
@@ -98,7 +90,6 @@ export async function GET(request: NextRequest) {
 
             if (contentResponse.ok) {
               const htmlContent = await contentResponse.text();
-              console.log('✅ Successfully retrieved newsletter content');
 
               return NextResponse.json({
                 success: true,
@@ -115,12 +106,11 @@ export async function GET(request: NextRequest) {
           }
         }
       } catch (searchError) {
-        console.log(`⚠️ Search failed in drive ${drive.name}:`, searchError);
+        // Search failed, continue to next drive
       }
     }
 
     // If search didn't work, try direct paths
-    console.log('📬 Search method failed, trying direct paths...');
 
     // Try common SharePoint document library paths
     const pathsToTry = [
@@ -148,7 +138,6 @@ export async function GET(request: NextRequest) {
 
       for (const path of pathsToTry) {
         try {
-          console.log(`📬 Trying path: ${path}`);
 
           const fileUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root:${encodeURIComponent(path)}:/content`;
 
@@ -164,7 +153,6 @@ export async function GET(request: NextRequest) {
             const htmlContent = await fileResponse.text();
 
             if (htmlContent.length > 0) {
-              console.log(`✅ Success! Found file at: ${path}`);
 
               return NextResponse.json({
                 success: true,
@@ -179,18 +167,17 @@ export async function GET(request: NextRequest) {
               });
             }
           } else if (fileResponse.status === 404) {
-            console.log(`❌ File not found at: ${path}`);
+            // File not found, continue to next path
           } else {
-            console.log(`❌ Error accessing ${path}: ${fileResponse.status}`);
+            // Error accessing path, continue to next path
           }
         } catch (pathError) {
-          console.log(`❌ Failed to try path ${path}:`, pathError);
+          // Failed to try path, continue to next path
         }
       }
     }
 
     // Last resort: List all files in the CEO Newsletter folder if we can find it
-    console.log('📬 Attempting to list folder contents...');
 
     try {
       // Try to access the CEO Newsletter folder directly
@@ -206,11 +193,9 @@ export async function GET(request: NextRequest) {
 
       if (folderResponse.ok) {
         const folderData = await folderResponse.json();
-        console.log(`📬 Found ${folderData.value.length} items in CEO Newsletter folder`);
 
-        // List all files for debugging
+        // Check all files in the folder
         for (const item of folderData.value) {
-          console.log(`- ${item.name} (${item.file ? 'file' : 'folder'})`);
 
           if (item.name === fileName && item.file) {
             // Get this file's content
@@ -243,7 +228,7 @@ export async function GET(request: NextRequest) {
         }
       }
     } catch (folderError) {
-      console.log('❌ Could not list folder contents:', folderError);
+      // Could not list folder contents, continue
     }
 
     // If we get here, we couldn't find the file
@@ -259,7 +244,7 @@ export async function GET(request: NextRequest) {
           <h3 style="margin: 0 0 10px 0;">Newsletter Not Found</h3>
           <p style="margin: 0;">We couldn't locate the newsletter file in SharePoint.</p>
         </div>
-        
+
         <div style="background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
           <h4 style="margin: 0 0 10px 0;">Possible Issues:</h4>
           <ul style="margin: 0; padding-left: 20px;">
@@ -268,7 +253,7 @@ export async function GET(request: NextRequest) {
             <li>The file name might be different (check for spaces or special characters)</li>
           </ul>
         </div>
-        
+
         <div style="background-color: #e7f3ff; border: 1px solid #b3d9ff; padding: 15px; border-radius: 5px;">
           <h4 style="margin: 0 0 10px 0;">Next Steps:</h4>
           <ol style="margin: 0; padding-left: 20px;">
@@ -277,7 +262,7 @@ export async function GET(request: NextRequest) {
             <li>Ensure the file is in a document library accessible to the app</li>
           </ol>
         </div>
-        
+
         <div style="background-color: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; border-radius: 5px; margin-top: 20px;">
           <p style="margin: 0; font-size: 12px; color: #6c757d;">
             <strong>Debug Info:</strong><br>

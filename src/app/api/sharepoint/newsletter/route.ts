@@ -49,12 +49,11 @@ function getCachedNewsletter() {
       const cached = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8'))
       const now = Date.now()
       if (now - cached.timestamp < CACHE_DURATION) {
-        console.log('📋 Using cached newsletter')
         return cached.data
       }
     }
   } catch (error) {
-    console.log('⚠️ Cache read error:', error)
+    // Cache read error, continue
   }
   return null
 }
@@ -68,16 +67,14 @@ function cacheNewsletter(data: any) {
       data: data
     }
     fs.writeFileSync(CACHE_FILE, JSON.stringify(cacheData, null, 2))
-    console.log('💾 Newsletter cached successfully')
   } catch (error) {
-    console.log('⚠️ Cache write error:', error)
+    // Cache write error, continue
   }
 }
 
 // Get fresh access token using client credentials
 async function getFreshAccessToken() {
   try {
-    console.log('🔑 Getting fresh access token using client credentials...')
 
     const response = await fetch(`https://login.microsoftonline.com/${process.env.AZURE_AD_TENANT_ID}/oauth2/v2.0/token`, {
       method: 'POST',
@@ -94,15 +91,12 @@ async function getFreshAccessToken() {
 
     if (response.ok) {
       const tokenData = await response.json()
-      console.log('✅ Fresh access token obtained')
       return tokenData.access_token
     } else {
       const errorText = await response.text()
-      console.error('❌ Failed to get fresh token:', response.status, errorText)
       return null
     }
   } catch (error) {
-    console.error('❌ Token fetch error:', error)
     return null
   }
 }
@@ -119,19 +113,15 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    console.log('🔍 Fetching fresh newsletter from SharePoint...')
-
     // Try user session token first (delegated permissions)
     const session = await getAuthSession()
     let accessToken = null
     let tokenType = 'unknown'
 
     if (session?.accessToken) {
-      console.log('🔑 Using user session token (delegated permissions)')
       accessToken = session.accessToken
       tokenType = 'delegated'
     } else {
-      console.log('🔑 Getting app-only token (application permissions)')
       accessToken = await getFreshAccessToken()
       tokenType = 'application'
     }
@@ -140,8 +130,6 @@ export async function GET(request: NextRequest) {
       throw new Error('Unable to obtain access token')
     }
 
-    console.log('🎫 Token type:', tokenType)
-
     // SharePoint file details - updated with the URL from the issue description
     const siteUrl = 'https://flyadeal.sharepoint.com/sites/Thelounge'
     const fileName = 'last-newsletter.html'
@@ -149,17 +137,11 @@ export async function GET(request: NextRequest) {
     // Direct URL to the HTML file (from the issue description)
     const directHtmlUrl = 'https://flyadeal.sharepoint.com/sites/Thelounge/CEO%20Newsletter/last-newsletter.html'
 
-    console.log('📁 Accessing SharePoint file:', fileName)
-
     // Method 1: Try SharePoint REST API (often works better with delegated permissions)
     try {
-      console.log('🔍 Method 1: SharePoint REST API...')
-
       // Extract the server-relative URL from the direct HTML URL
       const serverRelativeUrl = '/sites/Thelounge/CEO Newsletter/last-newsletter.html'
       const restUrl = `${siteUrl}/_api/web/GetFileByServerRelativeUrl('${serverRelativeUrl}')/$value`
-
-      console.log('📁 REST API URL:', restUrl)
 
       const restResponse = await fetch(restUrl, {
         headers: {
@@ -168,11 +150,8 @@ export async function GET(request: NextRequest) {
         },
       })
 
-      console.log('REST API response status:', restResponse.status)
-
       if (restResponse.ok) {
         const htmlContent = await restResponse.text()
-        console.log('✅ Successfully fetched via REST API, length:', htmlContent.length)
 
         const newsletter = {
           title: 'CEO Newsletter from SharePoint',
@@ -191,17 +170,14 @@ export async function GET(request: NextRequest) {
           source: 'sharepoint-rest'
         })
       } else {
-        const errorText = await restResponse.text()
-        console.log('❌ REST API error:', errorText.substring(0, 200))
+        // REST API error, continue to next method
       }
     } catch (restError) {
-      console.log('❌ REST API failed:', restError)
+      // REST API failed, continue to next method
     }
 
     // Method 2: Try Graph API (as fallback)
     try {
-      console.log('🔍 Method 2: Graph API...')
-
       // Get the site ID using the hostname and site path
       const siteResponse = await fetch('https://graph.microsoft.com/v1.0/sites/flyadeal.sharepoint.com:/sites/Thelounge', {
         headers: {
@@ -210,19 +186,12 @@ export async function GET(request: NextRequest) {
         },
       })
 
-      console.log('Graph API site response status:', siteResponse.status)
-
       if (!siteResponse.ok) {
-        const errorText = await siteResponse.text()
-        console.log('Graph API site fetch error:', errorText.substring(0, 500))
         throw new Error(`Graph API site access failed: ${siteResponse.status}`)
       }
 
       const siteData = await siteResponse.json()
       const siteId = siteData.id
-      console.log('✅ Got site ID:', siteId)
-
-      console.log('🔍 Step 2: Accessing file in CEO Newsletter folder...')
 
       // Try multiple paths to find the file - updated based on the issue description URL
       const filePaths = [
@@ -234,8 +203,6 @@ export async function GET(request: NextRequest) {
 
       for (const filePath of filePaths) {
         try {
-          console.log(`📁 Trying path: ${filePath}`)
-
           const fileResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root:${filePath}:/content`, {
             headers: {
               'Authorization': `Bearer ${accessToken}`,
@@ -243,11 +210,8 @@ export async function GET(request: NextRequest) {
             },
           })
 
-          console.log(`File response status for ${filePath}:`, fileResponse.status)
-
           if (fileResponse.ok) {
             const htmlContent = await fileResponse.text()
-            console.log('✅ Successfully fetched HTML content, length:', htmlContent.length)
 
             const newsletter = {
               title: 'CEO Newsletter from SharePoint',
@@ -266,11 +230,10 @@ export async function GET(request: NextRequest) {
               source: 'sharepoint'
             })
           } else {
-            const errorText = await fileResponse.text()
-            console.log(`❌ File fetch error for ${filePath}:`, errorText.substring(0, 200))
+            // File fetch error, continue to next path
           }
         } catch (pathError) {
-          console.log(`❌ Error trying path ${filePath}:`, pathError)
+          // Error trying path, continue to next path
         }
       }
 

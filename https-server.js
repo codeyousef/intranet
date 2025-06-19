@@ -7,7 +7,7 @@ const path = require('path')
 const dev = process.env.NODE_ENV !== 'production'
 const hostname = process.env.HOSTNAME || '0.0.0.0'
 const port = process.env.PORT || 8443
-const nextPort = process.env.NEXT_PORT || 3002
+const nextPort = process.env.NEXT_PORT || 3001
 
 // Prepare the Next.js app
 const app = next({ dev, hostname, port: nextPort })

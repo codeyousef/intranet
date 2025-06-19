@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import sys
+import sqlite3
 import threading
 import time
 import traceback
@@ -59,6 +60,238 @@ GRAPH_SITE_ENDPOINT = f"{GRAPH_API_BASE}/sites/{SHAREPOINT_SITE}"
 # --- Other Constants ---
 CSV_FILE = 'api_scraped_offers.csv'
 LOG_FILE = 'app.log'
+DB_FILE = 'mazaya.db'  # SQLite database file
+
+# SQLite Database Setup
+def init_database():
+    """Initialize SQLite database with necessary tables"""
+    try:
+        # Delete the database file if it exists to ensure we have the latest schema
+        if os.path.exists(DB_FILE):
+            os.remove(DB_FILE)
+            logging.info(f"Deleted existing database file {DB_FILE} to ensure schema is up-to-date")
+
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+
+        # Create offers table
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS offers (
+            id TEXT PRIMARY KEY,
+            title TEXT,
+            description TEXT,
+            category TEXT,
+            image_path TEXT,
+            website_url TEXT,
+            offer_name_ar TEXT,
+            contact_number TEXT,
+            effective_date TEXT,
+            discontinue_date TEXT,
+            is_unlimited INTEGER,
+            status TEXT,
+            category_id TEXT,
+            offer_type TEXT,
+            created_at TEXT,
+            updated_at TEXT
+        )
+        ''')
+
+        # Create a table to track when the last update was performed
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS metadata (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+        ''')
+
+        conn.commit()
+        logging.info("SQLite database initialized successfully")
+        return conn
+    except sqlite3.Error as e:
+        logging.error(f"SQLite database initialization error: {str(e)}")
+        logging.error(traceback.format_exc())
+        raise RuntimeError(f"Failed to initialize SQLite database: {str(e)}")
+    except Exception as e:
+        logging.error(f"Unexpected error initializing database: {str(e)}")
+        logging.error(traceback.format_exc())
+        raise RuntimeError(f"Unexpected error initializing database: {str(e)}")
+
+def get_db_connection():
+    """Get a connection to the SQLite database"""
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        conn.row_factory = sqlite3.Row  # This enables column access by name
+        return conn
+    except sqlite3.Error as e:
+        logging.error(f"SQLite connection error: {str(e)}")
+        logging.error(traceback.format_exc())
+        raise RuntimeError(f"Failed to connect to SQLite database: {str(e)}")
+
+def get_existing_offers_from_db():
+    """Get existing offers from the SQLite database"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM offers")
+        rows = cursor.fetchall()
+
+        offers = {}
+        for row in rows:
+            offer_id = row['id']
+            offers[offer_id] = {
+                'id': offer_id,
+                'title': row['title'],
+                'description': row['description'],
+                'category': row['category'],
+                'image_path': row['image_path'],
+                'website_url': row['website_url'],
+                'offer_name_ar': row['offer_name_ar'],
+                'contact_number': row['contact_number'],
+                'effective_date': row['effective_date'],
+                'discontinue_date': row['discontinue_date'],
+                'is_unlimited': row['is_unlimited'],
+                'status': row['status'],
+                'category_id': row['category_id'],
+                'offer_type': row['offer_type'],
+                'created_at': row['created_at'],
+                'updated_at': row['updated_at']
+            }
+
+        conn.close()
+        logging.info(f"Retrieved {len(offers)} existing offers from database")
+        return offers
+    except sqlite3.Error as e:
+        logging.error(f"Error retrieving offers from database: {str(e)}")
+        logging.error(traceback.format_exc())
+        return {}  # Return empty dict on error
+    except Exception as e:
+        logging.error(f"Unexpected error retrieving offers: {str(e)}")
+        logging.error(traceback.format_exc())
+        return {}  # Return empty dict on error
+
+def add_offer_to_db(offer_id, title, description, category, image_path, website_url="", offer_name_ar="", 
+                contact_number="", effective_date="", discontinue_date="", is_unlimited=0, status="", category_id="", offer_type="Saudia Mazaya"):
+    """Add a new offer to the SQLite database"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        now = datetime.datetime.now().isoformat()
+
+        cursor.execute(
+            """INSERT INTO offers (
+                id, title, description, category, image_path, website_url, offer_name_ar, 
+                contact_number, effective_date, discontinue_date, is_unlimited, status, category_id, offer_type,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (offer_id, title, description, category, image_path, website_url, offer_name_ar, 
+             contact_number, effective_date, discontinue_date, is_unlimited, status, category_id, offer_type,
+             now, now)
+        )
+
+        conn.commit()
+        conn.close()
+        logging.info(f"Added offer {offer_id} to database")
+        return True
+    except sqlite3.Error as e:
+        logging.error(f"Error adding offer {offer_id} to database: {str(e)}")
+        logging.error(traceback.format_exc())
+        return False
+    except Exception as e:
+        logging.error(f"Unexpected error adding offer {offer_id}: {str(e)}")
+        logging.error(traceback.format_exc())
+        return False
+
+def update_offer_in_db(offer_id, title, description, category, image_path, website_url="", offer_name_ar="", 
+                  contact_number="", effective_date="", discontinue_date="", is_unlimited=0, status="", category_id="", offer_type="Saudia Mazaya"):
+    """Update an existing offer in the SQLite database"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        now = datetime.datetime.now().isoformat()
+
+        cursor.execute(
+            """UPDATE offers SET 
+                title = ?, description = ?, category = ?, image_path = ?, 
+                website_url = ?, offer_name_ar = ?, contact_number = ?, 
+                effective_date = ?, discontinue_date = ?, is_unlimited = ?, 
+                status = ?, category_id = ?, offer_type = ?, updated_at = ? 
+               WHERE id = ?""",
+            (title, description, category, image_path, website_url, offer_name_ar, 
+             contact_number, effective_date, discontinue_date, is_unlimited, status, 
+             category_id, offer_type, now, offer_id)
+        )
+
+        conn.commit()
+        conn.close()
+        logging.info(f"Updated offer {offer_id} in database")
+        return True
+    except sqlite3.Error as e:
+        logging.error(f"Error updating offer {offer_id} in database: {str(e)}")
+        logging.error(traceback.format_exc())
+        return False
+    except Exception as e:
+        logging.error(f"Unexpected error updating offer {offer_id}: {str(e)}")
+        logging.error(traceback.format_exc())
+        return False
+
+def clear_images_directory():
+    """Clear all images from the mazaya images directory"""
+    try:
+        images_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'public', 'images', 'mazaya')
+        if os.path.exists(images_dir):
+            for filename in os.listdir(images_dir):
+                file_path = os.path.join(images_dir, filename)
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+            logging.info(f"Cleared all images from {images_dir}")
+        return True
+    except Exception as e:
+        logging.error(f"Error clearing images directory: {str(e)}")
+        logging.error(traceback.format_exc())
+        return False
+
+def clear_database():
+    """Clear all offers from the database"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM offers")
+        conn.commit()
+        conn.close()
+        logging.info("Cleared all offers from database")
+        return True
+    except sqlite3.Error as e:
+        logging.error(f"Error clearing database: {str(e)}")
+        logging.error(traceback.format_exc())
+        return False
+    except Exception as e:
+        logging.error(f"Unexpected error clearing database: {str(e)}")
+        logging.error(traceback.format_exc())
+        return False
+
+def save_image_locally(image_data, offer_id):
+    """Save an image to the local filesystem"""
+    try:
+        # Create images directory if it doesn't exist
+        images_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'public', 'images', 'mazaya')
+        os.makedirs(images_dir, exist_ok=True)
+
+        # Generate a filename based on the offer ID
+        filename = f"{offer_id}.jpg"
+        file_path = os.path.join(images_dir, filename)
+
+        # Save the image
+        with open(file_path, 'wb') as f:
+            f.write(image_data)
+
+        # Return the relative path for storage in the database
+        relative_path = f"/images/mazaya/{filename}"
+        logging.info(f"Saved image for offer {offer_id} to {relative_path}")
+        return relative_path
+    except Exception as e:
+        logging.error(f"Error saving image for offer {offer_id}: {str(e)}")
+        logging.error(traceback.format_exc())
+        return None
 
 # Global variables for caching
 token_cache = {
@@ -999,7 +1232,7 @@ def create_defined_list(access_token, site_id, list_name):
         raise RuntimeError(f"Error creating list '{list_name}': {str(e)}")
 
 
-def process_offer(offer_data, category_name, api_token, sharepoint_token):
+def process_offer(offer_data, category_name, api_token, sharepoint_token=None):
     """Process offer, prepare data including API CategoryID and mapped Category Name."""
     if stop_event.is_set():
         logging.warning(f"Skipping offer {offer_data.get('OfferID', 'Unknown')} due to stop event.")
@@ -1020,9 +1253,9 @@ def process_offer(offer_data, category_name, api_token, sharepoint_token):
         # Get Offer Details
         offer_details_resultset = get_offer_details(api_token, offer_id_original) or {}
 
-        # --- Image Processing & Upload ---
+        # --- Image Processing ---
         image_bytes = None
-        image_url = None  # URL string after successful upload
+        image_path = None  # Path to the saved image
         image_data_raw = offer_details_resultset.get('Image', offer_data.get('Image'))
 
         if image_data_raw:
@@ -1047,50 +1280,89 @@ def process_offer(offer_data, category_name, api_token, sharepoint_token):
 
         # --- Determine Actual Title ---
         title_key_to_use = 'OfferNameEn'
-        # ... (Get actual_offer_title as before) ...
         actual_offer_title_raw = offer_details_resultset.get(title_key_to_use, offer_data.get(title_key_to_use,
                                                                                               f'Offer {offer_id_original}'))
         actual_offer_title = sanitize_text(actual_offer_title_raw).strip()
         if actual_offer_title_raw == f'Offer {offer_id_original}': logging.warning(
             f"Could not find '{title_key_to_use}' for offer {offer_id_original}. Defaulting title.")
 
-        # --- Upload Image (if applicable) ---
+        # --- Save Image Locally (if applicable) ---
         if image_bytes:
-            safe_title = sanitize_filename(actual_offer_title)
-            filename = f"{offer_id_original}_{safe_title[:50]}.jpg"
-            filename = sanitize_filename(filename)
-            image_url = upload_image_to_documents(sharepoint_token, image_bytes, filename)  # Get URL string
-            if image_url:
-                logging.info(f"Image uploaded for offer {offer_id_original}: {image_url}")
+            image_path = save_image_locally(image_bytes, offer_id_original)
+            if image_path:
+                logging.info(f"Image saved locally for offer {offer_id_original}: {image_path}")
             else:
-                logging.warning(f"Failed to upload image for offer {offer_id_original}.")
-        # --- End Image Upload ---
+                logging.warning(f"Failed to save image locally for offer {offer_id_original}.")
+        # --- End Image Save ---
 
-        # --- Prepare item_data dictionary for single-step creation ---
-        # Keys match internal SP_ names defined in create_defined_list OR 'Title'
-        item_data_for_sp = {
-            'Title': actual_offer_title,
-            # *** Include API CategoryID and Mapped Category Name ***
-            'CategoryID': offer_details_resultset.get('CategoryID', offer_data.get('CategoryID')),  # Get original ID
-            'SP_Category': category_name,  # Use the mapped name for SP_Category field
-            # *** SP_OfferID column removed from list definition ***
-            'SP_OfferDetails': sanitize_text(
-                offer_details_resultset.get('OfferDetailsEn', offer_data.get('OfferDetailsEn', ''))),
-            'SP_ImageURL': image_url if image_url else '',  # Plain text URL
-            'SP_Website': offer_details_resultset.get('WebsiteLink', offer_data.get('WebsiteLink', '')),
-            # Plain text URL
-            # Add other simple fields if defined
-            'SP_OfferNameAr': sanitize_text(
-                offer_details_resultset.get('OfferNameAr', offer_data.get('OfferNameAr', ''))).strip(),
-            'SP_Contact': sanitize_text(offer_details_resultset.get('ContactNo', offer_data.get('ContactNo', ''))),
-        }
+        # Get offer description
+        offer_description = sanitize_text(
+            offer_details_resultset.get('OfferDetailsEn', offer_data.get('OfferDetailsEn', '')))
 
-        # --- Create the list item (single step) ---
-        created_item_info = create_list_item(sharepoint_token, item_data_for_sp)
+        # Extract additional fields from the API response
+        website_url = sanitize_text(offer_details_resultset.get('WebsiteLink', offer_data.get('WebsiteLink', '')))
+        offer_name_ar = sanitize_text(offer_details_resultset.get('OfferNameAr', offer_data.get('OfferNameAr', '')))
+        contact_number = sanitize_text(offer_details_resultset.get('ContactNo', offer_data.get('ContactNo', '')))
+        effective_date = sanitize_text(offer_details_resultset.get('EffectiveDate', offer_data.get('EffectiveDate', '')))
+        discontinue_date = sanitize_text(offer_details_resultset.get('DiscontinueDate', offer_data.get('DiscontinueDate', '')))
 
-        if not created_item_info:
-            logging.error(f"create_list_item failed for offer {offer_id_original}")
-            return False
+        # Convert is_unlimited to integer (0 or 1)
+        is_unlimited_raw = offer_details_resultset.get('IsUnlimited', offer_data.get('IsUnlimited', False))
+        is_unlimited = 1 if is_unlimited_raw in [True, 'true', 'True', '1', 1] else 0
+
+        status = sanitize_text(offer_details_resultset.get('Status', offer_data.get('Status', '')))
+        category_id = sanitize_text(offer_details_resultset.get('CategoryID', offer_data.get('CategoryID', '')))
+
+        # Get existing offers from database to check if this is an update or new offer
+        existing_offers = get_existing_offers_from_db()
+
+        # Check if offer already exists in database
+        if offer_id_original in existing_offers:
+            # Update existing offer
+            success = update_offer_in_db(
+                offer_id_original,
+                actual_offer_title,
+                offer_description,
+                category_name,
+                image_path or '',
+                website_url,
+                offer_name_ar,
+                contact_number,
+                effective_date,
+                discontinue_date,
+                is_unlimited,
+                status,
+                category_id,
+                "Saudia Mazaya"  # Set offer_type to "Saudia Mazaya"
+            )
+            if success:
+                logging.info(f"Updated offer {offer_id_original} in database")
+            else:
+                logging.error(f"Failed to update offer {offer_id_original} in database")
+                return False
+        else:
+            # Add new offer
+            success = add_offer_to_db(
+                offer_id_original,
+                actual_offer_title,
+                offer_description,
+                category_name,
+                image_path or '',
+                website_url,
+                offer_name_ar,
+                contact_number,
+                effective_date,
+                discontinue_date,
+                is_unlimited,
+                status,
+                category_id,
+                "Saudia Mazaya"  # Set offer_type to "Saudia Mazaya"
+            )
+            if success:
+                logging.info(f"Added offer {offer_id_original} to database")
+            else:
+                logging.error(f"Failed to add offer {offer_id_original} to database")
+                return False
 
         logging.info(f"Successfully processed offer {offer_id_original}")
         return True  # Success
@@ -1098,8 +1370,7 @@ def process_offer(offer_data, category_name, api_token, sharepoint_token):
     # --- Exception Handling ---
     except Exception as e:
         if stop_event.is_set() or \
-                isinstance(e, (ConnectionError, RuntimeError)) and "token" in str(e).lower() or \
-                isinstance(e, ValueError) and ("List ID" in str(e) or "Site ID" in str(e)):
+                isinstance(e, (ConnectionError, RuntimeError)) and "token" in str(e).lower():
             logging.error(f"Critical error processing offer {offer_id_original}: {str(e)}. Ensuring stop.")
             stop_event.set()
             return False
@@ -1299,13 +1570,6 @@ def create_list_item(access_token, item_data):
 def process_offer_batch(offer_batch, api_token):
     """Process a batch of offers, stopping if the stop_event is set."""
     results = []
-    # Get a token for this batch - reuse if possible or refresh if needed
-    # Note: get_sharepoint_token handles caching and refreshing internally
-    sharepoint_token = get_sharepoint_token()
-    if not sharepoint_token:
-        logging.error("Failed to get SharePoint token for batch processing. Signaling stop.")
-        stop_event.set()  # Critical failure
-        return [False] * len(offer_batch)  # Mark all as failed for this batch
 
     for offer in offer_batch:
         if stop_event.is_set():
@@ -1315,8 +1579,8 @@ def process_offer_batch(offer_batch, api_token):
             continue  # Stop processing more items in this batch
 
         category = get_category_name(offer.get('CategoryID'))
-        # Pass necessary tokens to process_offer
-        success = process_offer(offer, category, api_token, sharepoint_token)
+        # Process the offer with SQLite storage
+        success = process_offer(offer, category, api_token)
         results.append(success)
         # If process_offer failed critically and set the stop_event, break the loop
         if stop_event.is_set():
@@ -1332,7 +1596,7 @@ def process_offer_batch(offer_batch, api_token):
 # Assume all imports and other function definitions are present above
 
 def main():
-    """Main execution flow with parallel processing and optional list recreation."""
+    """Main execution flow with parallel processing."""
     start_time = time.time()
     logging.info("=============================================")
     logging.info("Starting Mazaya offers processing script")
@@ -1344,62 +1608,33 @@ def main():
 
     # Initialize key variables
     api_token = None
-    sp_access_token = None
-    list_id = None
-    site_id = None
-    drive_id = None
     total_offers = 0
-    column_mapping = None
 
     try:
         # --- Phase 1: Initialization and Setup ---
         logging.info("Phase 1: Initialization and Setup")
 
+        # Initialize SQLite database
+        conn = init_database()
+        if conn:
+            conn.close()
+            logging.info("Successfully initialized SQLite database.")
+        else:
+            raise RuntimeError("Failed to initialize SQLite database. Cannot proceed.")
+
+        # Get API token for fetching offers
         api_token = get_api_token()
         logging.info("Successfully obtained API token.")
 
-        sp_access_token = get_sharepoint_token()
-        logging.info("Successfully obtained SharePoint access token.")
+        # Create images directory if it doesn't exist
+        images_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'public', 'images', 'mazaya')
+        os.makedirs(images_dir, exist_ok=True)
+        logging.info(f"Ensured images directory exists at: {images_dir}")
 
-        site_id = get_site_id(sp_access_token)
-        logging.info(f"Using Site ID: {site_id}")
-
-        drive_id = get_documents_drive_id(sp_access_token)
-        logging.info(f"Using Documents Drive ID: {drive_id}")
-
-        # --- Delete and Recreate List Logic ---
-        if RECREATE_LIST_ON_START:
-            logging.info(
-                f"RECREATE_LIST_ON_START is True. Attempting to delete and recreate list '{SHAREPOINT_LIST_NAME}'.")
-            delete_success = delete_list_if_exists(sp_access_token, site_id, SHAREPOINT_LIST_NAME)
-            if not delete_success:
-                logging.warning(f"Proceeding despite potential issues deleting list '{SHAREPOINT_LIST_NAME}'.")
-
-            list_id = create_defined_list(sp_access_token, site_id, SHAREPOINT_LIST_NAME)
-            if not list_id:
-                raise RuntimeError(f"Failed to create required list '{SHAREPOINT_LIST_NAME}'. Cannot proceed.")
-            logging.info(f"Using newly created list ID: {list_id}")
-            token_cache['list_id'] = list_id
-        else:
-            # Ensure find_or_create_mazaya_list exists and works if needed
-            logging.info(
-                f"RECREATE_LIST_ON_START is False. Attempting to find or create list '{SHAREPOINT_LIST_NAME}'.")
-            # list_id = find_or_create_mazaya_list(sp_access_token) # Make sure this exists/works
-            raise NotImplementedError("find_or_create_mazaya_list function needed when RECREATE_LIST_ON_START is False")
-            # ... (error handling for list_id) ...
-            # token_cache['list_id'] = list_id
-
-        # --- Get Column Mapping ---
-        logging.info(f"Retrieving column mapping for list ID: {list_id}")
-        column_mapping = get_list_column_internal_names(sp_access_token, site_id, list_id)
-        if column_mapping is None or not column_mapping:
-            raise LookupError("Failed to retrieve or got empty column mapping. Cannot proceed.")
-        token_cache['column_mapping'] = column_mapping
-        logging.info("Successfully obtained and cached column mapping.")
-
-        # --- Ensure Image Folder ---
-        ensure_mazaya_images_folder(sp_access_token)
-        logging.info("MazayaImages folder check/creation complete.")
+        # Clear database and images directory to override all entries
+        clear_database()
+        clear_images_directory()
+        logging.info("Cleared database and images directory to override all entries")
 
         logging.info("Setup phase completed successfully.")
 
