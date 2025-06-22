@@ -28,6 +28,8 @@ import { Card } from '@/components/ui/card'
 import MazayaOffers from '@/components/mazaya-offers'
 import NewOffersGrid from '@/components/new-offers-grid'
 import { ChatButton } from '@/components/chat-button'
+import PlatformLinks from '@/components/platform-links'
+import { VivaEngage } from '@/components/viva-engage'
 import { 
   Calendar, 
   MapPin, 
@@ -46,7 +48,8 @@ import {
   BarChart3,
   X,
   Maximize2,
-  Mail
+  Mail,
+  MessageSquare
 } from 'lucide-react'
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
@@ -561,6 +564,9 @@ function DashboardPage() {
             </GlassmorphismContainer>
           </div>
 
+          {/* Platform Links */}
+          <PlatformLinks />
+
           {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
             <GlassmorphismContainer className="p-6">
@@ -618,111 +624,113 @@ function DashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column */}
             <div className="lg:col-span-2 space-y-6">
-              {/* CEO Newsletter */}
-              <GlassmorphismContainer className="p-6 h-[calc(36rem+1.5rem)]">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                    <Mail className="w-5 h-5 mr-2 text-flyadeal-yellow" />
-                    CEO Newsletter
-                  </h2>
-                  <div className="flex items-center space-x-2">
-                    {newsletter?.sharePointUrl && (
-                      <Button
-                        onClick={() => window.open(newsletter.sharePointUrl, '_blank')}
-                        size="sm"
-                        variant="outline"
-                        className="bg-white/10 border-gray-300 text-gray-700 hover:bg-gray-100"
-                      >
-                        <ExternalLink className="w-4 h-4 mr-1" />
-                        SharePoint
-                      </Button>
-                    )}
-                    <div className="flex space-x-2">
-                      <Button
-                        onClick={() => window.location.href = '/newsletter-archive'}
-                        size="sm"
-                        variant="outline"
-                        className="bg-white/10 border-gray-300 text-gray-700 hover:bg-gray-100"
-                      >
-                        <Newspaper className="w-4 h-4 mr-1" />
-                        Archive
-                      </Button>
-                      <Button
-                        onClick={() => setNewsletterModalOpen(true)}
-                        size="sm"
-                        className="bg-flyadeal-yellow text-flyadeal-purple hover:bg-flyadeal-yellow/90"
-                      >
-                        <Maximize2 className="w-4 h-4 mr-1" />
-                        View Full
-                      </Button>
+              {/* CEO Newsletter - Temporarily commented out while debugging Viva Engage */}
+              {false && (
+                <GlassmorphismContainer className="p-6 h-[calc(36rem+1.5rem)]">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                      <Mail className="w-5 h-5 mr-2 text-flyadeal-yellow" />
+                      CEO Newsletter
+                    </h2>
+                    <div className="flex items-center space-x-2">
+                      {newsletter?.sharePointUrl && (
+                        <Button
+                          onClick={() => window.open(newsletter.sharePointUrl, '_blank')}
+                          size="sm"
+                          variant="outline"
+                          className="bg-white/10 border-gray-300 text-gray-700 hover:bg-gray-100"
+                        >
+                          <ExternalLink className="w-4 h-4 mr-1" />
+                          SharePoint
+                        </Button>
+                      )}
+                      <div className="flex space-x-2">
+                        <Button
+                          onClick={() => window.location.href = '/newsletter-archive'}
+                          size="sm"
+                          variant="outline"
+                          className="bg-white/10 border-gray-300 text-gray-700 hover:bg-gray-100"
+                        >
+                          <Newspaper className="w-4 h-4 mr-1" />
+                          Archive
+                        </Button>
+                        <Button
+                          onClick={() => setNewsletterModalOpen(true)}
+                          size="sm"
+                          className="bg-flyadeal-yellow text-flyadeal-purple hover:bg-flyadeal-yellow/90"
+                        >
+                          <Maximize2 className="w-4 h-4 mr-1" />
+                          View Full
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Newsletter Content */}
-                <div className="bg-white rounded-lg overflow-hidden h-[calc(100%-2.5rem)]">
-                  {newsletterError ? (
-                    // Error state - show error message with retry button
-                    <div className="h-full flex items-center justify-center text-gray-500">
-                      <div className="text-center p-6 max-w-md">
-                        <X className="w-12 h-12 mx-auto mb-4 text-red-400" />
-                        <p className="mb-2 text-red-500 font-medium">Error loading newsletter</p>
+                  {/* Newsletter Content */}
+                  <div className="bg-white rounded-lg overflow-hidden h-[calc(100%-2.5rem)]">
+                    {newsletterError ? (
+                      // Error state - show error message with retry button
+                      <div className="h-full flex items-center justify-center text-gray-500">
+                        <div className="text-center p-6 max-w-md">
+                          <X className="w-12 h-12 mx-auto mb-4 text-red-400" />
+                          <p className="mb-2 text-red-500 font-medium">Error loading newsletter</p>
 
-                        {/* Split error message and troubleshooting into separate elements */}
-                        {newsletterError && (
-                          <>
-                            <div className="mb-4 text-sm text-gray-600 bg-gray-100 p-3 rounded-md text-left">
-                              {newsletterError.split('\n\n').map((part, index) => (
-                                <div key={index} className={index === 1 ? 'mt-3 pt-3 border-t border-gray-200' : ''}>
-                                  {part}
-                                </div>
-                              ))}
-                            </div>
-                          </>
-                        )}
+                          {/* Split error message and troubleshooting into separate elements */}
+                          {newsletterError && (
+                            <>
+                              <div className="mb-4 text-sm text-gray-600 bg-gray-100 p-3 rounded-md text-left">
+                                {newsletterError.split('\n\n').map((part, index) => (
+                                  <div key={index} className={index === 1 ? 'mt-3 pt-3 border-t border-gray-200' : ''}>
+                                    {part}
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          )}
 
-                        <div className="flex justify-center space-x-3">
-                          <Button 
-                            onClick={resetNewsletterLoadingState}
-                            size="sm"
-                            className="bg-flyadeal-yellow text-flyadeal-purple hover:bg-flyadeal-yellow/90"
-                          >
-                            Retry
-                          </Button>
+                          <div className="flex justify-center space-x-3">
+                            <Button 
+                              onClick={resetNewsletterLoadingState}
+                              size="sm"
+                              className="bg-flyadeal-yellow text-flyadeal-purple hover:bg-flyadeal-yellow/90"
+                            >
+                              Retry
+                            </Button>
 
-                          {/* Add a button to open in SharePoint directly */}
-                          <Button
-                            onClick={() => window.open('https://flyadeal.sharepoint.com/sites/Thelounge/CEO%20Newsletter/last-newsletter.html', '_blank')}
-                            size="sm"
-                            variant="outline"
-                            className="border-gray-300 text-gray-600 hover:bg-gray-100"
-                          >
-                            Open in SharePoint
-                          </Button>
+                            {/* Add a button to open in SharePoint directly */}
+                            <Button
+                              onClick={() => window.open('https://flyadeal.sharepoint.com/sites/Thelounge/CEO%20Newsletter/last-newsletter.html', '_blank')}
+                              size="sm"
+                              variant="outline"
+                              className="border-gray-300 text-gray-600 hover:bg-gray-100"
+                            >
+                              Open in SharePoint
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ) : newsletter ? (
-                    // Success state - show newsletter content with scrollable area
-                    <div className="h-full overflow-y-auto">
-                      <div className="p-6">
-                        <div 
-                          dangerouslySetInnerHTML={{ __html: newsletter.content }}
-                          style={{ color: '#374151' }}
-                        />
+                    ) : newsletter ? (
+                      // Success state - show newsletter content with scrollable area
+                      <div className="h-full overflow-y-auto">
+                        <div className="p-6">
+                          <div 
+                            dangerouslySetInnerHTML={{ __html: newsletter.content }}
+                            style={{ color: '#374151' }}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    // Loading state
-                    <div className="h-full flex items-center justify-center text-gray-500">
-                      <div className="text-center">
-                        <Mail className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                        <p>Loading newsletter...</p>
+                    ) : (
+                      // Loading state
+                      <div className="h-full flex items-center justify-center text-gray-500">
+                        <div className="text-center">
+                          <Mail className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                          <p>Loading newsletter...</p>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              </GlassmorphismContainer>
+                    )}
+                  </div>
+                </GlassmorphismContainer>
+              )}
 
 
               {/* Company News */}
@@ -742,6 +750,26 @@ function DashboardPage() {
                     </div>
                   ))}
                 </div>
+              </GlassmorphismContainer>
+
+              {/* Viva Engage */}
+              <GlassmorphismContainer className="p-6 mt-6 h-[calc(24rem+1.5rem)]">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                    <MessageSquare className="w-5 h-5 mr-2 text-flyadeal-yellow" />
+                    Viva Engage
+                  </h2>
+                  <Button
+                    onClick={() => window.open("https://web.yammer.com/embed/groups", "_blank")}
+                    size="sm"
+                    variant="outline"
+                    className="bg-white/10 border-gray-300 text-gray-700 hover:bg-gray-100"
+                  >
+                    <ExternalLink className="w-4 h-4 mr-1" />
+                    Open in Viva Engage
+                  </Button>
+                </div>
+                <VivaEngage />
               </GlassmorphismContainer>
             </div>
 

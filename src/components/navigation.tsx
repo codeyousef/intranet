@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { GlassmorphismContainer } from './glassmorphism-container'
 import { ThemeToggle } from './theme-toggle'
 import { Button } from './ui/button'
-import { Home, LogOut, Menu, X, Gift } from 'lucide-react'
+import { Home, LogOut, Menu, X, Gift, Settings } from 'lucide-react'
 import Image from 'next/image'
 
 const navItems = [
@@ -24,12 +24,32 @@ const navItems = [
 export function Navigation() {
   const { data: session } = useSession()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (!session) return
+
+      try {
+        const response = await fetch('/api/admin/check')
+        const data = await response.json()
+        setIsAdmin(data.isAdmin)
+      } catch (error) {
+        console.error('Error checking admin status:', error)
+      }
+    }
+
+    if (session) {
+      checkAdminStatus()
+    }
+  }, [session])
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 p-4">
       <GlassmorphismContainer className="px-6 py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4">+
             <Image 
               src="/images/logo.png" 
               alt="Company Logo" 
@@ -58,6 +78,18 @@ export function Navigation() {
                 </a>
               )
             })}
+
+            {/* Admin Link - Only shown to admin users */}
+            {isAdmin && (
+              <a
+                href="/admin"
+                className="flex items-center space-x-2 text-black/80 hover:text-black transition-colors no-underline text-inherit"
+                style={{ textDecoration: 'none', color: 'inherit' }}
+              >
+                <Settings size={18} />
+                <span>Admin</span>
+              </a>
+            )}
           </div>
 
           {/* User Menu */}
@@ -117,6 +149,19 @@ export function Navigation() {
                   </a>
                 )
               })}
+
+              {/* Admin Link - Only shown to admin users */}
+              {isAdmin && (
+                <a
+                  href="/admin"
+                  className="flex items-center space-x-2 text-black/80 hover:text-black transition-colors p-2 no-underline text-inherit"
+                  style={{ textDecoration: 'none', color: 'inherit' }}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <Settings size={18} />
+                  <span>Admin</span>
+                </a>
+              )}
 
               {session?.user && (
                 <div className="pt-3 border-t border-black/20">
