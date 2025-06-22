@@ -23,21 +23,13 @@ function terminalLog(level: 'INFO' | 'WARN' | 'ERROR', message: string, data?: a
     }
   }
 
-  // Use process.stdout.write for direct terminal output
+  // Use console methods for logging (avoid duplicating output)
   if (level === 'INFO') {
-    process.stdout.write(`${formattedMessage}\n`);
     console.log(formattedMessage);
   } else if (level === 'WARN') {
-    process.stdout.write(`\x1b[33m${formattedMessage}\x1b[0m\n`);
     console.warn(formattedMessage);
   } else if (level === 'ERROR') {
-    process.stdout.write(`\x1b[31m${formattedMessage}\x1b[0m\n`);
     console.error(formattedMessage);
-  }
-
-  // Force flush stdout
-  if (process.stdout.write('')) {
-    process.stdout.write('');
   }
 }
 
@@ -54,19 +46,57 @@ export async function GET(request: NextRequest) {
     // Get the user's session
     terminalLog('INFO', 'Getting auth session...');
     const session = await getAuthSession();
-    terminalLog('INFO', 'Auth session retrieved', session ? 'Session exists' : 'No session');
 
-    if (!session || !session.accessToken) {
-      terminalLog('ERROR', 'Authentication required - no session or access token');
+    // Handle session errors
+    if (!session) {
+      terminalLog('ERROR', 'Authentication required - no session returned');
       return NextResponse.json(
         {
           success: false,
-          error: 'Authentication required',
+          error: 'authentication_required',
           message: 'You must be logged in to access Viva Engage content',
         },
         { status: 401 }
       );
     }
+
+    // Handle error object returned by getAuthSession
+    if ('error' in session) {
+      terminalLog('ERROR', 'Authentication error', {
+        error: session.error,
+        description: session.errorDescription || 'Unknown error'
+      });
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: session.error,
+          message: session.errorDescription || 'Authentication error occurred',
+          timestamp: session.errorTime || new Date().toISOString()
+        },
+        { status: 401 }
+      );
+    }
+
+    // Check for error in session object
+    if (session.error) {
+      terminalLog('WARN', 'Session contains error but continuing', session.error);
+    }
+
+    // Check for access token
+    if (!session.accessToken) {
+      terminalLog('ERROR', 'Authentication required - no access token in session');
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'missing_access_token',
+          message: 'Your session does not contain an access token. Try signing out and back in.',
+        },
+        { status: 401 }
+      );
+    }
+
+    terminalLog('INFO', 'Valid session with access token retrieved');
 
     // Fetch the Viva Engage content using the user's access token
     const vivaEngageUrl = "https://web.yammer.com/embed/groups";

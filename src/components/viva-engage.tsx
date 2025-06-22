@@ -18,15 +18,25 @@ export function VivaEngage() {
 
   // Check if we're running in the browser
   useEffect(() => {
-    console.log('VivaEngage component mounted')
-    setIsClient(true)
-  }, [])
+    console.log('[VivaEngage] Component mounted', {
+      timestamp: new Date().toISOString(),
+      environment: typeof window !== 'undefined' ? 'browser' : 'server'
+    });
+    setIsClient(true);
+  }, []);
 
   // Effect to set iframeRendered when the component is mounted on the client
   useEffect(() => {
     // This effect runs after render, so if we're on the client, we can prepare to render the iframe
     if (isClient) {
-      console.log('Client-side rendering detected, preparing to render iframe');
+      console.log('[VivaEngage] Client-side rendering detected', {
+        timestamp: new Date().toISOString(),
+        readyState: document.readyState,
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight,
+        userAgent: navigator.userAgent
+      });
+
       // We'll set iframeRendered to true immediately when on client
       // This allows the iframe to be created in the DOM (though it may be hidden by the loading overlay)
       setIframeRendered(true);
@@ -35,16 +45,30 @@ export function VivaEngage() {
 
   // Add event listeners to the iframe to detect loading and errors
   useEffect(() => {
-    console.log('Setting up iframe event listeners, isClient:', isClient, 'iframeRef.current exists:', !!iframeRef.current, 'iframeRendered:', iframeRendered);
+    console.log('[VivaEngage] Setting up iframe event listeners', {
+      timestamp: new Date().toISOString(),
+      isClient,
+      iframeRefExists: !!iframeRef.current,
+      iframeRendered,
+      isLoading,
+      hasError: !!error
+    });
 
     if (isClient && iframeRef.current && iframeRendered) {
       const iframe = iframeRef.current;
-      console.log('Iframe source URL:', vivaEngageUrl);
-      console.log('Iframe current state - isLoading:', isLoading, 'hasError:', !!error);
+      console.log('[VivaEngage] Iframe configuration', {
+        sourceUrl: vivaEngageUrl,
+        currentState: { isLoading, hasError: !!error },
+        timestamp: new Date().toISOString()
+      });
 
       const handleLoad = () => {
-        console.log('SUCCESS: Viva Engage iframe load event triggered');
-        console.log('Iframe loaded successfully at:', new Date().toISOString());
+        const loadTimestamp = new Date().toISOString();
+        console.log('[VivaEngage] SUCCESS: Iframe load event triggered', {
+          timestamp: loadTimestamp,
+          url: vivaEngageUrl
+        });
+
         setIsLoading(false);
 
         // Try to check if the iframe has content
@@ -52,51 +76,179 @@ export function VivaEngage() {
           const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
           if (iframeDoc) {
             const bodyContent = iframeDoc.body.innerHTML;
-            console.log('Iframe body content length:', bodyContent.length);
-            console.log('Iframe document title:', iframeDoc.title);
-            console.log('Iframe document URL:', iframeDoc.URL);
+
+            console.log('[VivaEngage] Iframe content details', {
+              contentLength: bodyContent?.length || 0,
+              documentTitle: iframeDoc.title,
+              documentURL: iframeDoc.URL,
+              timestamp: loadTimestamp
+            });
 
             // Log a sample of the content to help diagnose issues
             if (bodyContent && bodyContent.length > 0) {
-              console.log('Iframe content sample:', bodyContent.substring(0, 200) + '...');
+              console.log('[VivaEngage] Iframe content sample:', bodyContent.substring(0, 200) + '...');
 
               // Check for specific error indicators in the content
               if (bodyContent.includes('error') || bodyContent.includes('Error') || 
                   bodyContent.includes('failed') || bodyContent.includes('Failed')) {
-                console.warn('Possible error detected in iframe content');
+                console.warn('[VivaEngage] WARNING: Possible error detected in iframe content', {
+                  indicators: ['error', 'Error', 'failed', 'Failed'].filter(term => bodyContent.includes(term)),
+                  timestamp: loadTimestamp
+                });
               } else {
-                console.log('No error indicators found in iframe content');
+                console.log('[VivaEngage] No error indicators found in iframe content');
               }
             } else {
-              console.error('Iframe body is empty');
-              setError('Iframe loaded but content appears to be empty');
+              console.error('[VivaEngage] ERROR: Iframe body is empty', {
+                timestamp: loadTimestamp,
+                documentTitle: iframeDoc.title,
+                documentURL: iframeDoc.URL
+              });
+              setError('Iframe loaded but content appears to be empty. This might indicate an authentication or permission issue.');
             }
           } else {
-            console.error('Could not access iframe document');
+            console.error('[VivaEngage] ERROR: Could not access iframe document', {
+              timestamp: loadTimestamp
+            });
           }
         } catch (e) {
-          console.warn('Could not access iframe content due to same-origin policy:', e);
+          console.warn('[VivaEngage] Could not access iframe content due to same-origin policy', {
+            error: e.message,
+            errorType: e.name,
+            timestamp: loadTimestamp
+          });
 
           // Try to determine if there's a CORS issue
           if (e instanceof DOMException && e.name === 'SecurityError') {
-            console.log('Security error accessing iframe content - likely a CORS issue');
-            // This is expected due to same-origin policy, but the iframe should still work
-            console.log('This is normal due to security restrictions, the iframe should still function');
+            console.log('[VivaEngage] Security error accessing iframe content - likely a CORS issue');
+            console.log('[VivaEngage] This is normal due to security restrictions, the iframe should still function');
           }
         }
       };
 
       const handleError = (e) => {
-        console.error('ERROR: Viva Engage iframe failed to load:', e);
-        console.error('Iframe error occurred at:', new Date().toISOString());
-        console.error('Iframe error details:', {
+        // Get detailed information about the current state
+        const detailedError = {
           type: e.type,
-          message: e.message,
+          message: e.message || 'No error message available',
           target: e.target?.src || 'unknown',
-          timestamp: new Date().toISOString()
-        });
-        setIsLoading(false);
-        setError('Failed to load Viva Engage content. Check console for details.');
+          timestamp: new Date().toISOString(),
+          documentReadyState: document.readyState,
+          iframeAttributes: iframe ? {
+            src: iframe.src,
+            width: iframe.width,
+            height: iframe.height,
+            id: iframe.id,
+            name: iframe.name
+          } : 'No iframe reference',
+          networkState: navigator.onLine ? 'Online' : 'Offline',
+          userAgent: navigator.userAgent
+        };
+
+        console.error('[VivaEngage] CRITICAL: Iframe failed to load', detailedError);
+
+        // Check for authentication issues
+        let isAuthError = false;
+        let errorMessage = `Failed to load Viva Engage content. Error: ${detailedError.message || e.type || 'Unknown error'}. Check browser console for details.`;
+
+        // Try to fetch the iframe URL directly to see if it's accessible
+        fetch(vivaEngageUrl)
+          .then(response => {
+            console.log(`[VivaEngage] API endpoint check: ${vivaEngageUrl} is ${response.ok ? 'accessible' : 'inaccessible'} (${response.status})`);
+
+            // Check if it's an authentication error
+            if (response.status === 401 || response.status === 403) {
+              isAuthError = true;
+              errorMessage = 'Authentication required: You need to sign in to access Viva Engage content.';
+              console.warn('[VivaEngage] Authentication error detected from API response');
+            } else if (response.status === 500) {
+              console.error('[VivaEngage] Server error (500) detected from API response');
+
+              // For 500 errors, we'll assume it might be an auth issue since that's a common cause
+              // This makes the UI more user-friendly by encouraging sign-in rather than showing a generic error
+              isAuthError = true;
+              errorMessage = 'Authentication required: You need to sign in to access Viva Engage content.';
+            }
+
+            // Try to get more details from the response
+            return response.text().catch(() => null);
+          })
+          .then(text => {
+            if (text) {
+              console.log(`[VivaEngage] API response text (first 200 chars): ${text.substring(0, 200)}`);
+
+              // Check for auth error indicators in the response text
+              if (text.includes('authentication') || text.includes('auth') || 
+                  text.includes('login') || text.includes('sign in') ||
+                  text.includes('unauthorized') || text.includes('not authorized') ||
+                  text.includes('token') || text.includes('session')) {
+                isAuthError = true;
+                errorMessage = 'Authentication error: You may need to sign in again to access Viva Engage content.';
+                console.warn('[VivaEngage] Authentication error indicators found in response text');
+              }
+
+              // Check for server error indicators
+              if (text.includes('500') || text.includes('Internal Server Error') ||
+                  text.includes('server error') || text.includes('NEXTAUTH_SECRET')) {
+                console.error('[VivaEngage] Server error indicators found in response text');
+                errorMessage = 'Server configuration error: The server is not properly configured for authentication. Please contact support.';
+              }
+            }
+
+            // Also check the health endpoint to see if there are auth issues
+            return fetch('/api/health-check').then(r => r.json()).catch(() => null);
+          })
+          .then(healthData => {
+            if (healthData) {
+              console.log('[VivaEngage] Health check data:', healthData);
+
+              // Check for auth session availability
+              if (!healthData.diagnostics?.auth?.sessionAvailable) {
+                isAuthError = true;
+                errorMessage = 'Authentication required: You need to sign in to access Viva Engage content.';
+                console.warn('[VivaEngage] No valid session according to health check');
+              }
+
+              // Check for missing environment variables
+              const authConfig = healthData.diagnostics?.auth?.configPresent || {};
+              const missingVars = [];
+
+              if (!authConfig.clientId) missingVars.push('AZURE_AD_CLIENT_ID');
+              if (!authConfig.clientSecret) missingVars.push('AZURE_AD_CLIENT_SECRET');
+              if (!authConfig.tenantId) missingVars.push('AZURE_AD_TENANT_ID');
+              if (!authConfig.nextAuthSecret) missingVars.push('NEXTAUTH_SECRET');
+
+              if (missingVars.length > 0) {
+                console.error('[VivaEngage] Missing required environment variables:', missingVars.join(', '));
+                errorMessage = `Server configuration error: Missing required environment variables (${missingVars.join(', ')}). Please contact support.`;
+              }
+
+              // Check for session error
+              if (healthData.diagnostics?.auth?.sessionCheckError) {
+                console.error('[VivaEngage] Session check error:', healthData.diagnostics.auth.sessionCheckError);
+                errorMessage = 'Authentication error: There was a problem checking your session. Please try signing out and back in.';
+              }
+            }
+
+            // Set the error state with the appropriate message
+            setIsLoading(false);
+            setError(errorMessage);
+
+            // If it's an auth error, provide a sign-out link in the console for easy access
+            if (isAuthError) {
+              console.info('[VivaEngage] To fix authentication issues, try signing out and back in: /api/auth/signout');
+            }
+          })
+          .catch(fetchError => {
+            console.error(`[VivaEngage] API endpoint check failed: ${vivaEngageUrl}`, {
+              error: fetchError.message,
+              timestamp: new Date().toISOString()
+            });
+
+            // Set the error state with a generic message
+            setIsLoading(false);
+            setError(errorMessage);
+          });
       };
 
       // Log when we're attaching event listeners
@@ -111,37 +263,118 @@ export function VivaEngage() {
       };
       window.addEventListener('message', handleMessage);
 
-      // Also set up a timeout to detect if loading takes too long
-      const timeoutId = setTimeout(() => {
+      // Set up multiple timeouts to provide progressive feedback
+      const timeoutIds = [];
+
+      // First timeout - warning after 10 seconds
+      timeoutIds.push(setTimeout(() => {
         if (isLoading) {
-          console.warn('WARNING: Viva Engage iframe loading timeout after 30 seconds');
-          console.warn('Timeout occurred at:', new Date().toISOString());
-          console.warn('Current iframe state:', {
+          console.warn('[VivaEngage] WARNING: Iframe loading taking longer than expected (10s)', {
+            url: vivaEngageUrl,
+            timestamp: new Date().toISOString(),
+            readyState: document.readyState,
+            networkState: navigator.onLine ? 'Online' : 'Offline'
+          });
+
+          // Check network connectivity and auth status
+          fetch('/api/health-check')
+            .then(response => response.json())
+            .then(healthData => {
+              console.log(`[VivaEngage] Health check: API is ${healthData.status === 'ok' ? 'responsive' : 'having issues'}`, {
+                timestamp: healthData.timestamp,
+                environment: healthData.environment,
+                authConfig: healthData.diagnostics?.auth?.configPresent,
+                sessionAvailable: healthData.diagnostics?.auth?.sessionAvailable,
+                sessionError: healthData.diagnostics?.auth?.sessionCheckError,
+                sessionDetails: healthData.diagnostics?.auth?.sessionDetails
+              });
+
+              // Log more detailed information if there's an auth issue
+              if (!healthData.diagnostics?.auth?.sessionAvailable) {
+                console.warn('[VivaEngage] Auth session not available, this may cause loading issues');
+
+                // Check for missing environment variables
+                const missingVars = [];
+                const authConfig = healthData.diagnostics?.auth?.configPresent || {};
+                if (!authConfig.clientId) missingVars.push('AZURE_AD_CLIENT_ID');
+                if (!authConfig.clientSecret) missingVars.push('AZURE_AD_CLIENT_SECRET');
+                if (!authConfig.tenantId) missingVars.push('AZURE_AD_TENANT_ID');
+                if (!authConfig.nextAuthSecret) missingVars.push('NEXTAUTH_SECRET');
+
+                if (missingVars.length > 0) {
+                  console.error('[VivaEngage] Missing required environment variables:', missingVars.join(', '));
+                }
+              }
+            })
+            .catch(error => {
+              console.error('[VivaEngage] Health check failed, possible network issues:', error.message);
+            });
+        }
+      }, 10000));
+
+      // Second timeout - error after 30 seconds
+      timeoutIds.push(setTimeout(() => {
+        if (isLoading) {
+          const timeoutInfo = {
+            url: vivaEngageUrl,
+            timestamp: new Date().toISOString(),
             src: iframe.src,
             isLoading,
             hasError: !!error,
             iframeRendered,
-            readyState: document.readyState
-          });
-          setError('Loading timed out. The server might be slow or unresponsive.');
+            readyState: document.readyState,
+            networkState: navigator.onLine ? 'Online' : 'Offline',
+            userAgent: navigator.userAgent
+          };
+
+          console.error('[VivaEngage] ERROR: Iframe loading timeout after 30 seconds', timeoutInfo);
+
+          // Try to fetch the iframe URL directly to see if it's accessible
+          fetch(vivaEngageUrl, { method: 'HEAD' })
+            .then(response => {
+              console.log(`[VivaEngage] Timeout recovery - API endpoint check: ${vivaEngageUrl} is ${response.ok ? 'accessible' : 'inaccessible'} (${response.status})`);
+            })
+            .catch(fetchError => {
+              console.error(`[VivaEngage] Timeout recovery - API endpoint check failed: ${vivaEngageUrl}`, {
+                error: fetchError.message,
+                timestamp: new Date().toISOString()
+              });
+            });
+
+          setError('Loading timed out after 30 seconds. The server might be slow or unresponsive. Check your network connection and try again.');
         }
-      }, 30000);
+      }, 30000));
 
       // Log that we've successfully set up all event listeners
-      console.log('All iframe event listeners attached successfully');
+      console.log('[VivaEngage] All iframe event listeners and timeouts attached successfully', {
+        timestamp: new Date().toISOString(),
+        timeoutsCount: timeoutIds.length
+      });
 
       return () => {
-        console.log('Cleaning up iframe event listeners');
+        console.log('[VivaEngage] Cleaning up iframe event listeners and timeouts');
         iframe.removeEventListener('load', handleLoad);
         iframe.removeEventListener('error', handleError);
         window.removeEventListener('message', handleMessage);
-        clearTimeout(timeoutId);
+
+        // Clear all timeout IDs
+        timeoutIds.forEach(id => clearTimeout(id));
+
+        console.log('[VivaEngage] Cleanup complete');
       };
     } else {
-      console.log('Not setting up iframe listeners yet - waiting for client-side rendering or iframe ref');
-      if (!isClient) console.log('Reason: Not on client side yet');
-      if (!iframeRef.current) console.log('Reason: Iframe reference not available yet');
-      if (!iframeRendered) console.log('Reason: Iframe not marked as rendered yet');
+      const reasons = [];
+      if (!isClient) reasons.push('Not on client side yet');
+      if (!iframeRef.current) reasons.push('Iframe reference not available yet');
+      if (!iframeRendered) reasons.push('Iframe not marked as rendered yet');
+
+      console.log('[VivaEngage] Waiting for prerequisites before setting up iframe listeners', {
+        timestamp: new Date().toISOString(),
+        isClient,
+        iframeRefExists: !!iframeRef.current,
+        iframeRendered,
+        reasons
+      });
     }
   }, [isClient, vivaEngageUrl, isLoading, iframeRendered, error]);
 
@@ -187,7 +420,11 @@ export function VivaEngage() {
               ref={(el) => {
                 iframeRef.current = el;
                 if (el) {
-                  console.log('Iframe element mounted in DOM');
+                  console.log('[VivaEngage] Iframe element mounted in DOM', {
+                    timestamp: new Date().toISOString(),
+                    iframeId: el.id || 'no-id',
+                    iframeSrc: el.src || 'no-src-yet'
+                  });
                   setIframeRendered(true);
                 }
               }}
@@ -201,10 +438,45 @@ export function VivaEngage() {
             {/* Error overlay */}
             {error && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 p-4">
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-w-md">
+                <div className={`${error.includes('Authentication') ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'} border rounded-lg p-4 max-w-md`}>
                   <div className="text-center">
-                    <p className="text-red-500 font-medium mb-2">Error loading Viva Engage</p>
-                    <p className="text-gray-600 text-sm mb-4">{error}</p>
+                    <p className={`${error.includes('Authentication') ? 'text-yellow-700' : 'text-red-500'} font-medium mb-2`}>
+                      {error.includes('Authentication') ? 'Authentication Required' : 'Error loading Viva Engage'}
+                    </p>
+                    <p className="text-gray-600 text-sm mb-4">
+                      {error.includes('Authentication') 
+                        ? 'You need to be signed in to access Viva Engage content.' 
+                        : error}
+                    </p>
+
+                    {error && error.includes('Authentication') && (
+                      <div className="bg-white border border-yellow-100 rounded-lg p-3 mb-4 text-left">
+                        <p className="text-gray-700 font-medium text-sm mb-2">Please sign in to continue</p>
+                        <p className="text-gray-600 text-xs mb-2">To access Viva Engage content, you need to:</p>
+                        <ol className="text-xs text-gray-600 list-decimal pl-4 space-y-1">
+                          <li>Sign in with your Microsoft account</li>
+                          <li>Make sure you have the necessary permissions</li>
+                          <li>Contact IT support if you continue to have issues</li>
+                        </ol>
+                        <div className="mt-3 flex justify-center">
+                          <a href="/api/auth/signin" className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-flyadeal-purple rounded-md hover:bg-flyadeal-purple/90">
+                            Sign in with Microsoft
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {error && error.includes('timed out') && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-left">
+                        <p className="text-blue-700 font-medium text-sm mb-2">Network Issue Detected</p>
+                        <p className="text-gray-600 text-xs mb-2">This appears to be a network or server issue. Please try:</p>
+                        <ol className="text-xs text-gray-600 list-decimal pl-4 space-y-1">
+                          <li>Checking your internet connection</li>
+                          <li>Refreshing the page</li>
+                          <li>Trying again in a few minutes</li>
+                        </ol>
+                      </div>
+                    )}
 
                     <div className="bg-gray-50 rounded p-3 mb-4 text-left">
                       <p className="text-xs text-gray-500 mb-1">Debugging Information:</p>
@@ -241,17 +513,31 @@ Viva Engage Debug Info:
                     <div className="flex justify-center space-x-2">
                       <Button 
                         onClick={() => {
-                          console.log('Manual retry triggered from error state');
+                          const retryTimestamp = new Date().toISOString();
+                          console.log('[VivaEngage] Manual retry triggered from error state', {
+                            timestamp: retryTimestamp,
+                            previousError: error,
+                            iframeExists: !!iframeRef.current
+                          });
+
                           setIsLoading(true);
                           setError(null);
 
                           // Force iframe reload if it exists
                           if (iframeRef.current) {
-                            console.log('Reloading iframe from error state');
+                            console.log('[VivaEngage] Reloading iframe from error state', {
+                              timestamp: retryTimestamp,
+                              currentSrc: iframeRef.current.src
+                            });
+
                             const currentSrc = iframeRef.current.src;
                             iframeRef.current.src = '';
                             setTimeout(() => {
                               if (iframeRef.current) {
+                                console.log('[VivaEngage] Setting new src after error state retry', {
+                                  timestamp: new Date().toISOString(),
+                                  newSrc: currentSrc
+                                });
                                 iframeRef.current.src = currentSrc;
                               }
                             }, 100);
@@ -285,18 +571,33 @@ Viva Engage Debug Info:
                   <p className="text-gray-400 text-xs mt-2">If loading takes too long, check the browser console for errors.</p>
                   <button 
                     onClick={() => {
-                      console.log('Manual reload triggered by user');
+                      const reloadTimestamp = new Date().toISOString();
+                      console.log('[VivaEngage] Manual reload triggered by user from loading state', {
+                        timestamp: reloadTimestamp,
+                        currentLoadingState: isLoading,
+                        iframeExists: !!iframeRef.current,
+                        iframeSrc: iframeRef.current?.src || 'no-src'
+                      });
+
                       // Reset state
                       setIsLoading(true);
                       setError(null);
 
                       // Force iframe reload if it exists
                       if (iframeRef.current) {
-                        console.log('Reloading iframe');
+                        console.log('[VivaEngage] Reloading iframe from loading state', {
+                          timestamp: reloadTimestamp,
+                          currentSrc: iframeRef.current.src
+                        });
+
                         const currentSrc = iframeRef.current.src;
                         iframeRef.current.src = '';
                         setTimeout(() => {
                           if (iframeRef.current) {
+                            console.log('[VivaEngage] Setting new src after loading state retry', {
+                              timestamp: new Date().toISOString(),
+                              newSrc: currentSrc
+                            });
                             iframeRef.current.src = currentSrc;
                           }
                         }, 100);
