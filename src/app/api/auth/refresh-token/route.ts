@@ -4,9 +4,27 @@ import { getAuthSession } from '@/lib/auth'
 export async function POST(request: NextRequest) {
   try {
     const session = await getAuthSession()
-    
+
+    // Check for session errors
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized', message: 'No session found' }, { status: 401 })
+    }
+
+    // Handle error object returned by getAuthSession
+    if ('error' in session) {
+      console.error('[Refresh Token] Session error:', session);
+      return NextResponse.json({ 
+        error: 'auth_error', 
+        message: 'Authentication error',
+        details: session.errorDescription || 'Unknown error',
+        code: session.error
+      }, { status: 401 })
+    }
+
+    // Check for error in session object
+    if (session.error) {
+      console.warn('[Refresh Token] Session contains error:', session.error);
+      // Continue anyway, as we're trying to refresh the token
     }
 
     console.log('🔄 Attempting to refresh SharePoint token...')
@@ -29,25 +47,45 @@ export async function POST(request: NextRequest) {
         })
 
         if (response.ok) {
-          const refreshedTokens = await response.json()
-          console.log('✅ Token refreshed successfully')
-          
-          return NextResponse.json({
-            success: true,
-            message: 'Token refreshed successfully',
-            newToken: refreshedTokens.access_token,
-            expiresIn: refreshedTokens.expires_in
-          })
+          try {
+            const refreshedTokens = await response.json()
+            console.log('✅ Token refreshed successfully')
+
+            return NextResponse.json({
+              success: true,
+              message: 'Token refreshed successfully',
+              newToken: refreshedTokens.access_token,
+              expiresIn: refreshedTokens.expires_in
+            })
+          } catch (jsonError) {
+            console.error('❌ Error parsing token response JSON:', jsonError)
+            return NextResponse.json({
+              success: false,
+              error: 'Failed to parse token response',
+              details: jsonError instanceof Error ? jsonError.message : 'Unknown JSON parsing error',
+              suggestion: 'Please try again or sign out and sign back in'
+            }, { status: 500 })
+          }
         } else {
-          const errorData = await response.text()
-          console.error('❌ Failed to refresh token:', response.status, errorData)
-          
-          return NextResponse.json({
-            success: false,
-            error: 'Token refresh failed',
-            details: errorData,
-            suggestion: 'Please sign out and sign back in to get fresh permissions'
-          })
+          try {
+            const errorData = await response.text()
+            console.error('❌ Failed to refresh token:', response.status, errorData)
+
+            return NextResponse.json({
+              success: false,
+              error: 'Token refresh failed',
+              details: errorData,
+              suggestion: 'Please sign out and sign back in to get fresh permissions'
+            })
+          } catch (textError) {
+            console.error('❌ Failed to get error details:', textError)
+            return NextResponse.json({
+              success: false,
+              error: 'Token refresh failed',
+              details: `Status: ${response.status}`,
+              suggestion: 'Please sign out and sign back in to get fresh permissions'
+            })
+          }
         }
       } catch (error) {
         console.error('❌ Error refreshing token:', error)
