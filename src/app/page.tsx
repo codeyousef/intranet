@@ -769,7 +769,10 @@ function DashboardPage() {
                     Open in Viva Engage
                   </Button>
                 </div>
-                <VivaEngage />
+                <VivaEngage 
+                  feedType="home"
+                  theme="light"
+                />
               </GlassmorphismContainer>
             </div>
 

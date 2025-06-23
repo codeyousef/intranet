@@ -1,161 +1,234 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { Maximize2, ExternalLink } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Maximize2, ExternalLink, MessageSquare, User, Calendar, ThumbsUp, RefreshCw, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { formatDistanceToNow } from 'date-fns'
 
-export function VivaEngage() {
+// Mock data for fallback when API fails
+const MOCK_COMMUNITIES = [
+  {
+    id: 'mock-community-1',
+    name: 'General Announcements',
+    description: 'Company-wide announcements and news'
+  },
+  {
+    id: 'mock-community-2',
+    name: 'IT Department',
+    description: 'IT updates, maintenance notices, and help'
+  },
+  {
+    id: 'mock-community-3',
+    name: 'HR Updates',
+    description: 'Human Resources announcements and policies'
+  },
+  {
+    id: 'mock-community-4',
+    name: 'Flight Operations',
+    description: 'Updates for flight crew and operations staff'
+  }
+]
+
+const MOCK_POSTS = [
+  {
+    id: 'mock-post-1',
+    title: 'Welcome to Viva Engage',
+    content: 'This is a sample post showing what content would look like when the API is working correctly.',
+    createdDateTime: new Date(Date.now() - 3600000).toISOString(),
+    lastReplyDateTime: new Date(Date.now() - 1800000).toISOString(),
+    replyCount: 5,
+    author: {
+      name: 'Demo User',
+      email: 'demo@example.com'
+    }
+  },
+  {
+    id: 'mock-post-2',
+    title: 'How to access Viva Engage directly',
+    content: 'You can access Viva Engage directly by clicking the "Open" button below or visiting web.yammer.com/main',
+    createdDateTime: new Date(Date.now() - 86400000).toISOString(),
+    lastReplyDateTime: new Date(Date.now() - 43200000).toISOString(),
+    replyCount: 2,
+    author: {
+      name: 'System Admin',
+      email: 'admin@example.com'
+    }
+  }
+]
+
+export function VivaEngage({ 
+  feedType = 'home',
+  communityId,
+  height = '100%',
+  width = '100%',
+  theme = 'light' 
+}) {
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const [isClient, setIsClient] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [iframeRendered, setIframeRendered] = useState(false)
-  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const [error, setError] = useState(null)
+  const [data, setData] = useState(null)
+  const [useMockData, setUseMockData] = useState(false)
+  const [showPermissionsInfo, setShowPermissionsInfo] = useState(false)
 
-  // URL for Viva Engage (Yammer) web part
-  // Using our proxy API to avoid Content Security Policy issues
-  const vivaEngageUrl = "/api/viva-engage"
+  // Fetch data from our API route
+  const fetchData = async () => {
+    setIsLoading(true)
+    setError(null)
+    setUseMockData(false)
+    setShowPermissionsInfo(false)
 
-  // Check if we're running in the browser
-  useEffect(() => {
-    console.log('VivaEngage component mounted')
-    setIsClient(true)
-  }, [])
+    try {
+      // Build the API URL with query parameters
+      const params = new URLSearchParams({ feedType })
+      if (feedType === 'community' && communityId) {
+        params.append('communityId', communityId)
+      }
 
-  // Effect to set iframeRendered when the component is mounted on the client
-  useEffect(() => {
-    // This effect runs after render, so if we're on the client, we can prepare to render the iframe
-    if (isClient) {
-      console.log('Client-side rendering detected, preparing to render iframe');
-      // We'll set iframeRendered to true immediately when on client
-      // This allows the iframe to be created in the DOM (though it may be hidden by the loading overlay)
-      setIframeRendered(true);
-    }
-  }, [isClient]);
+      const response = await fetch(`/api/viva-engage-graph?${params.toString()}`)
 
-  // Add event listeners to the iframe to detect loading and errors
-  useEffect(() => {
-    console.log('Setting up iframe event listeners, isClient:', isClient, 'iframeRef.current exists:', !!iframeRef.current, 'iframeRendered:', iframeRendered);
+      // Check for 401 Unauthorized specifically
+      if (response.status === 401) {
+        console.log('Using mock data due to 401 Unauthorized response')
+        setUseMockData(true)
+        setShowPermissionsInfo(true)
 
-    if (isClient && iframeRef.current && iframeRendered) {
-      const iframe = iframeRef.current;
-      console.log('Iframe source URL:', vivaEngageUrl);
-      console.log('Iframe current state - isLoading:', isLoading, 'hasError:', !!error);
-
-      const handleLoad = () => {
-        console.log('SUCCESS: Viva Engage iframe load event triggered');
-        console.log('Iframe loaded successfully at:', new Date().toISOString());
-        setIsLoading(false);
-
-        // Try to check if the iframe has content
-        try {
-          const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-          if (iframeDoc) {
-            const bodyContent = iframeDoc.body.innerHTML;
-            console.log('Iframe body content length:', bodyContent.length);
-            console.log('Iframe document title:', iframeDoc.title);
-            console.log('Iframe document URL:', iframeDoc.URL);
-
-            // Log a sample of the content to help diagnose issues
-            if (bodyContent && bodyContent.length > 0) {
-              console.log('Iframe content sample:', bodyContent.substring(0, 200) + '...');
-
-              // Check for specific error indicators in the content
-              if (bodyContent.includes('error') || bodyContent.includes('Error') || 
-                  bodyContent.includes('failed') || bodyContent.includes('Failed')) {
-                console.warn('Possible error detected in iframe content');
-              } else {
-                console.log('No error indicators found in iframe content');
-              }
-            } else {
-              console.error('Iframe body is empty');
-              setError('Iframe loaded but content appears to be empty');
-            }
-          } else {
-            console.error('Could not access iframe document');
-          }
-        } catch (e) {
-          console.warn('Could not access iframe content due to same-origin policy:', e);
-
-          // Try to determine if there's a CORS issue
-          if (e instanceof DOMException && e.name === 'SecurityError') {
-            console.log('Security error accessing iframe content - likely a CORS issue');
-            // This is expected due to same-origin policy, but the iframe should still work
-            console.log('This is normal due to security restrictions, the iframe should still function');
-          }
+        // Create mock data based on the feed type
+        const mockData = {
+          type: feedType,
+          ...(feedType === 'community' 
+            ? { communityId, posts: MOCK_POSTS } 
+            : { communities: MOCK_COMMUNITIES })
         }
-      };
 
-      const handleError = (e) => {
-        console.error('ERROR: Viva Engage iframe failed to load:', e);
-        console.error('Iframe error occurred at:', new Date().toISOString());
-        console.error('Iframe error details:', {
-          type: e.type,
-          message: e.message,
-          target: e.target?.src || 'unknown',
-          timestamp: new Date().toISOString()
-        });
-        setIsLoading(false);
-        setError('Failed to load Viva Engage content. Check console for details.');
-      };
+        setData(mockData)
+        setError('Authentication error: Missing required permissions for Viva Engage')
+        setIsLoading(false)
+        return
+      }
 
-      // Log when we're attaching event listeners
-      console.log('Attaching load and error event listeners to iframe');
-      iframe.addEventListener('load', handleLoad);
-      iframe.addEventListener('error', handleError);
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to fetch Viva Engage data')
+      }
 
-      // Also listen for message events from the iframe
-      const handleMessage = (event) => {
-        console.log('Received message from iframe:', event.origin, event.data);
-        // We could process messages from the iframe here if needed
-      };
-      window.addEventListener('message', handleMessage);
+      const result = await response.json()
 
-      // Also set up a timeout to detect if loading takes too long
-      const timeoutId = setTimeout(() => {
-        if (isLoading) {
-          console.warn('WARNING: Viva Engage iframe loading timeout after 30 seconds');
-          console.warn('Timeout occurred at:', new Date().toISOString());
-          console.warn('Current iframe state:', {
-            src: iframe.src,
-            isLoading,
-            hasError: !!error,
-            iframeRendered,
-            readyState: document.readyState
-          });
-          setError('Loading timed out. The server might be slow or unresponsive.');
+      if (result.success) {
+        setData(result.data)
+      } else {
+        throw new Error(result.message || 'Failed to fetch Viva Engage data')
+      }
+    } catch (err) {
+      console.error('Error fetching Viva Engage data:', err)
+
+      // If it's an authentication error, use mock data
+      if (err.message && (
+        err.message.includes('Authentication') || 
+        err.message.includes('401') || 
+        err.message.includes('Unauthorized') ||
+        err.message.includes('token')
+      )) {
+        console.log('Using mock data due to authentication error')
+        setUseMockData(true)
+        setShowPermissionsInfo(true)
+
+        // Create mock data based on the feed type
+        const mockData = {
+          type: feedType,
+          ...(feedType === 'community' 
+            ? { communityId, posts: MOCK_POSTS } 
+            : { communities: MOCK_COMMUNITIES })
         }
-      }, 30000);
 
-      // Log that we've successfully set up all event listeners
-      console.log('All iframe event listeners attached successfully');
+        setData(mockData)
+      }
 
-      return () => {
-        console.log('Cleaning up iframe event listeners');
-        iframe.removeEventListener('load', handleLoad);
-        iframe.removeEventListener('error', handleError);
-        window.removeEventListener('message', handleMessage);
-        clearTimeout(timeoutId);
-      };
-    } else {
-      console.log('Not setting up iframe listeners yet - waiting for client-side rendering or iframe ref');
-      if (!isClient) console.log('Reason: Not on client side yet');
-      if (!iframeRef.current) console.log('Reason: Iframe reference not available yet');
-      if (!iframeRendered) console.log('Reason: Iframe not marked as rendered yet');
+      setError(err.message || 'An error occurred while fetching data')
+    } finally {
+      setIsLoading(false)
     }
-  }, [isClient, vivaEngageUrl, isLoading, iframeRendered, error]);
+  }
+
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchData()
+  }, [feedType, communityId])
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen)
   }
 
   const openInNewTab = () => {
-    // Open the actual Viva Engage URL, not our proxy
-    // Only run in browser environment
     if (typeof window !== 'undefined') {
       window.open("https://web.yammer.com/embed/groups", '_blank')
     }
   }
+
+  const handleRefresh = () => {
+    fetchData()
+  }
+
+  // Render a community card
+  const renderCommunityCard = (community) => (
+    <div key={community.id} className="p-4 border border-gray-200 rounded-lg bg-white/50 hover:bg-white transition-colors">
+      <h3 className="font-medium text-gray-800">{community.name}</h3>
+      {community.description && (
+        <p className="text-sm text-gray-600 mt-1">{community.description}</p>
+      )}
+      <div className="mt-3 flex justify-end">
+        <Button 
+          size="sm" 
+          variant="outline"
+          className="text-xs"
+          onClick={() => window.open(`https://web.yammer.com/main/groups/${community.id}`, '_blank')}
+        >
+          <MessageSquare className="w-3 h-3 mr-1" />
+          View Community
+        </Button>
+      </div>
+    </div>
+  )
+
+  // Render a post card
+  const renderPostCard = (post) => (
+    <div key={post.id} className="p-4 border border-gray-200 rounded-lg bg-white/50 hover:bg-white transition-colors mb-3">
+      {post.author && (
+        <div className="flex items-center mb-2">
+          <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-600">
+            <User className="w-4 h-4" />
+          </div>
+          <div className="ml-2">
+            <div className="font-medium text-gray-800">{post.author.name}</div>
+            <div className="text-xs text-gray-500">
+              {post.createdDateTime && formatDistanceToNow(new Date(post.createdDateTime), { addSuffix: true })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <h3 className="font-medium text-gray-800">{post.title}</h3>
+      <p className="text-sm text-gray-600 mt-1">{post.content}</p>
+
+      <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+        <div className="flex items-center">
+          <ThumbsUp className="w-3 h-3 mr-1" />
+          <span>Like</span>
+        </div>
+
+        <div className="flex items-center">
+          <MessageSquare className="w-3 h-3 mr-1" />
+          <span>{post.replyCount || 0} replies</span>
+        </div>
+
+        {post.lastReplyDateTime && (
+          <div className="flex items-center">
+            <Calendar className="w-3 h-3 mr-1" />
+            <span>Last reply {formatDistanceToNow(new Date(post.lastReplyDateTime), { addSuffix: true })}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  )
 
   return (
     <div className={`bg-white rounded-lg overflow-hidden ${isFullscreen ? 'fixed inset-0 z-50' : 'h-[calc(100%-2.5rem)]'}`}>
@@ -173,142 +246,136 @@ export function VivaEngage() {
         </div>
       )}
 
-      <div className={`${isFullscreen ? 'h-[calc(100%-48px)]' : 'h-full'}`}>
-        {!isClient ? (
-          // Initial loading state before client-side rendering
-          <div className="w-full h-full flex items-center justify-center bg-gray-100">
-            <p className="text-gray-500">Loading Viva Engage...</p>
+      <div className={`${isFullscreen ? 'h-[calc(100%-48px)]' : 'h-full'} overflow-y-auto p-4`}>
+        {/* Header with refresh button */}
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-medium text-gray-800">
+            {feedType === 'community' ? 'Community Posts' : 'Your Communities'}
+          </h3>
+          <Button
+            onClick={handleRefresh}
+            size="sm"
+            variant="ghost"
+            className="text-gray-600 hover:text-gray-900"
+          >
+            <RefreshCw className="w-4 h-4 mr-1" />
+            Refresh
+          </Button>
+        </div>
+
+        {/* Loading state */}
+        {isLoading && (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-flyadeal-yellow mx-auto mb-3"></div>
+              <p className="text-gray-500">Loading Viva Engage...</p>
+            </div>
           </div>
-        ) : (
-          // Client-side rendering - always render the iframe but conditionally show overlays
-          <div className="relative w-full h-full">
-            {/* Always render the iframe when on client-side */}
-            <iframe 
-              ref={(el) => {
-                iframeRef.current = el;
-                if (el) {
-                  console.log('Iframe element mounted in DOM');
-                  setIframeRendered(true);
-                }
-              }}
-              src={vivaEngageUrl}
-              frameBorder="0" 
-              className="w-full h-full"
-              title="Viva Engage Feed"
-              style={{ opacity: isLoading && !error ? 0 : 1 }} // Hide iframe while loading
-            ></iframe>
+        )}
 
-            {/* Error overlay */}
-            {error && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 p-4">
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-w-md">
-                  <div className="text-center">
-                    <p className="text-red-500 font-medium mb-2">Error loading Viva Engage</p>
-                    <p className="text-gray-600 text-sm mb-4">{error}</p>
+        {/* Error state */}
+        {error && !isLoading && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="text-center">
+              <p className="text-red-500 font-medium mb-2">Error loading Viva Engage</p>
+              <p className="text-gray-600 text-sm mb-4">{error}</p>
 
-                    <div className="bg-gray-50 rounded p-3 mb-4 text-left">
-                      <p className="text-xs text-gray-500 mb-1">Debugging Information:</p>
-                      <ul className="text-xs text-gray-600 list-disc pl-4 space-y-1">
-                        <li>Time: {new Date().toLocaleTimeString()}</li>
-                        <li>URL: {vivaEngageUrl}</li>
-                        <li>Client Rendered: {isClient ? 'Yes' : 'No'}</li>
-                        <li>Iframe Rendered: {iframeRendered ? 'Yes' : 'No'}</li>
-                        <li>
-                          <button 
-                            onClick={() => {
-                              console.log('Copying debug info to clipboard');
-                              const debugInfo = `
-Viva Engage Debug Info:
-- Time: ${new Date().toISOString()}
-- Error: ${error}
-- URL: ${vivaEngageUrl}
-- Client Rendered: ${isClient ? 'Yes' : 'No'}
-- Iframe Rendered: ${iframeRendered ? 'Yes' : 'No'}
-- Browser: ${navigator.userAgent}
-                              `;
-                              navigator.clipboard.writeText(debugInfo)
-                                .then(() => alert('Debug info copied to clipboard'))
-                                .catch(err => console.error('Failed to copy debug info:', err));
-                            }}
-                            className="text-blue-500 hover:underline"
-                          >
-                            Copy Debug Info
-                          </button>
-                        </li>
+              {showPermissionsInfo && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-left">
+                  <div className="flex items-start">
+                    <AlertCircle className="w-5 h-5 text-blue-500 mt-0.5 mr-2 flex-shrink-0" />
+                    <div>
+                      <p className="text-blue-700 font-medium mb-2">Missing Graph API Permissions</p>
+                      <p className="text-gray-600 text-sm mb-2">
+                        The application doesn't have the necessary permissions to access Viva Engage data.
+                        You're seeing mock data instead of real content.
+                      </p>
+                      <p className="text-gray-600 text-sm mb-2">
+                        To fix this issue, the Azure AD app registration needs the following Microsoft Graph permissions:
+                      </p>
+                      <ul className="list-disc pl-5 text-sm text-gray-600 mb-2">
+                        <li>Group.Read.All</li>
+                        <li>User.Read.All</li>
                       </ul>
-                    </div>
-
-                    <div className="flex justify-center space-x-2">
-                      <Button 
-                        onClick={() => {
-                          console.log('Manual retry triggered from error state');
-                          setIsLoading(true);
-                          setError(null);
-
-                          // Force iframe reload if it exists
-                          if (iframeRef.current) {
-                            console.log('Reloading iframe from error state');
-                            const currentSrc = iframeRef.current.src;
-                            iframeRef.current.src = '';
-                            setTimeout(() => {
-                              if (iframeRef.current) {
-                                iframeRef.current.src = currentSrc;
-                              }
-                            }, 100);
-                          }
-                        }}
-                        size="sm"
-                        className="bg-flyadeal-yellow text-flyadeal-purple hover:bg-flyadeal-yellow/90"
-                      >
-                        Retry
-                      </Button>
-                      <Button
-                        onClick={openInNewTab}
-                        size="sm"
-                        variant="outline"
-                        className="border-gray-300 text-gray-600 hover:bg-gray-100"
-                      >
-                        Open in Browser
-                      </Button>
+                      <p className="text-gray-600 text-sm">
+                        After adding these permissions, users will need to consent to them by signing out and back in.
+                      </p>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Loading overlay */}
-            {isLoading && !error && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-flyadeal-yellow mx-auto mb-3"></div>
-                  <p className="text-gray-500">Loading Viva Engage...</p>
-                  <p className="text-gray-400 text-xs mt-2">If loading takes too long, check the browser console for errors.</p>
-                  <button 
-                    onClick={() => {
-                      console.log('Manual reload triggered by user');
-                      // Reset state
-                      setIsLoading(true);
-                      setError(null);
+              <div className="flex justify-center space-x-3">
+                <Button 
+                  onClick={handleRefresh}
+                  size="sm"
+                  className="bg-flyadeal-yellow text-flyadeal-purple hover:bg-flyadeal-yellow/90"
+                >
+                  <RefreshCw className="w-4 h-4 mr-1" />
+                  Retry
+                </Button>
 
-                      // Force iframe reload if it exists
-                      if (iframeRef.current) {
-                        console.log('Reloading iframe');
-                        const currentSrc = iframeRef.current.src;
-                        iframeRef.current.src = '';
-                        setTimeout(() => {
-                          if (iframeRef.current) {
-                            iframeRef.current.src = currentSrc;
-                          }
-                        }, 100);
-                      }
-                    }}
-                    className="mt-4 px-3 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded text-gray-700"
+                {useMockData && (
+                  <Button
+                    onClick={openInNewTab}
+                    size="sm"
+                    variant="outline"
+                    className="border-gray-300 text-gray-600 hover:bg-gray-100"
                   >
-                    Retry Loading
-                  </button>
+                    <ExternalLink className="w-4 h-4 mr-1" />
+                    Open in Browser
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Data display */}
+        {!isLoading && data && (
+          <div>
+            {/* Mock data notice */}
+            {useMockData && !error && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                <div className="flex items-center">
+                  <AlertCircle className="w-4 h-4 text-yellow-500 mr-2 flex-shrink-0" />
+                  <p className="text-yellow-700 text-sm">
+                    Showing sample data. Connect to Viva Engage directly for real content.
+                  </p>
                 </div>
               </div>
             )}
+
+            {data.type === 'home' && data.communities && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {data.communities.map(community => renderCommunityCard(community))}
+              </div>
+            )}
+
+            {data.type === 'community' && data.posts && (
+              <div className="space-y-4">
+                {data.posts.length > 0 ? (
+                  data.posts.map(post => renderPostCard(post))
+                ) : (
+                  <div className="text-center text-gray-500 py-8">
+                    <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p>No posts found in this community</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!isLoading && !error && (!data || 
+          (data.type === 'home' && (!data.communities || data.communities.length === 0)) || 
+          (data.type === 'community' && (!data.posts || data.posts.length === 0))
+        ) && (
+          <div className="text-center text-gray-500 py-8">
+            <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <p>No content available</p>
+            <p className="text-sm mt-1">Try refreshing or check back later</p>
           </div>
         )}
       </div>

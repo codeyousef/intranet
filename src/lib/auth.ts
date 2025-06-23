@@ -10,7 +10,7 @@ export const authOptions: NextAuthOptions = {
       tenantId: process.env.AZURE_AD_TENANT_ID!,
       authorization: {
         params: {
-          scope: 'openid profile email offline_access https://analysis.windows.net/powerbi/api/Dataset.Read.All https://analysis.windows.net/powerbi/api/Report.Read.All https://graph.microsoft.com/Sites.Read.All https://graph.microsoft.com/Files.Read.All'
+          scope: 'openid profile email offline_access https://analysis.windows.net/powerbi/api/Dataset.Read.All https://analysis.windows.net/powerbi/api/Report.Read.All https://graph.microsoft.com/Sites.Read.All https://graph.microsoft.com/Files.Read.All https://graph.microsoft.com/Group.Read.All https://graph.microsoft.com/User.Read.All'
         }
       }
     }),
@@ -22,12 +22,12 @@ export const authOptions: NextAuthOptions = {
         token.refreshToken = account.refresh_token
         token.expiresAt = account.expires_at
       }
-      
+
       // Check if token is expired and refresh it
       if (token.expiresAt && Date.now() < token.expiresAt * 1000) {
         return token
       }
-      
+
       // Token is expired, try to refresh it
       if (token.refreshToken) {
         try {
@@ -41,7 +41,7 @@ export const authOptions: NextAuthOptions = {
               client_secret: process.env.AZURE_AD_CLIENT_SECRET!,
               grant_type: 'refresh_token',
               refresh_token: token.refreshToken as string,
-              scope: 'openid profile email offline_access https://analysis.windows.net/powerbi/api/Dataset.Read.All https://analysis.windows.net/powerbi/api/Report.Read.All https://graph.microsoft.com/Sites.Read.All https://graph.microsoft.com/Files.Read.All',
+              scope: 'openid profile email offline_access https://analysis.windows.net/powerbi/api/Dataset.Read.All https://analysis.windows.net/powerbi/api/Report.Read.All https://graph.microsoft.com/Sites.Read.All https://graph.microsoft.com/Files.Read.All https://graph.microsoft.com/Group.Read.All https://graph.microsoft.com/User.Read.All',
             }),
           })
 
@@ -58,7 +58,7 @@ export const authOptions: NextAuthOptions = {
           console.error('❌ Error refreshing token:', error)
         }
       }
-      
+
       return token
     },
     async session({ session, token }) {
