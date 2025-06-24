@@ -94,7 +94,7 @@ export function Navigation() {
 
           {/* User Menu */}
           <div className="hidden md:flex items-center space-x-4">
-            {session?.user && (
+            {session?.user ? (
               <div className="flex items-center space-x-3">
                 {/* Theme Toggle */}
                 <ThemeToggle />
@@ -110,12 +110,23 @@ export function Navigation() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => signOut()}
+                  onClick={() => signOut({ callbackUrl: window.location.href })}
                   className="text-black hover:bg-black/10"
+                  title="Sign Out"
                 >
                   <LogOut size={18} />
                 </Button>
               </div>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => signOut({ callbackUrl: window.location.href })}
+                className="text-black hover:bg-black/10"
+              >
+                <LogOut size={18} className="mr-2" />
+                Sign Out
+              </Button>
             )}
           </div>
 
@@ -163,7 +174,7 @@ export function Navigation() {
                 </a>
               )}
 
-              {session?.user && (
+              {session?.user ? (
                 <div className="pt-3 border-t border-black/20">
                   <div className="flex items-center justify-between">
                     <div>
@@ -179,13 +190,26 @@ export function Navigation() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => signOut()}
+                        onClick={() => signOut({ callbackUrl: window.location.href })}
                         className="text-black hover:bg-black/10"
+                        title="Sign Out"
                       >
                         <LogOut size={18} />
                       </Button>
                     </div>
                   </div>
+                </div>
+              ) : (
+                <div className="pt-3 border-t border-black/20">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => signOut({ callbackUrl: window.location.href })}
+                    className="text-black hover:bg-black/10 w-full justify-start"
+                  >
+                    <LogOut size={18} className="mr-2" />
+                    Sign Out
+                  </Button>
                 </div>
               )}
             </div>

@@ -3,7 +3,8 @@
 import { SessionProvider } from 'next-auth/react'
 import { ThemeProvider } from '@/lib/theme-context'
 // Import the fetch interceptor to handle non-JSON responses
-import '@/lib/fetch-interceptor'
+// Using the safe version that only runs in browser environments
+import '@/lib/fetch-interceptor-safe'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (

@@ -37,6 +37,70 @@ global.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     // Check if this is a NextAuth request
     const isNextAuthRequest = url.includes('/api/auth/') || url.includes('/_next/auth');
 
+    // Special handling for CSRF, signout, and session endpoints
+    // These endpoints are critical for NextAuth functionality and may return non-JSON responses
+    // or have special handling requirements that our interceptor might interfere with
+    const isCsrfEndpoint = url.includes('/api/auth/csrf');
+    const isSignoutEndpoint = url.includes('/api/auth/signout');
+    const isSessionEndpoint = url.includes('/api/auth/session');
+
+    // Special handling for signout endpoint - allow redirects to pass through
+    if (isSignoutEndpoint) {
+      // For signout, we want to allow redirects to pass through without modification
+      // This is important because the signout endpoint returns a redirect response
+      // that should be followed by the browser
+      console.log(`[Fetch Interceptor] Allowing signout response to pass through: ${response.status} ${response.statusText}`);
+      return response;
+    }
+
+    // Special handling for CSRF endpoint - allow responses to pass through
+    // This is important because NextAuth needs the CSRF token to make the signout request
+    if (isCsrfEndpoint) {
+      console.log(`[Fetch Interceptor] Allowing CSRF response to pass through: ${response.status} ${response.statusText}`);
+      return response;
+    }
+
+    // For session endpoints, we need to ensure they return valid JSON
+    // even if the server returns an HTML error page
+    if (isSessionEndpoint) {
+      // Check if the response is OK and has a JSON content type
+      const contentType = response.headers.get('content-type');
+      if (!response.ok || (contentType && !contentType.includes('application/json'))) {
+        try {
+          // Try to get the text to see what was returned
+          const text = await clonedResponse.text();
+
+          // Log the error for debugging
+          console.warn(`[Fetch Interceptor] Critical NextAuth endpoint returned non-JSON or error response`, {
+            url,
+            method,
+            status: response.status,
+            statusText: response.statusText,
+            contentType,
+            responseText: text.substring(0, 500) // Show more of the response text
+          });
+
+          // Return a valid JSON response with an error message
+          return new Response(JSON.stringify({
+            error: 'server_error',
+            message: 'The server returned an error or non-JSON response',
+            status: response.status,
+            url
+          }), {
+            status: 200, // Use 200 status so NextAuth can handle the error properly
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+        } catch (error) {
+          console.error('[Fetch Interceptor] Error processing critical NextAuth endpoint response:', error);
+        }
+      }
+
+      // If the response is OK and has a JSON content type, return it as is
+      return response;
+    }
+
     if (isNextAuthRequest) {
       // For NextAuth requests, we need to handle potential non-JSON responses
       try {

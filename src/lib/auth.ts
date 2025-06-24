@@ -24,6 +24,7 @@ export const authOptions: NextAuthOptions = {
       }
 
       // Check if token is expired and refresh it
+      // token.expiresAt is in seconds since epoch, so we need to multiply by 1000 to get milliseconds
       if (token.expiresAt && Date.now() < token.expiresAt * 1000) {
         return token
       }
@@ -45,17 +46,35 @@ export const authOptions: NextAuthOptions = {
             }),
           })
 
-          if (response.ok) {
-            const refreshedTokens = await response.json()
-            token.accessToken = refreshedTokens.access_token
-            token.refreshToken = refreshedTokens.refresh_token || token.refreshToken
-            token.expiresAt = Math.floor(Date.now() / 1000) + refreshedTokens.expires_in
-            console.log('✅ Token refreshed successfully')
-          } else {
-            console.error('❌ Failed to refresh token:', response.status)
+          // Check if response is OK and has JSON content
+          const contentType = response.headers.get('content-type')
+          if (!response.ok) {
+            throw new Error(`Token refresh failed with status ${response.status}: ${response.statusText}`)
           }
+
+          if (!contentType || !contentType.includes('application/json')) {
+            throw new Error(`Token refresh returned non-JSON response: ${contentType}`)
+          }
+
+          const refreshedTokens = await response.json()
+
+          if (!refreshedTokens.access_token) {
+            throw new Error('Token refresh response missing access_token')
+          }
+
+          token.accessToken = refreshedTokens.access_token
+          token.refreshToken = refreshedTokens.refresh_token || token.refreshToken
+          token.expiresAt = Math.floor(Date.now() / 1000) + refreshedTokens.expires_in
+          console.log('✅ Token refreshed successfully')
         } catch (error) {
-          console.error('❌ Error refreshing token:', error)
+          console.error('❌ Error refreshing token:', error instanceof Error ? error.message : error)
+
+          // Clear token data to force re-authentication
+          // This is safer than returning an expired token
+          token.accessToken = undefined
+          token.refreshToken = undefined
+          token.expiresAt = undefined
+          token.error = "RefreshAccessTokenError"
         }
       }
 

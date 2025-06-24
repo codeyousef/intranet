@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Maximize2, ExternalLink, MessageSquare, User, Calendar, ThumbsUp, RefreshCw, AlertCircle } from 'lucide-react'
+import { Maximize2, ExternalLink, MessageSquare, User, Calendar, ThumbsUp, RefreshCw, AlertCircle, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatDistanceToNow } from 'date-fns'
+import { signOut } from 'next-auth/react'
 
 // Mock data for fallback when API fails
 const MOCK_COMMUNITIES = [
@@ -101,7 +102,7 @@ export function VivaEngage({
         }
 
         setData(mockData)
-        setError('Authentication error: Missing required permissions for Viva Engage')
+        setError('Authentication error: You need to consent to the new Graph API permissions')
         setIsLoading(false)
         return
       }
@@ -141,6 +142,8 @@ export function VivaEngage({
         }
 
         setData(mockData)
+        setError('Authentication error: You need to consent to the new Graph API permissions')
+        return // Return early to prevent the generic error message from overriding our specific one
       }
 
       setError(err.message || 'An error occurred while fetching data')
@@ -285,20 +288,20 @@ export function VivaEngage({
                   <div className="flex items-start">
                     <AlertCircle className="w-5 h-5 text-blue-500 mt-0.5 mr-2 flex-shrink-0" />
                     <div>
-                      <p className="text-blue-700 font-medium mb-2">Missing Graph API Permissions</p>
+                      <p className="text-blue-700 font-medium mb-2">Permissions Consent Required</p>
                       <p className="text-gray-600 text-sm mb-2">
-                        The application doesn't have the necessary permissions to access Viva Engage data.
-                        You're seeing mock data instead of real content.
+                        The necessary Graph API permissions have been added, but you need to consent to them.
+                        You're seeing mock data until you complete this step.
                       </p>
                       <p className="text-gray-600 text-sm mb-2">
-                        To fix this issue, the Azure AD app registration needs the following Microsoft Graph permissions:
+                        The following Microsoft Graph permissions are now available:
                       </p>
                       <ul className="list-disc pl-5 text-sm text-gray-600 mb-2">
                         <li>Group.Read.All</li>
                         <li>User.Read.All</li>
                       </ul>
-                      <p className="text-gray-600 text-sm">
-                        After adding these permissions, users will need to consent to them by signing out and back in.
+                      <p className="text-gray-600 text-sm font-medium">
+                        To access Viva Engage data, please sign out and sign back in to consent to these permissions.
                       </p>
                     </div>
                   </div>
@@ -314,6 +317,17 @@ export function VivaEngage({
                   <RefreshCw className="w-4 h-4 mr-1" />
                   Retry
                 </Button>
+
+                {showPermissionsInfo && (
+                  <Button
+                    onClick={() => signOut({ callbackUrl: window.location.href })}
+                    size="sm"
+                    className="bg-blue-500 text-white hover:bg-blue-600"
+                  >
+                    <LogOut className="w-4 h-4 mr-1" />
+                    Sign Out
+                  </Button>
+                )}
 
                 {useMockData && (
                   <Button
@@ -336,12 +350,29 @@ export function VivaEngage({
           <div>
             {/* Mock data notice */}
             {useMockData && !error && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-                <div className="flex items-center">
-                  <AlertCircle className="w-4 h-4 text-yellow-500 mr-2 flex-shrink-0" />
-                  <p className="text-yellow-700 text-sm">
-                    Showing sample data. Connect to Viva Engage directly for real content.
-                  </p>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                <div className="flex items-start">
+                  <AlertCircle className="w-4 h-4 text-yellow-500 mt-0.5 mr-2 flex-shrink-0" />
+                  <div className="flex-1">
+                    <div className="mb-2">
+                      <p className="text-yellow-700 text-sm">
+                        Showing sample data. The necessary permissions have been added.
+                      </p>
+                      <p className="text-yellow-700 text-sm font-medium">
+                        Please sign out and sign back in to consent to the new permissions.
+                      </p>
+                    </div>
+                    <div className="flex justify-end">
+                      <Button
+                        onClick={() => signOut({ callbackUrl: window.location.href })}
+                        size="sm"
+                        className="bg-blue-500 text-white hover:bg-blue-600"
+                      >
+                        <LogOut className="w-3 h-3 mr-1" />
+                        Sign Out
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
