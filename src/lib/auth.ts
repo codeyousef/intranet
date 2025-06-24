@@ -3,6 +3,10 @@ import AzureADProvider from 'next-auth/providers/azure-ad'
 import { NextAuthOptions } from 'next-auth'
 
 export const authOptions: NextAuthOptions = {
+  // Enable debug mode in development
+  debug: process.env.NODE_ENV !== 'production',
+  // Set the secret explicitly to ensure it's used for CSRF token generation
+  secret: process.env.NEXTAUTH_SECRET,
   providers: [
     AzureADProvider({
       clientId: process.env.AZURE_AD_CLIENT_ID!,
@@ -15,6 +19,41 @@ export const authOptions: NextAuthOptions = {
       }
     }),
   ],
+  // Add explicit cookie configuration to handle cross-domain issues
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
+    callbackUrl: {
+      name: `next-auth.callback-url`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
+    csrfToken: {
+      name: `next-auth.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
+  },
+  // Add session configuration
+  session: {
+    strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
   callbacks: {
     async jwt({ token, account }) {
       if (account) {
@@ -91,6 +130,25 @@ export const authOptions: NextAuthOptions = {
     signIn: '/auth/signin',
     error: '/auth/signin',
   },
+  // Add event handlers for better error tracking
+  events: {
+    async signOut({ token, session }) {
+      console.log('[NextAuth] SignOut event triggered', {
+        timestamp: new Date().toISOString(),
+        tokenExists: !!token,
+        sessionExists: !!session
+      });
+    },
+    async error(error) {
+      console.error('[NextAuth] Error event triggered', {
+        error: error.message,
+        type: error.type,
+        timestamp: new Date().toISOString()
+      });
+    }
+  },
+  // Add session configuration to ensure it's properly cleared
+  useSecureCookies: process.env.NODE_ENV === 'production',
 }
 
 export const getAuthSession = () => getServerSession(authOptions)

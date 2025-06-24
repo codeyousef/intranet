@@ -8,6 +8,14 @@ import { Button } from './ui/button'
 import { Home, LogOut, Menu, X, Gift, Settings } from 'lucide-react'
 import Image from 'next/image'
 
+// Custom signout function
+const handleSignOut = () => {
+  console.log('Sign out button clicked')
+  
+  // Navigate to the dedicated signout page
+  window.location.href = '/signout'
+}
+
 const navItems = [
   {
     label: 'Home',
@@ -110,7 +118,11 @@ export function Navigation() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => signOut({ callbackUrl: window.location.href })}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleSignOut()
+                  }}
                   className="text-black hover:bg-black/10"
                   title="Sign Out"
                 >
@@ -121,7 +133,11 @@ export function Navigation() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => signOut({ callbackUrl: window.location.href })}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  handleSignOut()
+                }}
                 className="text-black hover:bg-black/10"
               >
                 <LogOut size={18} className="mr-2" />
@@ -190,7 +206,11 @@ export function Navigation() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => signOut({ callbackUrl: window.location.href })}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          handleSignOut()
+                        }}
                         className="text-black hover:bg-black/10"
                         title="Sign Out"
                       >
@@ -204,7 +224,11 @@ export function Navigation() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => signOut({ callbackUrl: window.location.href })}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleSignOut()
+                    }}
                     className="text-black hover:bg-black/10 w-full justify-start"
                   >
                     <LogOut size={18} className="mr-2" />

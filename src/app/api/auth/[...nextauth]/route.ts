@@ -8,6 +8,13 @@ const nextAuthHandler = NextAuth(authOptions)
 // Helper function to check environment variables and handle errors
 const checkEnvAndHandleErrors = async (request: NextRequest, method: string) => {
   try {
+    // Log the request details for debugging
+    console.log(`[NextAuth] Processing ${method} request to ${request.nextUrl.pathname}`, {
+      url: request.nextUrl.toString(),
+      headers: Object.fromEntries(request.headers.entries()),
+      timestamp: new Date().toISOString()
+    });
+
     // Check for required environment variables before calling NextAuth
     if (!process.env.NEXTAUTH_SECRET) {
       console.error(`[NextAuth] CRITICAL: Missing NEXTAUTH_SECRET environment variable (${method})`, {
@@ -45,8 +52,91 @@ const checkEnvAndHandleErrors = async (request: NextRequest, method: string) => 
       );
     }
 
-    // Call the NextAuth handler
-    return await nextAuthHandler(request);
+    // Check for NEXTAUTH_URL environment variable
+    if (!process.env.NEXTAUTH_URL) {
+      console.error(`[NextAuth] CRITICAL: Missing NEXTAUTH_URL environment variable (${method})`, {
+        timestamp: new Date().toISOString()
+      });
+
+      return NextResponse.json(
+        {
+          error: 'missing_nextauth_url',
+          message: 'Authentication configuration error: Missing NEXTAUTH_URL',
+          details: 'The NEXTAUTH_URL environment variable is required for proper callback handling',
+          timestamp: new Date().toISOString()
+        },
+        { status: 500 }
+      );
+    }
+
+    // Log that we're about to call the NextAuth handler
+    console.log(`[NextAuth] Calling NextAuth handler for ${method} request to ${request.nextUrl.pathname}`, {
+      timestamp: new Date().toISOString()
+    });
+
+    // Special handling for signout endpoint
+    if (method === 'POST' && request.nextUrl.pathname.includes('/signout')) {
+      console.log(`[NextAuth] Special handling for signout endpoint`, {
+        url: request.nextUrl.toString(),
+        timestamp: new Date().toISOString()
+      });
+
+      try {
+        // Call the NextAuth handler
+        const response = await nextAuthHandler(request);
+        
+        // Check if the response is ok
+        if (response.ok) {
+          return response;
+        }
+        
+        // If not ok, create a redirect response
+        const url = new URL('/', request.nextUrl.origin);
+        return NextResponse.redirect(url);
+      } catch (signoutError) {
+        console.error(`[NextAuth] Error in signout handler:`, {
+          error: signoutError instanceof Error ? signoutError.message : 'Unknown error',
+          timestamp: new Date().toISOString()
+        });
+
+        // For signout errors, redirect to home page
+        const url = new URL('/', request.nextUrl.origin);
+        return NextResponse.redirect(url);
+      }
+    }
+
+    // Call the NextAuth handler for other endpoints
+    try {
+      return await nextAuthHandler(request);
+    } catch (nextAuthError) {
+      console.error(`[NextAuth] Error in NextAuth handler for ${method} request:`, {
+        error: nextAuthError instanceof Error ? nextAuthError.message : 'Unknown error',
+        stack: nextAuthError instanceof Error ? nextAuthError.stack : 'No stack trace',
+        timestamp: new Date().toISOString()
+      });
+
+      // Check if this is a CSRF error
+      const errorMessage = nextAuthError instanceof Error ? nextAuthError.message : 'Unknown error';
+      if (errorMessage.toLowerCase().includes('csrf') || request.nextUrl.pathname.includes('/csrf')) {
+        console.error(`[NextAuth] CSRF token error detected:`, {
+          error: errorMessage,
+          timestamp: new Date().toISOString()
+        });
+
+        return NextResponse.json(
+          {
+            error: 'csrf_error',
+            message: 'CSRF token validation failed',
+            details: errorMessage,
+            timestamp: new Date().toISOString()
+          },
+          { status: 403 }
+        );
+      }
+
+      // Re-throw the error to be caught by the outer try-catch
+      throw nextAuthError;
+    }
   } catch (error) {
     console.error(`[NextAuth] Error in ${method} handler:`, {
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -54,15 +144,25 @@ const checkEnvAndHandleErrors = async (request: NextRequest, method: string) => 
       timestamp: new Date().toISOString()
     });
 
+    // Determine appropriate status code based on error type
+    let statusCode = 500; // Default to 500 for server errors
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+    if (errorMessage.toLowerCase().includes('unauthorized') || errorMessage.toLowerCase().includes('unauthenticated')) {
+      statusCode = 401;
+    } else if (errorMessage.toLowerCase().includes('forbidden') || errorMessage.toLowerCase().includes('csrf')) {
+      statusCode = 403;
+    }
+
     // Return a more graceful error response
     return NextResponse.json(
       {
         error: 'auth_error',
         message: 'An error occurred during authentication',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        details: errorMessage,
         timestamp: new Date().toISOString()
       },
-      { status: 401 }
+      { status: statusCode }
     );
   }
 };
