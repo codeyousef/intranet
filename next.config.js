@@ -21,14 +21,7 @@ const nextConfig = {
       },
     ]
   },
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: 'http://172.22.58.184:3001/api/:path*',
-      },
-    ]
-  },
+  // Removed circular rewrite that was causing infinite loop
 }
 
 module.exports = nextConfig

@@ -160,13 +160,13 @@ if (typeof window !== 'undefined') {
               responseText: text.substring(0, 500) // Show more of the response text
             });
 
-            // For session endpoint errors, return an error response
-            // This will force NextAuth to treat the user as unauthenticated
+            // Return an empty session response
+            // This allows NextAuth to continue without breaking
             return new Response(JSON.stringify({
-              error: 'SessionRequired',
-              message: 'Session fetch failed, authentication required'
+              user: null,
+              expires: null
             }), {
-              status: 401, // Use 401 to indicate authentication is required
+              status: 200, // Use 200 so NextAuth can handle the response
               headers: {
                 'Content-Type': 'application/json'
               }
@@ -174,12 +174,12 @@ if (typeof window !== 'undefined') {
           } catch (error) {
             console.error('[Fetch Interceptor] Error processing critical NextAuth endpoint response:', error);
 
-            // Even if we fail to process the response, return an error
+            // Even if we fail to process the response, return empty session
             return new Response(JSON.stringify({ 
-              error: 'SessionRequired',
-              message: 'Session processing failed' 
+              user: null,
+              expires: null
             }), {
-              status: 401,
+              status: 200,
               headers: { 'Content-Type': 'application/json' }
             });
           }
@@ -293,16 +293,16 @@ if (typeof window !== 'undefined') {
                 });
               }
 
-              // For 500 errors on session endpoint, return 401 to force re-authentication
+              // For 500 errors on session endpoint, return empty session
               if (response.status === 500 && url.includes('/api/auth/session')) {
-                console.warn('[Fetch Interceptor] Session endpoint returned 500 error, forcing re-authentication');
+                console.warn('[Fetch Interceptor] Session endpoint returned 500 error, returning empty session');
 
-                // Return 401 to indicate authentication is required
+                // Return empty session to allow auth flow to continue
                 return new Response(JSON.stringify({
-                  error: 'SessionRequired',
-                  message: 'Session unavailable, authentication required'
+                  user: null,
+                  expires: null
                 }), {
-                  status: 401,
+                  status: 200,
                   headers: {
                     'Content-Type': 'application/json'
                   }

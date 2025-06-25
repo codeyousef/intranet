@@ -1,0 +1,30 @@
+
+> intranet@1.0.0 dev
+> next dev -p 3001
+
+   ▲ Next.js 15.3.3
+   - Local:        http://localhost:3001
+   - Network:      http://10.255.255.254:3001
+   - Environments: .env.local
+
+ ✓ Starting...
+(node:328906) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ Ready in 17.9s
+ ○ Compiling /api/test-minimal ...
+ ✓ Compiled /api/test-minimal in 2.1s (363 modules)
+ GET /api/test-minimal 200 in 2616ms
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 848ms (598 modules)
+[next-auth][warn][DEBUG_ENABLED] 
+https://next-auth.js.org/warnings#debug_enabled
+ GET /api/auth/providers 200 in 6459ms
+ GET /api/auth/session 200 in 94ms
+ ○ Compiling /auth/signin ...
+ ✓ Compiled /auth/signin in 11.8s (1015 modules)
+ HEAD /auth/signin 200 in 12836ms
+ ✓ Compiled in 1014ms (370 modules)
+ ✓ Compiled /_not-found in 465ms (1005 modules)
+ GET /api/auth-status 404 in 636ms
+ GET /api/auth-status 404 in 53ms
+[?25h

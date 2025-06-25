@@ -1,0 +1,4 @@
+[32mStarted proxy: https://172.22.58.184:8443 → http://172.22.58.184:3001[39m
+(node:332114) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Killed
