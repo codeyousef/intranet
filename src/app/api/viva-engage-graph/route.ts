@@ -73,13 +73,14 @@ export async function GET(request: NextRequest) {
 
     // Determine the appropriate Graph API endpoint based on the feed type
     let graphApiUrl = '';
-    
+
     if (feedType === 'community' && communityId) {
       // Fetch posts from a specific community
       graphApiUrl = `https://graph.microsoft.com/v1.0/groups/${communityId}/threads`;
     } else {
-      // Fetch posts from the user's home feed (all communities they're a member of)
-      graphApiUrl = 'https://graph.microsoft.com/v1.0/me/joinedTeams';
+      // Fetch Yammer communities the user is a member of
+      // Using a simpler approach - get all groups and filter client-side
+      graphApiUrl = 'https://graph.microsoft.com/v1.0/groups';
     }
 
     terminalLog('INFO', 'Fetching Viva Engage data from Graph API', graphApiUrl);
@@ -96,7 +97,7 @@ export async function GET(request: NextRequest) {
     if (!response.ok) {
       const errorText = await response.text();
       terminalLog('ERROR', `Graph API returned status: ${response.status}`, errorText);
-      
+
       return NextResponse.json(
         {
           success: false,
@@ -111,9 +112,45 @@ export async function GET(request: NextRequest) {
     const data = await response.json();
     terminalLog('INFO', 'Graph API response received', data);
 
+    // Log the number of groups received
+    if (data.value && Array.isArray(data.value)) {
+      terminalLog('INFO', `Received ${data.value.length} groups from Graph API`);
+
+      // Log information about groupTypes if we're fetching communities
+      if (feedType === 'home') {
+        // Log more detailed information about the first few groups to help diagnose
+        const detailedGroupInfo = data.value.slice(0, 3).map((group: any) => ({
+          id: group.id,
+          displayName: group.displayName,
+          description: group.description,
+          groupTypes: group.groupTypes || [],
+          visibility: group.visibility,
+          mail: group.mail,
+          mailEnabled: group.mailEnabled,
+          securityEnabled: group.securityEnabled,
+          createdDateTime: group.createdDateTime
+        }));
+        terminalLog('INFO', 'Detailed group information (first 3 groups)', detailedGroupInfo);
+
+        // Log summary of all groups
+        const groupTypesInfo = data.value.map((group: any) => ({
+          id: group.id,
+          displayName: group.displayName,
+          groupTypes: group.groupTypes || []
+        }));
+        terminalLog('INFO', 'Group types information', groupTypesInfo);
+
+        // Count groups with Yammer type
+        const yammerGroupsCount = data.value.filter((group: any) => 
+          group.groupTypes && Array.isArray(group.groupTypes) && group.groupTypes.includes('Yammer')
+        ).length;
+        terminalLog('INFO', `Found ${yammerGroupsCount} Yammer groups`);
+      }
+    }
+
     // Transform the data into a format that's easier to use in the UI
     let transformedData;
-    
+
     if (feedType === 'community' && communityId) {
       // Transform community threads data
       transformedData = {
@@ -133,13 +170,63 @@ export async function GET(request: NextRequest) {
         })),
       };
     } else {
-      // Transform joined teams data
+      // Transform Yammer communities data
+      // Try multiple methods to identify Yammer communities
+      const yammerCommunities = data.value.filter((group: any) => {
+        // Method 1: Check groupTypes array (original method)
+        const hasYammerGroupType = group.groupTypes && 
+                                  Array.isArray(group.groupTypes) && 
+                                  group.groupTypes.includes('Yammer');
+
+        // Method 2: Check if mail domain contains 'yammer'
+        const hasYammerMail = group.mail && 
+                             typeof group.mail === 'string' && 
+                             group.mail.toLowerCase().includes('yammer');
+
+        // Method 3: Check if displayName or description mentions Yammer/Community
+        const nameHasYammerKeywords = group.displayName && 
+                                     typeof group.displayName === 'string' && 
+                                     (group.displayName.toLowerCase().includes('yammer') || 
+                                      group.displayName.toLowerCase().includes('community'));
+
+        const descriptionHasYammerKeywords = group.description && 
+                                            typeof group.description === 'string' && 
+                                            (group.description.toLowerCase().includes('yammer') || 
+                                             group.description.toLowerCase().includes('community'));
+
+        // Method 4: Check if it's a non-mail-enabled, non-security group (typical for Yammer)
+        const hasYammerGroupCharacteristics = group.mailEnabled === false && 
+                                             group.securityEnabled === false;
+
+        // Return true if any of the methods identify this as a Yammer community
+        return hasYammerGroupType || 
+               hasYammerMail || 
+               nameHasYammerKeywords || 
+               descriptionHasYammerKeywords || 
+               hasYammerGroupCharacteristics;
+      });
+
+      // Log how many communities were found with each method
+      if (feedType === 'home') {
+        const methodCounts = {
+          byGroupType: data.value.filter(g => g.groupTypes && Array.isArray(g.groupTypes) && g.groupTypes.includes('Yammer')).length,
+          byMail: data.value.filter(g => g.mail && typeof g.mail === 'string' && g.mail.toLowerCase().includes('yammer')).length,
+          byName: data.value.filter(g => g.displayName && typeof g.displayName === 'string' && 
+                                   (g.displayName.toLowerCase().includes('yammer') || g.displayName.toLowerCase().includes('community'))).length,
+          byDescription: data.value.filter(g => g.description && typeof g.description === 'string' && 
+                                        (g.description.toLowerCase().includes('yammer') || g.description.toLowerCase().includes('community'))).length,
+          byCharacteristics: data.value.filter(g => g.mailEnabled === false && g.securityEnabled === false).length,
+          total: yammerCommunities.length
+        };
+        terminalLog('INFO', 'Communities found by different methods', methodCounts);
+      }
+
       transformedData = {
         type: 'home',
-        communities: data.value.map((team: any) => ({
-          id: team.id,
-          name: team.displayName,
-          description: team.description,
+        communities: yammerCommunities.map((community: any) => ({
+          id: community.id,
+          name: community.displayName,
+          description: community.description,
         })),
       };
     }
@@ -151,7 +238,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     terminalLog('ERROR', 'Error fetching Viva Engage data', error);
-    
+
     return NextResponse.json(
       {
         success: false,
