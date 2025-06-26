@@ -171,54 +171,38 @@ export async function GET(request: NextRequest) {
       };
     } else {
       // Transform Yammer communities data
-      // Try multiple methods to identify Yammer communities
-      const yammerCommunities = data.value.filter((group: any) => {
-        // Method 1: Check groupTypes array (original method)
-        const hasYammerGroupType = group.groupTypes && 
-                                  Array.isArray(group.groupTypes) && 
-                                  group.groupTypes.includes('Yammer');
+      // Include all groups as potential Yammer communities
+      // This ensures we don't miss any communities due to filtering
+      const yammerCommunities = data.value;
 
-        // Method 2: Check if mail domain contains 'yammer'
-        const hasYammerMail = group.mail && 
-                             typeof group.mail === 'string' && 
-                             group.mail.toLowerCase().includes('yammer');
+      // Log that we're including all groups
+      terminalLog('INFO', `Including all ${data.value.length} groups as potential Yammer communities`);
 
-        // Method 3: Check if displayName or description mentions Yammer/Community
-        const nameHasYammerKeywords = group.displayName && 
-                                     typeof group.displayName === 'string' && 
-                                     (group.displayName.toLowerCase().includes('yammer') || 
-                                      group.displayName.toLowerCase().includes('community'));
-
-        const descriptionHasYammerKeywords = group.description && 
-                                            typeof group.description === 'string' && 
-                                            (group.description.toLowerCase().includes('yammer') || 
-                                             group.description.toLowerCase().includes('community'));
-
-        // Method 4: Check if it's a non-mail-enabled, non-security group (typical for Yammer)
-        const hasYammerGroupCharacteristics = group.mailEnabled === false && 
-                                             group.securityEnabled === false;
-
-        // Return true if any of the methods identify this as a Yammer community
-        return hasYammerGroupType || 
-               hasYammerMail || 
-               nameHasYammerKeywords || 
-               descriptionHasYammerKeywords || 
-               hasYammerGroupCharacteristics;
-      });
-
-      // Log how many communities were found with each method
+      // For debugging purposes, count how many would match each method
       if (feedType === 'home') {
-        const methodCounts = {
-          byGroupType: data.value.filter(g => g.groupTypes && Array.isArray(g.groupTypes) && g.groupTypes.includes('Yammer')).length,
-          byMail: data.value.filter(g => g.mail && typeof g.mail === 'string' && g.mail.toLowerCase().includes('yammer')).length,
-          byName: data.value.filter(g => g.displayName && typeof g.displayName === 'string' && 
-                                   (g.displayName.toLowerCase().includes('yammer') || g.displayName.toLowerCase().includes('community'))).length,
-          byDescription: data.value.filter(g => g.description && typeof g.description === 'string' && 
-                                        (g.description.toLowerCase().includes('yammer') || g.description.toLowerCase().includes('community'))).length,
-          byCharacteristics: data.value.filter(g => g.mailEnabled === false && g.securityEnabled === false).length,
+        const byGroupType = data.value.filter(g => g.groupTypes && Array.isArray(g.groupTypes) && g.groupTypes.includes('Yammer')).length;
+        const byMail = data.value.filter(g => g.mail && typeof g.mail === 'string' && g.mail.toLowerCase().includes('yammer')).length;
+        const byName = data.value.filter(g => g.displayName && typeof g.displayName === 'string' && 
+                                 (g.displayName.toLowerCase().includes('yammer') || 
+                                  g.displayName.toLowerCase().includes('viva') || 
+                                  g.displayName.toLowerCase().includes('engage'))).length;
+        const byDescription = data.value.filter(g => g.description && typeof g.description === 'string' && 
+                                      (g.description.toLowerCase().includes('yammer') || 
+                                       g.description.toLowerCase().includes('viva') || 
+                                       g.description.toLowerCase().includes('engage'))).length;
+        const byCharacteristics = data.value.filter(g => 
+                                        g.mailEnabled === false && 
+                                        g.securityEnabled === false && 
+                                        !g.displayName?.toLowerCase().includes('sharepoint')).length;
+
+        terminalLog('INFO', 'Groups that match each method:', {
+          byGroupType,
+          byMail,
+          byName,
+          byDescription,
+          byCharacteristics,
           total: yammerCommunities.length
-        };
-        terminalLog('INFO', 'Communities found by different methods', methodCounts);
+        });
       }
 
       transformedData = {

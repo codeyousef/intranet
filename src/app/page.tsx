@@ -203,12 +203,79 @@ function DashboardPage() {
       }
     };
 
-    // Newsletter fetching code has been commented out since the newsletter component is not being used
-    // This prevents unnecessary API requests to /api/sharepoint/newsletter-iframe
+    // Check if newsletter has already been loaded in this session
+    if (typeof window !== 'undefined') {
+      const newsletterLoaded = localStorage.getItem('newsletterLoaded') === 'true';
+      globalNewsletterLoaded.current = newsletterLoaded;
 
-    debugLog('🔄 Newsletter fetching has been disabled since the component is not in use');
+      if (newsletterLoaded) {
+        debugLog('🔍 Newsletter already loaded in this session, checking localStorage for data');
 
-    // Return empty cleanup function
+        // Try to get newsletter data from localStorage
+        const storedNewsletter = localStorage.getItem('newsletterData');
+        if (storedNewsletter) {
+          try {
+            const parsedNewsletter = JSON.parse(storedNewsletter);
+            setNewsletter(parsedNewsletter);
+            debugLog('✅ Loaded newsletter data from localStorage', parsedNewsletter);
+          } catch (error) {
+            debugLog('❌ Error parsing newsletter data from localStorage', error);
+            setNewsletterError('Error loading saved newsletter data. Please try refreshing the page.');
+          }
+        }
+
+        return () => {};
+      }
+    }
+
+    // Check URL parameters for force_fetch flag
+    const forceFetch = typeof window !== 'undefined' && 
+      new URLSearchParams(window.location.search).get('force_fetch') === 'true';
+
+    // If newsletter hasn't been loaded or force_fetch is true, fetch it
+    if (!globalNewsletterLoaded.current || forceFetch) {
+      // Implement debounce to prevent rapid successive fetches
+      const now = Date.now();
+      if (now - lastFetchAttempt.timestamp < lastFetchAttempt.minInterval) {
+        debugLog('🔒 Fetch attempt too soon after previous attempt, skipping');
+        return () => {};
+      }
+
+      lastFetchAttempt.timestamp = now;
+      debugLog('🔄 Fetching newsletter from API');
+
+      // Fetch the newsletter
+      fetch('/api/sharepoint/newsletter-iframe')
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`API returned ${response.status}: ${response.statusText}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          if (data.success && data.newsletter) {
+            debugLog('✅ Newsletter fetched successfully', data.newsletter);
+            setNewsletter(data.newsletter);
+
+            // Save to localStorage to avoid refetching
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
+              localStorage.setItem('newsletterLoaded', 'true');
+              globalNewsletterLoaded.current = true;
+            }
+          } else {
+            throw new Error(data.error || 'Unknown error fetching newsletter');
+          }
+        })
+        .catch(error => {
+          debugLog('❌ Error fetching newsletter', error);
+          setNewsletterError(`Failed to load the newsletter. ${error.message}\n\nPlease try again later or contact IT support if the issue persists.`);
+        });
+    } else {
+      debugLog('🔍 Newsletter already loaded in this session, skipping fetch');
+    }
+
+    // Return cleanup function
     return () => {};
   }, [session]) // Keep session as a dependency to avoid lint warnings
 
@@ -320,8 +387,8 @@ function DashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column */}
             <div className="lg:col-span-2 space-y-6">
-              {/* CEO Newsletter - Temporarily commented out while debugging Viva Engage */}
-              {false && (
+              {/* CEO Newsletter */}
+              {true && (
                 <GlassmorphismContainer className="p-6 h-[calc(36rem+1.5rem)]">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-bold text-gray-800 flex items-center">
