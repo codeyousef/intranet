@@ -40,7 +40,8 @@ export async function GET(request: NextRequest) {
           connected: connectionResult.connected,
           error: connectionResult.error,
           details: connectionResult.details,
-          troubleshooting: connectionResult.troubleshooting
+          troubleshooting: connectionResult.troubleshooting,
+          retryAttempts: connectionResult.retryAttempts
         });
 
       case 'structure':

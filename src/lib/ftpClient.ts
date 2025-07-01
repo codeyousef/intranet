@@ -19,54 +19,92 @@ const BASE_DIRECTORY = 'Operations/SITA/COM_IN';
 
 /**
  * Connect to the FTP server and execute a callback function
- * This implementation is extremely simplified to match the Python implementation
- * which successfully connects to the FTP server
+ * This implementation includes retry logic and timeout settings to handle connection issues
  * @param callback Function to execute with the FTP client
+ * @param maxRetries Maximum number of retry attempts (default: 3)
  * @returns Result of the callback function
  */
-async function withFtpClient<T>(callback: (client: ftp.Client) => Promise<T>): Promise<T> {
-  // Create a new client for this connection - simple like Python's FTP()
-  const client = new ftp.Client();
-  console.log('FTP client created');
+async function withFtpClient<T>(
+  callback: (client: ftp.Client) => Promise<T>,
+  maxRetries: number = 3
+): Promise<T> {
+  // Create a new client for this connection
+  const client = new ftp.Client(10000); // 10 second timeout for control socket
 
-  try {
-    console.log('Connecting to FTP server:', FTP_CONFIG.host);
+  // Configure client with more robust settings
+  client.ftp.verbose = process.env.NODE_ENV === 'development'; // Enable verbose logging in development
 
-    // Connect to the server - simple approach exactly like Python's implementation
-    await client.access({
-      host: FTP_CONFIG.host,
-      user: FTP_CONFIG.user,
-      password: FTP_CONFIG.password,
-      secure: FTP_CONFIG.secure,
-      port: FTP_CONFIG.port
-    });
-    console.log('Connected to FTP server successfully');
+  let lastError: any = null;
+  let retryCount = 0;
 
-    // Change to the base directory - like Python's ftp.cwd()
-    console.log('Changing to directory:', BASE_DIRECTORY);
-    await client.cd(BASE_DIRECTORY);
-    console.log('Changed to directory successfully');
-
-    // Execute the callback function
-    console.log('Executing callback function');
-    const result = await callback(client);
-    console.log('Callback function executed successfully');
-
-    return result;
-  } catch (error: any) {
-    console.error('Error in FTP operation:', error.message);
-    throw error;
-  } finally {
-    // Always close the connection in a finally block, exactly like Python's implementation
-    // This ensures it runs regardless of success or failure
+  while (retryCount <= maxRetries) {
     try {
-      console.log('Closing FTP connection in finally block');
+      if (retryCount > 0) {
+        console.log(`FTP connection attempt ${retryCount} of ${maxRetries}...`);
+        // Add exponential backoff delay between retries
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount - 1)));
+      }
+
+      // Configure client with more robust settings
+      client.ftp.socket.setKeepAlive(true, 1000); // Enable keep-alive to prevent idle disconnects
+
+      // Connect to the server with timeout settings
+      await client.access({
+        host: FTP_CONFIG.host,
+        user: FTP_CONFIG.user,
+        password: FTP_CONFIG.password,
+        secure: FTP_CONFIG.secure,
+        port: FTP_CONFIG.port,
+        socketTimeout: 30000, // 30 second socket timeout
+      });
+
+      // Change to the base directory
+      await client.cd(BASE_DIRECTORY);
+
+      // Execute the callback function
+      const result = await callback(client);
+
+      // Close the connection before returning
       await client.close();
-      console.log('FTP connection closed successfully');
-    } catch (closeError) {
-      console.warn('Error closing FTP connection:', closeError);
+
+      return result;
+    } catch (error: any) {
+      lastError = error;
+
+      // Check if this is a connection error that warrants a retry
+      const isRetryableError = 
+        error.code === 'ECONNRESET' || 
+        error.code === 'ETIMEDOUT' || 
+        error.code === 'ECONNREFUSED' ||
+        error.code === 'ENOTFOUND' ||
+        (error.message && (
+          error.message.includes('ECONNRESET') ||
+          error.message.includes('timeout') ||
+          error.message.includes('timed out')
+        ));
+
+      // Close the connection on error
+      try {
+        await client.close();
+      } catch (closeError) {
+        // Ignore errors during close on error path
+      }
+
+      // If we've reached max retries or it's not a retryable error, throw the error
+      if (retryCount >= maxRetries || !isRetryableError) {
+        console.error('FTP operation failed after', retryCount > 0 ? `${retryCount} retries:` : 'initial attempt:', error.message);
+        // Add retry information to the error object
+        error.retryAttempts = retryCount;
+        throw error;
+      }
+
+      console.warn(`FTP connection error (attempt ${retryCount + 1}/${maxRetries + 1}):`, error.message);
+      retryCount++;
     }
   }
+
+  // This should never be reached due to the throw in the loop, but TypeScript needs it
+  throw lastError;
 }
 
 /**
@@ -117,88 +155,64 @@ export async function getFileContent(filePath: string): Promise<string> {
 
 /**
  * Test connection to the FTP server
- * Simple implementation that just tries to connect and list files
- * @returns Object with connection status and basic error information if any
+ * Enhanced implementation that tries to connect with retry logic and provides detailed error information
+ * @param maxRetries Maximum number of retry attempts (default: 3)
+ * @returns Object with connection status and detailed error information if any
  */
-export async function testConnection(): Promise<{ connected: boolean; error?: string; details?: any; troubleshooting?: string[] }> {
-  console.log('Starting FTP connection test');
+export async function testConnection(maxRetries: number = 3): Promise<{ 
+  connected: boolean; 
+  error?: string; 
+  details?: any; 
+  troubleshooting?: string[];
+  retryAttempts?: number;
+}> {
+  let retryAttempts = 0;
 
   try {
-    // Simple connection test - just try to connect and list files
-    await withFtpClient(async (client) => {
-      console.log('FTP connection established, testing directory listing');
-
-      // List files to verify the connection works
-      const files = await client.list();
-      console.log(`Successfully listed ${files.length} files/directories`);
-
-      // Log the first few files for debugging
-      if (files.length > 0) {
-        console.log('First few files/directories:');
-        files.slice(0, 5).forEach((file, index) => {
-          console.log(`  ${index + 1}. ${file.name} (${file.type === 2 ? 'Directory' : 'File'})`);
-        });
-      }
-
-      return true;
-    });
+    // Connection test with retry logic
+    await withFtpClient(
+      async (client) => {
+        // List files to verify the connection works
+        await client.list();
+        return true;
+      },
+      maxRetries
+    );
 
     // If we get here, the connection was successful
-    console.log('FTP connection test successful');
     return { connected: true };
   } catch (error: any) {
     // Connection failed - capture detailed error information
     const errorMessage = error.message || 'Unknown error';
-    console.error('FTP connection test failed:', errorMessage);
+    console.error('FTP connection failed after retries:', errorMessage);
 
-    // Log detailed error information
-    console.error('Error details:');
-    console.error('- Code:', error.code);
-    console.error('- Name:', error.name);
-    console.error('- Syscall:', error.syscall);
-    console.error('- Errno:', error.errno);
+    // Format timestamp in a more user-friendly way - matching the format in the issue description
+    const now = new Date();
+    // Format: MM/DD/YYYY, H:MM:SS AM/PM
+    const formattedTimestamp = `${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')}/${now.getFullYear()}, ${now.toLocaleTimeString()}`;
 
-    // Create a comprehensive error details object
-    const errorDetails: Record<string, any> = {};
-
-    // Add standard error properties
-    if (error.code) errorDetails.code = error.code;
-    if (error.name) errorDetails.name = error.name;
-    if (error.message) errorDetails.message = error.message;
-    if (error.syscall) errorDetails.syscall = error.syscall;
-    if (error.errno) errorDetails.errno = error.errno;
-
-    // Add FTP-specific properties
-    if (error.info) errorDetails.info = error.info;
-
-    // Add all enumerable properties from the error object
-    for (const key in error) {
-      if (Object.prototype.hasOwnProperty.call(error, key) && !errorDetails[key]) {
-        try {
-          // Try to serialize the property
-          const serialized = JSON.stringify(error[key]);
-          if (serialized) {
-            errorDetails[key] = error[key];
-          }
-        } catch (e) {
-          // If the property can't be serialized, convert it to a string
-          try {
-            errorDetails[key] = String(error[key]);
-          } catch (e2) {
-            // If even String() fails, just note that it's not serializable
-            errorDetails[key] = '[Not serializable]';
-          }
-        }
-      }
+    // Extract retry information if available
+    if (error.retryAttempts !== undefined) {
+      retryAttempts = error.retryAttempts;
     }
 
-    // Add connection information that might help with troubleshooting
-    errorDetails.connectionInfo = {
-      host: FTP_CONFIG.host,
-      port: FTP_CONFIG.port,
-      secure: FTP_CONFIG.secure,
-      baseDirectory: BASE_DIRECTORY,
-      timestamp: new Date().toISOString()
+    // Create a detailed error details object - matching the format in the issue description
+    const errorDetails: Record<string, any> = {
+      // Error details section
+      'Error Code': error.code,
+      'Message': error.message,
+      'System Call': error.syscall,
+      'Error Number': error.errno,
+      'Type': error.name || 'Error',
+
+      // Connection Information section
+      'Connection Information': {
+        'Host': FTP_CONFIG.host,
+        'Port': FTP_CONFIG.port,
+        'Secure': FTP_CONFIG.secure ? 'Yes' : 'No',
+        'Base Directory': BASE_DIRECTORY,
+        'Timestamp': formattedTimestamp
+      }
     };
 
     // Basic troubleshooting tips
@@ -209,7 +223,7 @@ export async function testConnection(): Promise<{ connected: boolean; error?: st
       'Try again in a few minutes'
     ];
 
-    // Add specific tips for ECONNRESET errors
+    // Add specific tips for different error types - exactly matching the issue description
     if (error.code === 'ECONNRESET' || (errorMessage && errorMessage.includes('ECONNRESET'))) {
       errorDetails.friendlyMessage = 'The connection was reset by the server or a network device in between.';
       troubleshootingTips.push(
@@ -218,20 +232,39 @@ export async function testConnection(): Promise<{ connected: boolean; error?: st
         'Try using a VPN or different network connection',
         'Contact your network administrator to allow FTP traffic on port 21',
         'Verify the FTP server is configured to accept connections from your IP address',
-        'Try connecting at a different time as the server might be overloaded'
+        'Try connecting at a different time as the server might be overloaded',
+        'Consider increasing the connection timeout settings'
+      );
+    } else if (error.code === 'ETIMEDOUT' || (errorMessage && errorMessage.includes('timeout'))) {
+      errorDetails.friendlyMessage = 'The connection timed out while trying to connect to the FTP server.';
+      troubleshootingTips.push(
+        'The server might be temporarily unavailable or overloaded',
+        'Check your network connection speed and stability',
+        'Try increasing the connection timeout settings'
+      );
+    } else if (error.code === 'ECONNREFUSED') {
+      errorDetails.friendlyMessage = 'The connection was refused by the FTP server.';
+      troubleshootingTips.push(
+        'Verify the FTP server is running and accepting connections',
+        'Check if the server is blocking connections from your IP address',
+        'Verify the port number is correct'
+      );
+    } else if (error.code === 'ENOTFOUND') {
+      errorDetails.friendlyMessage = 'The FTP server hostname could not be resolved.';
+      troubleshootingTips.push(
+        'Check if the hostname is correct',
+        'Verify your DNS settings',
+        'Try using an IP address instead of a hostname if possible'
       );
     }
 
-    // Log the full error object and details for debugging
-    console.error('FTP connection error details:', error);
-    console.error('Serialized error details:', errorDetails);
-    console.error('Troubleshooting tips:', troubleshootingTips);
-
+    // Format the response to match the issue description format
     return { 
       connected: false, 
-      error: errorMessage,
+      error: `Could not connect to FTP server: ${errorMessage} (Error code: ${error.code})`,
       details: errorDetails,
-      troubleshooting: troubleshootingTips
+      troubleshooting: troubleshootingTips,
+      retryAttempts: retryAttempts
     };
   }
 }

@@ -572,27 +572,41 @@ export default function AdminPage() {
           errorMessage += `: ${data.error}`;
         }
 
+        // Add retry attempts information if available
+        if (data.retryAttempts !== undefined) {
+          errorMessage += ` (Retry attempts: ${data.retryAttempts})`;
+        }
+
+        // Create default error details if missing
+        const errorDetails = data.details || {
+          'Error Code': 'UNKNOWN',
+          'Message': data.error || 'Unknown error',
+          'Type': 'Error',
+          'Connection Information': {
+            'Timestamp': new Date().toLocaleString()
+          }
+        };
+
         // Store and log detailed error information for debugging
-        if (data.details) {
-          console.error('FTP connection error details:', data.details);
+        console.error('FTP connection error details:', errorDetails);
 
-          // Make a deep copy of the details to ensure we don't lose any information
-          try {
-            const detailsCopy = JSON.parse(JSON.stringify(data.details));
-            console.log('Parsed error details:', detailsCopy);
-            setFtpErrorDetails(detailsCopy);
-          } catch (parseError) {
-            console.error('Error parsing details:', parseError);
-            // If parsing fails, use the original object
-            setFtpErrorDetails(data.details);
-          }
+        // Make a deep copy of the details to ensure we don't lose any information
+        try {
+          const detailsCopy = JSON.parse(JSON.stringify(errorDetails));
+          console.log('Parsed error details:', detailsCopy);
+          setFtpErrorDetails(detailsCopy);
+        } catch (parseError) {
+          console.error('Error parsing details:', parseError);
+          // If parsing fails, use the original object
+          setFtpErrorDetails(errorDetails);
+        }
 
-          // Add code information if available
-          if (data.details.code) {
-            errorMessage += ` (Error code: ${data.details.code})`;
-          }
-        } else {
-          console.error('No error details provided in the response');
+        // Add code information if available
+        if (errorDetails['Error Code']) {
+          errorMessage += ` (Error code: ${errorDetails['Error Code']})`;
+        } else if (errorDetails.code) {
+          // Fallback for backward compatibility
+          errorMessage += ` (Error code: ${errorDetails.code})`;
         }
 
         // Store troubleshooting tips if available
