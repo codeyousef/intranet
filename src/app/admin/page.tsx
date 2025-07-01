@@ -24,7 +24,10 @@ import {
   Loader2,
   Calendar,
   Newspaper,
-  Users
+  Users,
+  Server,
+  FileText,
+  Download
 } from 'lucide-react'
 
 export default function AdminPage() {
@@ -39,6 +42,18 @@ export default function AdminPage() {
   const [peopleAdminUsers, setPeopleAdminUsers] = useState([])
   const [events, setEvents] = useState([])
   const [companyNews, setCompanyNews] = useState([])
+
+  // FTP state variables
+  const [ftpConnected, setFtpConnected] = useState(false)
+  const [ftpConnectionTesting, setFtpConnectionTesting] = useState(false)
+  const [ftpCurrentDirectory, setFtpCurrentDirectory] = useState('')
+  const [ftpFileList, setFtpFileList] = useState([])
+  const [ftpSelectedFile, setFtpSelectedFile] = useState(null)
+  const [ftpFileContent, setFtpFileContent] = useState('')
+  const [ftpLoading, setFtpLoading] = useState(false)
+  const [ftpDirectoryHistory, setFtpDirectoryHistory] = useState([''])
+  const [ftpErrorDetails, setFtpErrorDetails] = useState(null)
+  const [ftpTroubleshootingTips, setFtpTroubleshootingTips] = useState([])
 
   const [newLink, setNewLink] = useState({
     title: '',
@@ -516,6 +531,195 @@ export default function AdminPage() {
     }
   }
 
+  // FTP Functions
+
+  // Test FTP connection
+  const testFtpConnection = async () => {
+    setError('')
+    setSuccess('')
+    setFtpConnectionTesting(true)
+    setFtpErrorDetails(null)
+    setFtpTroubleshootingTips([])
+
+    try {
+      console.log('Starting FTP connection test...');
+      const response = await fetch('/api/ftp?action=test')
+      console.log('FTP test API response status:', response.status);
+
+      const data = await response.json()
+
+      // Log the entire response data for debugging
+      console.log('FTP test response data:', data);
+      console.log('FTP test response data.details:', data.details);
+      console.log('FTP test response data.troubleshooting:', data.troubleshooting);
+
+      if (!data.success) {
+        console.error('FTP test failed with error:', data.error);
+        throw new Error(data.error || 'Failed to test FTP connection')
+      }
+
+      setFtpConnected(data.connected)
+
+      if (data.connected) {
+        setSuccess('Successfully connected to FTP server')
+        // If connected, fetch the root directory
+        fetchFtpFiles('')
+      } else {
+        // Format detailed error message
+        let errorMessage = 'Could not connect to FTP server';
+
+        if (data.error) {
+          errorMessage += `: ${data.error}`;
+        }
+
+        // Store and log detailed error information for debugging
+        if (data.details) {
+          console.error('FTP connection error details:', data.details);
+
+          // Make a deep copy of the details to ensure we don't lose any information
+          try {
+            const detailsCopy = JSON.parse(JSON.stringify(data.details));
+            console.log('Parsed error details:', detailsCopy);
+            setFtpErrorDetails(detailsCopy);
+          } catch (parseError) {
+            console.error('Error parsing details:', parseError);
+            // If parsing fails, use the original object
+            setFtpErrorDetails(data.details);
+          }
+
+          // Add code information if available
+          if (data.details.code) {
+            errorMessage += ` (Error code: ${data.details.code})`;
+          }
+        } else {
+          console.error('No error details provided in the response');
+        }
+
+        // Store troubleshooting tips if available
+        if (data.troubleshooting && Array.isArray(data.troubleshooting)) {
+          console.log('FTP troubleshooting tips:', data.troubleshooting);
+          setFtpTroubleshootingTips(data.troubleshooting);
+        } else {
+          console.warn('No troubleshooting tips provided or not in expected format');
+          // Set default troubleshooting tips
+          setFtpTroubleshootingTips([
+            'Check your network connection',
+            'Verify FTP server is online',
+            'Ensure firewall is not blocking FTP traffic',
+            'Try again in a few minutes'
+          ]);
+        }
+
+        // Log the error message that will be displayed
+        console.log('Setting error message:', errorMessage);
+        setError(errorMessage);
+      }
+    } catch (error) {
+      console.error('Error testing FTP connection:', error);
+
+      // Create detailed error information even for client-side errors
+      const clientErrorDetails = {
+        message: error.message || 'Unknown error',
+        name: error.name,
+        stack: error.stack,
+        timestamp: new Date().toISOString(),
+        type: 'client-side-error'
+      };
+
+      console.log('Client-side error details:', clientErrorDetails);
+      setFtpErrorDetails(clientErrorDetails);
+
+      // Set default troubleshooting tips for client-side errors
+      setFtpTroubleshootingTips([
+        'Check your network connection',
+        'Verify that the API server is running',
+        'Try refreshing the page and attempting the operation again',
+        'Check the browser console for more detailed error information'
+      ]);
+
+      // Set a descriptive error message
+      const errorMessage = `Failed to test FTP connection: ${error.message || 'Unknown error'}`;
+      console.log('Setting error message:', errorMessage);
+      setError(errorMessage);
+      setFtpConnected(false);
+    } finally {
+      setFtpConnectionTesting(false);
+    }
+  }
+
+  // Fetch files from FTP server
+  const fetchFtpFiles = async (directory) => {
+    setError('')
+    setFtpLoading(true)
+
+    try {
+      const response = await fetch(`/api/ftp?action=list&directory=${encodeURIComponent(directory)}`)
+      const data = await response.json()
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to fetch FTP files')
+      }
+
+      setFtpFileList(data.files)
+      setFtpCurrentDirectory(directory)
+
+      // Update directory history for navigation
+      if (!ftpDirectoryHistory.includes(directory)) {
+        setFtpDirectoryHistory([...ftpDirectoryHistory, directory])
+      }
+    } catch (error) {
+      console.error('Error fetching FTP files:', error)
+      setError(error.message || 'Failed to fetch FTP files')
+    } finally {
+      setFtpLoading(false)
+    }
+  }
+
+  // Navigate to a directory
+  const navigateToDirectory = (directory) => {
+    // If it's a parent directory (..)
+    if (directory === '..') {
+      // Split the current path and remove the last segment
+      const pathParts = ftpCurrentDirectory.split('/')
+      pathParts.pop()
+      const parentDirectory = pathParts.join('/')
+      fetchFtpFiles(parentDirectory)
+    } else {
+      // Construct the new path
+      const newPath = ftpCurrentDirectory 
+        ? `${ftpCurrentDirectory}/${directory}` 
+        : directory
+      fetchFtpFiles(newPath)
+    }
+  }
+
+  // Get file content
+  const getFileContent = async (filePath) => {
+    setError('')
+    setFtpLoading(true)
+
+    try {
+      const fullPath = ftpCurrentDirectory 
+        ? `${ftpCurrentDirectory}/${filePath}` 
+        : filePath
+
+      const response = await fetch(`/api/ftp?action=content&filePath=${encodeURIComponent(fullPath)}`)
+      const data = await response.json()
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to get file content')
+      }
+
+      setFtpFileContent(data.content)
+      setFtpSelectedFile(filePath)
+    } catch (error) {
+      console.error('Error getting file content:', error)
+      setError(error.message || 'Failed to get file content')
+    } finally {
+      setFtpLoading(false)
+    }
+  }
+
   // If loading or not authenticated, show loading state
   if (isLoading) {
     return (
@@ -564,7 +768,10 @@ export default function AdminPage() {
               <TabsTrigger value="platform-links">Platform Links</TabsTrigger>
               <TabsTrigger value="admin-users">Admin Users</TabsTrigger>
               {isAdmin && (
-                <TabsTrigger value="people-admin-users">People Admin Users</TabsTrigger>
+                <>
+                  <TabsTrigger value="people-admin-users">People Admin Users</TabsTrigger>
+                  <TabsTrigger value="ftp-browser">FTP Browser</TabsTrigger>
+                </>
               )}
               {isPeopleAdmin && (
                 <>
@@ -1020,6 +1227,280 @@ export default function AdminPage() {
                           ))}
                         </div>
                       )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+            )}
+
+            {/* FTP Browser Tab */}
+            {isAdmin && (
+              <TabsContent value="ftp-browser">
+                <div className="grid grid-cols-1 gap-6">
+                  {/* FTP Connection Test */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <Server className="h-5 w-5 mr-2" />
+                        FTP Server Browser
+                      </CardTitle>
+                      <CardDescription>
+                        Browse and view files on the FTP server (read-only)
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-6">
+                        {/* Connection Test */}
+                        <div>
+                          <Button 
+                            onClick={testFtpConnection} 
+                            disabled={ftpConnectionTesting}
+                            className="mb-4"
+                          >
+                            {ftpConnectionTesting ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Testing Connection...
+                              </>
+                            ) : (
+                              <>
+                                <Server className="h-4 w-4 mr-2" />
+                                Test FTP Connection
+                              </>
+                            )}
+                          </Button>
+
+                          {ftpConnected && (
+                            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
+                              Successfully connected to FTP server
+                            </div>
+                          )}
+
+                          {/* Display detailed error information if available */}
+                          {!ftpConnected && (
+                            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+                              <div className="font-medium mb-2 text-lg">FTP Connection Error Details:</div>
+
+                              {/* Always show the error message at the top */}
+                              <div className="font-medium text-base mb-4 border-l-4 border-red-400 pl-3 py-2 bg-red-50">
+                                {error}
+                              </div>
+
+                              {ftpErrorDetails ? (
+                                <div className="text-sm space-y-1">
+                                  {/* Display friendly message if available */}
+                                  {ftpErrorDetails.friendlyMessage && (
+                                    <div className="font-medium text-base mb-2 border-l-4 border-red-400 pl-3 py-1">
+                                      {ftpErrorDetails.friendlyMessage}
+                                    </div>
+                                  )}
+
+                                  {/* Display connection information if available */}
+                                  {ftpErrorDetails.connectionInfo && (
+                                    <div className="bg-gray-50 p-3 rounded-md mb-3 border border-gray-200">
+                                      <div className="font-medium mb-1">Connection Information:</div>
+                                      <div><span className="font-medium">Host:</span> {ftpErrorDetails.connectionInfo.host}</div>
+                                      <div><span className="font-medium">Port:</span> {ftpErrorDetails.connectionInfo.port}</div>
+                                      <div><span className="font-medium">Secure:</span> {ftpErrorDetails.connectionInfo.secure ? 'Yes' : 'No'}</div>
+                                      <div><span className="font-medium">Base Directory:</span> {ftpErrorDetails.connectionInfo.baseDirectory}</div>
+                                      <div><span className="font-medium">Timestamp:</span> {new Date(ftpErrorDetails.connectionInfo.timestamp).toLocaleString()}</div>
+                                    </div>
+                                  )}
+
+                                  {/* Display common error properties first */}
+                                  <div className="bg-red-50 p-3 rounded-md mb-3 border border-red-200">
+                                    <div className="font-medium mb-1">Error Details:</div>
+                                    {ftpErrorDetails.code && (
+                                      <div><span className="font-medium">Error Code:</span> {ftpErrorDetails.code}</div>
+                                    )}
+                                    {ftpErrorDetails.name && (
+                                      <div><span className="font-medium">Error Type:</span> {ftpErrorDetails.name}</div>
+                                    )}
+                                    {ftpErrorDetails.message && (
+                                      <div><span className="font-medium">Message:</span> {ftpErrorDetails.message}</div>
+                                    )}
+                                    {ftpErrorDetails.syscall && (
+                                      <div><span className="font-medium">System Call:</span> {ftpErrorDetails.syscall}</div>
+                                    )}
+                                    {ftpErrorDetails.errno && (
+                                      <div><span className="font-medium">Error Number:</span> {ftpErrorDetails.errno}</div>
+                                    )}
+                                  </div>
+
+                                  {/* Display FTP-specific info */}
+                                  {ftpErrorDetails.info && (
+                                    <div className="bg-blue-50 p-3 rounded-md mb-3 border border-blue-200">
+                                      <div className="font-medium mb-1">FTP-Specific Information:</div>
+                                      <div><span className="font-medium">Additional Info:</span> {JSON.stringify(ftpErrorDetails.info)}</div>
+                                    </div>
+                                  )}
+
+                                  {/* Display any other properties that might be present */}
+                                  {Object.entries(ftpErrorDetails)
+                                    .filter(([key]) => !['code', 'name', 'message', 'syscall', 'errno', 'info', 'stack', 'friendlyMessage', 'connectionInfo'].includes(key))
+                                    .map(([key, value]) => (
+                                      <div key={key}>
+                                        <span className="font-medium">{key.charAt(0).toUpperCase() + key.slice(1)}:</span> 
+                                        {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                      </div>
+                                    ))
+                                  }
+                                </div>
+                              ) : (
+                                <div className="text-sm mb-3">
+                                  <p>No detailed error information available. This could be due to:</p>
+                                  <ul className="list-disc pl-5 mt-1 mb-2">
+                                    <li>Error details not being properly captured</li>
+                                    <li>Error details not being properly serialized</li>
+                                    <li>Network issues preventing error details from being transmitted</li>
+                                  </ul>
+                                  <p>Check the browser console for more information.</p>
+                                </div>
+                              )}
+
+                              <div className="mt-4 text-sm">
+                                <div className="bg-yellow-50 p-3 rounded-md border border-yellow-200">
+                                  <p className="font-medium text-yellow-800 mb-2">Troubleshooting Tips:</p>
+                                  <ul className="list-disc pl-5 space-y-1 text-yellow-700">
+                                    {/* Display custom troubleshooting tips if available */}
+                                    {ftpTroubleshootingTips.length > 0 ? (
+                                      ftpTroubleshootingTips.map((tip, index) => (
+                                        <li key={index}>{tip}</li>
+                                      ))
+                                    ) : (
+                                      <>
+                                        <li>Check your network connection</li>
+                                        <li>Verify FTP server is online</li>
+                                        <li>Ensure firewall is not blocking FTP traffic</li>
+                                        <li>Try again in a few minutes</li>
+                                      </>
+                                    )}
+                                  </ul>
+
+                                  {/* Add additional help information */}
+                                  <div className="mt-3 pt-3 border-t border-yellow-200">
+                                    <p className="font-medium text-yellow-800 mb-1">Need more help?</p>
+                                    <p className="text-yellow-700">
+                                      If you continue to experience issues, please contact your network administrator 
+                                      with the error details shown above. For ECONNRESET errors specifically, 
+                                      this is often related to network configuration or firewall settings.
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* File Browser - Only show if connected */}
+                        {ftpConnected && (
+                          <div className="space-y-4">
+                            {/* Current Directory */}
+                            <div className="bg-gray-50 p-3 rounded-lg flex items-center">
+                              <span className="font-medium mr-2">Current Directory:</span>
+                              <span className="text-gray-600">
+                                {ftpCurrentDirectory || 'Root'}
+                              </span>
+                            </div>
+
+                            {/* Directory Navigation */}
+                            <div className="flex flex-wrap gap-2 mb-4">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => fetchFtpFiles('')}
+                                disabled={ftpLoading}
+                              >
+                                Root
+                              </Button>
+
+                              {ftpCurrentDirectory && (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => navigateToDirectory('..')}
+                                  disabled={ftpLoading}
+                                >
+                                  Parent Directory
+                                </Button>
+                              )}
+                            </div>
+
+                            {/* File List */}
+                            <div className="border rounded-lg overflow-hidden">
+                              <div className="bg-gray-100 px-4 py-2 font-medium border-b">
+                                Files and Directories
+                              </div>
+
+                              {ftpLoading ? (
+                                <div className="p-8 flex justify-center">
+                                  <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                                </div>
+                              ) : ftpFileList.length === 0 ? (
+                                <div className="p-6 text-center text-gray-500">
+                                  No files found in this directory
+                                </div>
+                              ) : (
+                                <div className="divide-y">
+                                  {ftpFileList.map((file, index) => (
+                                    <div 
+                                      key={index} 
+                                      className="px-4 py-3 hover:bg-gray-50 flex items-center justify-between cursor-pointer"
+                                      onClick={() => {
+                                        if (file.type === 2) { // Directory
+                                          navigateToDirectory(file.name)
+                                        } else if (file.type === 1) { // File
+                                          getFileContent(file.name)
+                                        }
+                                      }}
+                                    >
+                                      <div className="flex items-center">
+                                        {file.type === 2 ? (
+                                          // Directory
+                                          <div className="text-blue-600 flex items-center">
+                                            <Server className="h-4 w-4 mr-2" />
+                                            <span>{file.name}</span>
+                                          </div>
+                                        ) : (
+                                          // File
+                                          <div className="flex items-center">
+                                            <FileText className="h-4 w-4 mr-2 text-gray-500" />
+                                            <span>{file.name}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="text-sm text-gray-500">
+                                        {file.type === 1 && (
+                                          <span>{Math.round(file.size / 1024)} KB</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* File Content Viewer */}
+                            {ftpSelectedFile && (
+                              <Card>
+                                <CardHeader className="py-3">
+                                  <CardTitle className="text-base flex items-center">
+                                    <FileText className="h-4 w-4 mr-2" />
+                                    {ftpSelectedFile}
+                                  </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                  <div className="bg-gray-50 p-4 rounded-lg border overflow-x-auto">
+                                    <pre className="text-sm whitespace-pre-wrap">
+                                      {ftpFileContent || 'No content available'}
+                                    </pre>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
