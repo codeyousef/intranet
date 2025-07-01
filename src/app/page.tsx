@@ -30,6 +30,10 @@ import NewOffersGrid from '@/components/new-offers-grid'
 import { ChatButton } from '@/components/chat-button'
 import PlatformLinks from '@/components/platform-links'
 import { VivaEngage } from '@/components/viva-engage'
+import { useTheme } from '@/lib/theme-context'
+import { CelebrationsComponent } from '@/components/celebrations'
+import { UpcomingEvents } from '@/components/upcoming-events'
+import { CompanyNews } from '@/components/company-news'
 import { 
   Calendar, 
   MapPin, 
@@ -69,33 +73,9 @@ const lastFetchAttempt = {
 
 // Mazaya offers are now loaded from the database via the MazayaOffers component
 
-// Sample company news
-const companyNews = [
-  { title: 'New Route Announcement: RUH-MXP', date: '2025-06-10', category: 'Operations' },
-  { title: 'Q2 2025 Financial Results Released', date: '2025-06-08', category: 'Business' },
-  { title: 'Safety Excellence Award Received', date: '2025-06-05', category: 'Achievement' },
-  { title: 'Fleet Expansion: 3 New A321neo Aircraft', date: '2025-06-03', category: 'Operations' },
-]
+// Events and company news are now loaded from the database via their respective components
 
-// Sample upcoming events
-const upcomingEvents = [
-  { title: 'All Hands Meeting', date: '2025-06-20', time: '10:00 AM', location: 'Main Auditorium' },
-  { title: 'Safety Training Session', date: '2025-06-22', time: '2:00 PM', location: 'Training Center' },
-  { title: 'Team Building Event', date: '2025-06-25', time: '6:00 PM', location: 'Al Faisaliah Hotel' },
-]
-
-// Sample birthdays and anniversaries
-const announcements = {
-  birthdays: [
-    { name: 'Ahmed Al-Rashid', department: 'Operations', date: 'Today' },
-    { name: 'Sarah Johnson', department: 'Customer Service', date: 'Tomorrow' },
-    { name: 'Mohammed Al-Khaled', department: 'Maintenance', date: 'June 18' },
-  ],
-  anniversaries: [
-    { name: 'Fatima Al-Zahra', years: 5, department: 'Finance', date: 'This Week' },
-    { name: 'Ali Hassan', years: 10, department: 'Pilot', date: 'Next Week' },
-  ]
-}
+// Celebrations data will be fetched from the API
 
 function LoginPage() {
   const [error, setError] = useState<string | null>(null)
@@ -145,6 +125,7 @@ function LoginPage() {
 }
 
 function DashboardPage() {
+  const { theme } = useTheme()
   const { data: session } = useSession()
   const [currentTime, setCurrentTime] = useState(new Date())
   const [weather] = useState({ temp: 32, condition: 'Sunny', location: 'Riyadh' })
@@ -245,7 +226,7 @@ function DashboardPage() {
       debugLog('🔄 Fetching newsletter from API');
 
       // Fetch the newsletter
-      fetch('/api/sharepoint/newsletter-iframe')
+      fetch('/api/newsletter-iframe')
         .then(response => {
           if (!response.ok) {
             throw new Error(`API returned ${response.status}: ${response.statusText}`);
@@ -396,25 +377,17 @@ function DashboardPage() {
                       CEO Newsletter
                     </h2>
                     <div className="flex items-center space-x-2">
-                      {newsletter?.sharePointUrl && (
-                        <Button
-                          onClick={() => window.open(newsletter.sharePointUrl, '_blank')}
-                          size="sm"
-                          variant="outline"
-                          className="bg-white/10 border-gray-300 text-gray-700 hover:bg-gray-100"
-                        >
-                          <ExternalLink className="w-4 h-4 mr-1" />
-                          SharePoint
-                        </Button>
-                      )}
                       <div className="flex space-x-2">
                         <Button
                           onClick={() => window.location.href = '/newsletter-archive'}
                           size="sm"
                           variant="outline"
-                          className="bg-white/10 border-gray-300 text-gray-700 hover:bg-gray-100"
+                          className={theme === 'dark' 
+                            ? "bg-gray-700/30 border-gray-400 text-gray-200 hover:bg-gray-600/50" 
+                            : "bg-white/10 border-gray-300 text-gray-700 hover:bg-gray-100"
+                          }
                         >
-                          <Newspaper className="w-4 h-4 mr-1" />
+                          <Newspaper className={`w-4 h-4 mr-1 ${theme === 'dark' ? 'text-gray-200' : ''}`} />
                           Archive
                         </Button>
                         <Button
@@ -460,15 +433,6 @@ function DashboardPage() {
                               Retry
                             </Button>
 
-                            {/* Add a button to open in SharePoint directly */}
-                            <Button
-                              onClick={() => window.open('https://flyadeal.sharepoint.com/sites/Thelounge/CEO%20Newsletter/last-newsletter.html', '_blank')}
-                              size="sm"
-                              variant="outline"
-                              className="border-gray-300 text-gray-600 hover:bg-gray-100"
-                            >
-                              Open in SharePoint
-                            </Button>
                           </div>
                         </div>
                       </div>
@@ -497,23 +461,7 @@ function DashboardPage() {
 
 
               {/* Company News */}
-              <GlassmorphismContainer className="p-6 mt-6">
-                <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                  <Newspaper className="w-5 h-5 mr-2 text-flyadeal-yellow" />
-                  Company News
-                </h2>
-                <div className="space-y-3">
-                  {companyNews.map((news, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors cursor-pointer">
-                      <div className="flex-1">
-                        <div className="text-gray-800 font-medium">{news.title}</div>
-                        <div className="text-gray-600 text-sm">{news.date} • {news.category}</div>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-gray-400" />
-                    </div>
-                  ))}
-                </div>
-              </GlassmorphismContainer>
+              <CompanyNews />
 
               {/* Viva Engage */}
               <GlassmorphismContainer className="p-6 mt-6 h-[calc(24rem+1.5rem)]">
@@ -526,15 +474,18 @@ function DashboardPage() {
                     onClick={() => window.open("https://web.yammer.com/embed/groups", "_blank")}
                     size="sm"
                     variant="outline"
-                    className="bg-white/10 border-gray-300 text-gray-700 hover:bg-gray-100"
+                    className={theme === 'dark' 
+                      ? "bg-gray-700/30 border-gray-400 text-gray-200 hover:bg-gray-600/50" 
+                      : "bg-white/10 border-gray-300 text-gray-700 hover:bg-gray-100"
+                    }
                   >
-                    <ExternalLink className="w-4 h-4 mr-1" />
+                    <ExternalLink className={`w-4 h-4 mr-1 ${theme === 'dark' ? 'text-gray-200' : ''}`} />
                     Open in Viva Engage
                   </Button>
                 </div>
                 <VivaEngage 
                   feedType="home"
-                  theme="light"
+                  theme={theme}
                 />
               </GlassmorphismContainer>
             </div>
@@ -557,24 +508,7 @@ function DashboardPage() {
               </GlassmorphismContainer>
 
               {/* Upcoming Events */}
-              <GlassmorphismContainer className="p-6">
-                <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                  <Calendar className="w-5 h-5 mr-2 text-flyadeal-yellow" />
-                  Upcoming Events
-                </h2>
-                <div className="space-y-3">
-                  {upcomingEvents.map((event, index) => (
-                    <div key={index} className="p-3 bg-white/5 border border-white/10 rounded-lg">
-                      <div className="text-gray-800 font-medium mb-1">{event.title}</div>
-                      <div className="text-gray-600 text-sm">{event.date} at {event.time}</div>
-                      <div className="text-gray-500 text-xs flex items-center mt-1">
-                        <MapPin className="w-3 h-3 mr-1" />
-                        {event.location}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </GlassmorphismContainer>
+              <UpcomingEvents />
 
               {/* Birthdays & Anniversaries */}
               <GlassmorphismContainer className="p-6">
@@ -583,37 +517,7 @@ function DashboardPage() {
                   Celebrations
                 </h2>
 
-                {/* Birthdays */}
-                <div className="mb-4">
-                  <h3 className="text-gray-700 font-medium mb-2 flex items-center">
-                    <Cake className="w-4 h-4 mr-1 text-pink-400" />
-                    Birthdays
-                  </h3>
-                  <div className="space-y-2">
-                    {announcements.birthdays.map((birthday, index) => (
-                      <div key={index} className="p-2 bg-white/5 border border-white/10 rounded text-sm">
-                        <div className="text-gray-800">{birthday.name}</div>
-                        <div className="text-gray-600 text-xs">{birthday.department} • {birthday.date}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Anniversaries */}
-                <div>
-                  <h3 className="text-gray-700 font-medium mb-2 flex items-center">
-                    <Award className="w-4 h-4 mr-1 text-flyadeal-yellow" />
-                    Work Anniversaries
-                  </h3>
-                  <div className="space-y-2">
-                    {announcements.anniversaries.map((anniversary, index) => (
-                      <div key={index} className="p-2 bg-white/5 border border-white/10 rounded text-sm">
-                        <div className="text-gray-800">{anniversary.name}</div>
-                        <div className="text-gray-600 text-xs">{anniversary.years} years • {anniversary.department} • {anniversary.date}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <CelebrationsComponent />
               </GlassmorphismContainer>
             </div>
           </div>
@@ -629,17 +533,6 @@ function DashboardPage() {
                 {newsletterError ? 'Newsletter Error' : newsletter?.title || 'CEO Newsletter'}
               </h3>
               <div className="flex items-center space-x-2">
-                {!newsletterError && newsletter?.sharePointUrl && (
-                  <Button
-                    onClick={() => window.open(newsletter.sharePointUrl, '_blank')}
-                    size="sm"
-                    variant="outline"
-                    className="text-gray-100 border-white/30 hover:bg-white/20"
-                  >
-                    <ExternalLink className="w-4 h-4 mr-1" />
-                    Open in SharePoint
-                  </Button>
-                )}
                 <Button
                   onClick={() => setNewsletterModalOpen(false)}
                   size="sm"
@@ -675,14 +568,6 @@ function DashboardPage() {
                       Retry
                     </Button>
 
-                    <Button
-                      onClick={() => window.open('https://flyadeal.sharepoint.com/sites/Thelounge/CEO%20Newsletter/last-newsletter.html', '_blank')}
-                      size="default"
-                      variant="outline"
-                      className="border-gray-300 text-gray-600 hover:bg-gray-100"
-                    >
-                      Open in SharePoint
-                    </Button>
                   </div>
                 </div>
               ) : newsletter ? (
@@ -697,9 +582,6 @@ function DashboardPage() {
                   />
                   <div className="mt-6 p-4 bg-gray-50 rounded-lg text-sm text-gray-600">
                     <p><strong>Last updated:</strong> {new Date(newsletter.lastUpdated).toLocaleString()}</p>
-                    {newsletter.sharePointUrl && (
-                      <p><strong>Source:</strong> SharePoint - The Lounge</p>
-                    )}
                   </div>
                 </>
               ) : (
@@ -721,6 +603,7 @@ function DashboardPage() {
 }
 
 export default function HomePage() {
+  const { theme } = useTheme()
   const { data: session, status, error } = useSession()
 
   // Handle NextAuth errors

@@ -7,6 +7,7 @@ import { Navigation } from '@/components/navigation'
 import { GlassmorphismContainer } from '@/components/glassmorphism-container'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -20,7 +21,10 @@ import {
   UserPlus, 
   UserMinus, 
   AlertCircle,
-  Loader2
+  Loader2,
+  Calendar,
+  Newspaper,
+  Users
 } from 'lucide-react'
 
 export default function AdminPage() {
@@ -28,9 +32,13 @@ export default function AdminPage() {
   const router = useRouter()
 
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isPeopleAdmin, setIsPeopleAdmin] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [platformLinks, setPlatformLinks] = useState([])
   const [adminUsers, setAdminUsers] = useState([])
+  const [peopleAdminUsers, setPeopleAdminUsers] = useState([])
+  const [events, setEvents] = useState([])
+  const [companyNews, setCompanyNews] = useState([])
 
   const [newLink, setNewLink] = useState({
     title: '',
@@ -41,6 +49,20 @@ export default function AdminPage() {
   })
 
   const [newAdminEmail, setNewAdminEmail] = useState('')
+  const [newPeopleAdminEmail, setNewPeopleAdminEmail] = useState('')
+
+  const [newEvent, setNewEvent] = useState({
+    title: '',
+    description: '',
+    event_date: ''
+  })
+
+  const [newNewsItem, setNewNewsItem] = useState({
+    title: '',
+    content: '',
+    published_at: ''
+  })
+
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -53,25 +75,33 @@ export default function AdminPage() {
     'Star', 'Tool', 'Video', 'Zap'
   ]
 
-  // Check if user is admin
+  // Check if user is admin and people admin
   useEffect(() => {
     const checkAdminStatus = async () => {
       try {
         console.log('Checking admin status, session:', session);
-        const response = await fetch('/api/admin/check')
-        const data = await response.json()
-        console.log('Admin check response:', data);
+        const adminResponse = await fetch('/api/admin/check')
+        const adminData = await adminResponse.json()
+        console.log('Admin check response:', adminData);
 
-        if (!data.authenticated) {
+        if (!adminData.authenticated) {
           console.log('User not authenticated, redirecting to homepage');
           router.push('/')
           return
         }
 
-        setIsAdmin(data.isAdmin)
-        console.log('Setting isAdmin to:', data.isAdmin);
+        setIsAdmin(adminData.isAdmin)
+        console.log('Setting isAdmin to:', adminData.isAdmin);
 
-        if (!data.isAdmin) {
+        // Also check if user is a people admin
+        const peopleAdminResponse = await fetch('/api/people-admin/check')
+        const peopleAdminData = await peopleAdminResponse.json()
+        console.log('People admin check response:', peopleAdminData);
+
+        setIsPeopleAdmin(peopleAdminData.isPeopleAdmin)
+        console.log('Setting isPeopleAdmin to:', peopleAdminData.isPeopleAdmin);
+
+        if (!adminData.isAdmin) {
           console.log('User not admin, redirecting to homepage');
           router.push('/')
         } else {
@@ -79,6 +109,17 @@ export default function AdminPage() {
           // Load platform links and admin users
           fetchPlatformLinks()
           fetchAdminUsers()
+
+          // If user is a people admin or regular admin, load people admin data
+          if (adminData.isAdmin) {
+            fetchPeopleAdminUsers()
+          }
+
+          // If user is a people admin, load events and company news
+          if (peopleAdminData.isPeopleAdmin) {
+            fetchEvents()
+            fetchCompanyNews()
+          }
         }
 
         setIsLoading(false)
@@ -105,10 +146,13 @@ export default function AdminPage() {
     try {
       const response = await fetch('/api/platform-links')
       const data = await response.json()
-      setPlatformLinks(data)
+      // Ensure data is an array before setting state
+      setPlatformLinks(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Error fetching platform links:', error)
       setError('Failed to fetch platform links')
+      // Set empty array on error
+      setPlatformLinks([])
     }
   }
 
@@ -117,10 +161,58 @@ export default function AdminPage() {
     try {
       const response = await fetch('/api/admin/users')
       const data = await response.json()
-      setAdminUsers(data)
+      // Ensure data is an array before setting state
+      setAdminUsers(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Error fetching admin users:', error)
       setError('Failed to fetch admin users')
+      // Set empty array on error
+      setAdminUsers([])
+    }
+  }
+
+  // Fetch people admin users
+  const fetchPeopleAdminUsers = async () => {
+    try {
+      const response = await fetch('/api/people-admin/users')
+      const data = await response.json()
+      // Ensure data is an array before setting state
+      setPeopleAdminUsers(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('Error fetching people admin users:', error)
+      setError('Failed to fetch people admin users')
+      // Set empty array on error
+      setPeopleAdminUsers([])
+    }
+  }
+
+  // Fetch events
+  const fetchEvents = async () => {
+    try {
+      const response = await fetch('/api/events')
+      const data = await response.json()
+      // Ensure data is an array before setting state
+      setEvents(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('Error fetching events:', error)
+      setError('Failed to fetch events')
+      // Set empty array on error
+      setEvents([])
+    }
+  }
+
+  // Fetch company news
+  const fetchCompanyNews = async () => {
+    try {
+      const response = await fetch('/api/company-news')
+      const data = await response.json()
+      // Ensure data is an array before setting state
+      setCompanyNews(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('Error fetching company news:', error)
+      setError('Failed to fetch company news')
+      // Set empty array on error
+      setCompanyNews([])
     }
   }
 
@@ -242,6 +334,188 @@ export default function AdminPage() {
     }
   }
 
+  // Add new people admin user
+  const addPeopleAdminUser = async (e) => {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+
+    if (!newPeopleAdminEmail) {
+      setError('Email is required')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/people-admin/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email: newPeopleAdminEmail })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to add people admin user')
+      }
+
+      // Reset form and refresh people admin users
+      setNewPeopleAdminEmail('')
+      fetchPeopleAdminUsers()
+      setSuccess('People admin user added successfully')
+    } catch (error) {
+      console.error('Error adding people admin user:', error)
+      setError(error.message || 'Failed to add people admin user')
+    }
+  }
+
+  // Remove people admin user
+  const removePeopleAdminUser = async (email) => {
+    setError('')
+    setSuccess('')
+
+    try {
+      const response = await fetch(`/api/people-admin/users/${encodeURIComponent(email)}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to remove people admin user')
+      }
+
+      fetchPeopleAdminUsers()
+      setSuccess('People admin user removed successfully')
+    } catch (error) {
+      console.error('Error removing people admin user:', error)
+      setError(error.message || 'Failed to remove people admin user')
+    }
+  }
+
+  // Add new event
+  const addEvent = async (e) => {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+
+    if (!newEvent.title) {
+      setError('Event title is required')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(newEvent)
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to add event')
+      }
+
+      // Reset form and refresh events
+      setNewEvent({
+        title: '',
+        description: '',
+        event_date: ''
+      })
+      fetchEvents()
+      setSuccess('Event added successfully')
+    } catch (error) {
+      console.error('Error adding event:', error)
+      setError(error.message || 'Failed to add event')
+    }
+  }
+
+  // Delete event
+  const deleteEvent = async (id) => {
+    setError('')
+    setSuccess('')
+
+    try {
+      const response = await fetch(`/api/events/${id}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete event')
+      }
+
+      fetchEvents()
+      setSuccess('Event deleted successfully')
+    } catch (error) {
+      console.error('Error deleting event:', error)
+      setError(error.message || 'Failed to delete event')
+    }
+  }
+
+  // Add new company news item
+  const addCompanyNews = async (e) => {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+
+    if (!newNewsItem.title) {
+      setError('News title is required')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/company-news', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(newNewsItem)
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to add news item')
+      }
+
+      // Reset form and refresh company news
+      setNewNewsItem({
+        title: '',
+        content: '',
+        published_at: ''
+      })
+      fetchCompanyNews()
+      setSuccess('News item added successfully')
+    } catch (error) {
+      console.error('Error adding news item:', error)
+      setError(error.message || 'Failed to add news item')
+    }
+  }
+
+  // Delete company news item
+  const deleteCompanyNews = async (id) => {
+    setError('')
+    setSuccess('')
+
+    try {
+      const response = await fetch(`/api/company-news/${id}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete news item')
+      }
+
+      fetchCompanyNews()
+      setSuccess('News item deleted successfully')
+    } catch (error) {
+      console.error('Error deleting news item:', error)
+      setError(error.message || 'Failed to delete news item')
+    }
+  }
+
   // If loading or not authenticated, show loading state
   if (isLoading) {
     return (
@@ -268,7 +542,7 @@ export default function AdminPage() {
           <GlassmorphismContainer className="p-6 mb-6">
             <h1 className="text-3xl font-bold text-gray-800 mb-2">Admin Panel</h1>
             <p className="text-gray-600">
-              Manage platform links and admin users
+              Manage platform links, admin users, events, and company news
             </p>
           </GlassmorphismContainer>
 
@@ -289,6 +563,15 @@ export default function AdminPage() {
             <TabsList className="mb-6">
               <TabsTrigger value="platform-links">Platform Links</TabsTrigger>
               <TabsTrigger value="admin-users">Admin Users</TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger value="people-admin-users">People Admin Users</TabsTrigger>
+              )}
+              {isPeopleAdmin && (
+                <>
+                  <TabsTrigger value="events">Events</TabsTrigger>
+                  <TabsTrigger value="company-news">Company News</TabsTrigger>
+                </>
+              )}
             </TabsList>
 
             <TabsContent value="platform-links">
@@ -481,6 +764,267 @@ export default function AdminPage() {
                 </Card>
               </div>
             </TabsContent>
+
+            {isAdmin && (
+              <TabsContent value="people-admin-users">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Add new people admin user */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Add New People Admin User</CardTitle>
+                      <CardDescription>
+                        Grant people admin privileges to a user
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <form onSubmit={addPeopleAdminUser} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="people-admin-email">Email Address</Label>
+                          <Input 
+                            id="people-admin-email" 
+                            type="email" 
+                            value={newPeopleAdminEmail} 
+                            onChange={(e) => setNewPeopleAdminEmail(e.target.value)}
+                            placeholder="e.g. user@flyadeal.com"
+                            required
+                          />
+                        </div>
+
+                        <Button type="submit" className="w-full">
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Add People Admin User
+                        </Button>
+                      </form>
+                    </CardContent>
+                  </Card>
+
+                  {/* Existing people admin users */}
+                  <Card className="md:col-span-2">
+                    <CardHeader>
+                      <CardTitle>Existing People Admin Users</CardTitle>
+                      <CardDescription>
+                        Manage existing people admin users
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {peopleAdminUsers.length === 0 ? (
+                        <p className="text-gray-500 text-center py-4">No people admin users found</p>
+                      ) : (
+                        <div className="space-y-4">
+                          {peopleAdminUsers.map((user) => (
+                            <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg">
+                              <div>
+                                <div className="font-medium">{user.email}</div>
+                                <div className="text-xs text-gray-400 mt-1">
+                                  Added: {new Date(user.created_at).toLocaleDateString()}
+                                </div>
+                              </div>
+                              <Button 
+                                variant="destructive" 
+                                size="sm" 
+                                onClick={() => removePeopleAdminUser(user.email)}
+                              >
+                                <UserMinus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+            )}
+
+            {isPeopleAdmin && (
+              <TabsContent value="events">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Add new event */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Add New Event</CardTitle>
+                      <CardDescription>
+                        Create a new upcoming event
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <form onSubmit={addEvent} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="event-title">Title</Label>
+                          <Input 
+                            id="event-title" 
+                            value={newEvent.title} 
+                            onChange={(e) => setNewEvent({...newEvent, title: e.target.value})}
+                            placeholder="e.g. Company Picnic"
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="event-description">Description</Label>
+                          <Textarea 
+                            id="event-description" 
+                            value={newEvent.description} 
+                            onChange={(e) => setNewEvent({...newEvent, description: e.target.value})}
+                            placeholder="Event details..."
+                            rows={4}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="event-date">Event Date</Label>
+                          <Input 
+                            id="event-date" 
+                            type="date" 
+                            value={newEvent.event_date} 
+                            onChange={(e) => setNewEvent({...newEvent, event_date: e.target.value})}
+                            required
+                          />
+                        </div>
+
+                        <Button type="submit" className="w-full">
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Event
+                        </Button>
+                      </form>
+                    </CardContent>
+                  </Card>
+
+                  {/* Existing events */}
+                  <Card className="md:col-span-2">
+                    <CardHeader>
+                      <CardTitle>Upcoming Events</CardTitle>
+                      <CardDescription>
+                        Manage upcoming events
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {events.length === 0 ? (
+                        <p className="text-gray-500 text-center py-4">No events found</p>
+                      ) : (
+                        <div className="space-y-4">
+                          {events.map((event) => (
+                            <div key={event.id} className="flex items-start justify-between p-3 border rounded-lg">
+                              <div>
+                                <div className="font-medium">{event.title}</div>
+                                <div className="text-sm text-gray-500 mt-1">{event.description}</div>
+                                <div className="text-xs text-gray-400 mt-1">
+                                  Date: {new Date(event.event_date).toLocaleDateString()}
+                                </div>
+                              </div>
+                              <Button 
+                                variant="destructive" 
+                                size="sm" 
+                                onClick={() => deleteEvent(event.id)}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+            )}
+
+            {isPeopleAdmin && (
+              <TabsContent value="company-news">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Add new company news */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Add Company News</CardTitle>
+                      <CardDescription>
+                        Create a new company news item
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <form onSubmit={addCompanyNews} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="news-title">Title</Label>
+                          <Input 
+                            id="news-title" 
+                            value={newNewsItem.title} 
+                            onChange={(e) => setNewNewsItem({...newNewsItem, title: e.target.value})}
+                            placeholder="e.g. New Office Opening"
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="news-content">Content</Label>
+                          <Textarea 
+                            id="news-content" 
+                            value={newNewsItem.content} 
+                            onChange={(e) => setNewNewsItem({...newNewsItem, content: e.target.value})}
+                            placeholder="News content..."
+                            rows={6}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="news-date">Publication Date</Label>
+                          <Input 
+                            id="news-date" 
+                            type="date" 
+                            value={newNewsItem.published_at} 
+                            onChange={(e) => setNewNewsItem({...newNewsItem, published_at: e.target.value})}
+                          />
+                          <p className="text-xs text-gray-500">Leave empty to use current date</p>
+                        </div>
+
+                        <Button type="submit" className="w-full">
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add News Item
+                        </Button>
+                      </form>
+                    </CardContent>
+                  </Card>
+
+                  {/* Existing company news */}
+                  <Card className="md:col-span-2">
+                    <CardHeader>
+                      <CardTitle>Company News</CardTitle>
+                      <CardDescription>
+                        Manage company news items
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {companyNews.length === 0 ? (
+                        <p className="text-gray-500 text-center py-4">No news items found</p>
+                      ) : (
+                        <div className="space-y-4">
+                          {companyNews.map((newsItem) => (
+                            <div key={newsItem.id} className="flex items-start justify-between p-3 border rounded-lg">
+                              <div>
+                                <div className="font-medium">{newsItem.title}</div>
+                                <div className="text-sm text-gray-500 mt-1">
+                                  {newsItem.content.length > 100 
+                                    ? `${newsItem.content.substring(0, 100)}...` 
+                                    : newsItem.content}
+                                </div>
+                                <div className="text-xs text-gray-400 mt-1">
+                                  Published: {new Date(newsItem.published_at).toLocaleDateString()}
+                                </div>
+                              </div>
+                              <Button 
+                                variant="destructive" 
+                                size="sm" 
+                                onClick={() => deleteCompanyNews(newsItem.id)}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+            )}
           </Tabs>
         </div>
       </main>

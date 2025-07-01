@@ -1,0 +1,144 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Cake, Award } from 'lucide-react'
+
+interface Birthday {
+  name: string
+  department: string
+  date_of_birth: string
+}
+
+interface Anniversary {
+  name: string
+  department: string
+  joining_date: string
+  years: number
+}
+
+interface CelebrationsData {
+  birthdays: Birthday[] | null
+  anniversaries: Anniversary[] | null
+  tomorrowBirthdays: Birthday[] | null
+  tomorrowAnniversaries: Anniversary[] | null
+}
+
+export function CelebrationsComponent() {
+  const [data, setData] = useState<CelebrationsData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function fetchCelebrations() {
+      try {
+        const response = await fetch('/api/celebrations')
+        if (!response.ok) {
+          throw new Error(`API returned ${response.status}: ${response.statusText}`)
+        }
+        const celebrationsData = await response.json()
+        setData(celebrationsData)
+      } catch (err) {
+        console.error('Error fetching celebrations data:', err)
+        setError('Failed to load celebrations data')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCelebrations()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="text-gray-500 text-center py-4">
+        <p>Loading celebrations data...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="text-red-500 text-center py-4">
+        <p>{error}</p>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      {/* Birthdays Today */}
+      <div className="mb-4">
+        <h3 className="text-gray-700 dark:text-white font-medium mb-2 flex items-center">
+          <Cake className="w-4 h-4 mr-1 text-pink-400" />
+          Birthdays
+        </h3>
+        <div className="space-y-2">
+          {data?.birthdays ? (
+            data.birthdays.map((birthday, index) => (
+              <div key={index} className="p-2 bg-white/5 border border-white/10 rounded text-sm">
+                <div className="text-gray-800 dark:text-white">{birthday.name}</div>
+                <div className="text-gray-600 dark:text-white/60 text-xs">{birthday.department} • Today</div>
+              </div>
+            ))
+          ) : (
+            <div className="p-2 bg-white/5 border border-white/10 rounded text-sm text-gray-600 dark:text-white/60">
+              No birthdays today
+            </div>
+          )}
+
+          {/* Tomorrow's Birthdays */}
+          {data?.tomorrowBirthdays && (
+            <>
+              <div className="mt-2 text-xs font-medium text-gray-700 dark:text-white/70">Tomorrow:</div>
+              {data.tomorrowBirthdays.map((birthday, index) => (
+                <div key={`tomorrow-${index}`} className="p-2 bg-white/5 border border-white/10 rounded text-sm">
+                  <div className="text-gray-800 dark:text-white">{birthday.name}</div>
+                  <div className="text-gray-600 dark:text-white/60 text-xs">{birthday.department} • Tomorrow</div>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Anniversaries Today */}
+      <div>
+        <h3 className="text-gray-700 dark:text-white font-medium mb-2 flex items-center">
+          <Award className="w-4 h-4 mr-1 text-flyadeal-yellow" />
+          Work Anniversaries
+        </h3>
+        <div className="space-y-2">
+          {data?.anniversaries ? (
+            data.anniversaries.map((anniversary, index) => (
+              <div key={index} className="p-2 bg-white/5 border border-white/10 rounded text-sm">
+                <div className="text-gray-800 dark:text-white">{anniversary.name}</div>
+                <div className="text-gray-600 dark:text-white/60 text-xs">
+                  {anniversary.years} years • {anniversary.department} • Today
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="p-2 bg-white/5 border border-white/10 rounded text-sm text-gray-600 dark:text-white/60">
+              No work anniversaries today
+            </div>
+          )}
+
+          {/* Tomorrow's Anniversaries */}
+          {data?.tomorrowAnniversaries && (
+            <>
+              <div className="mt-2 text-xs font-medium text-gray-700 dark:text-white/70">Tomorrow:</div>
+              {data.tomorrowAnniversaries.map((anniversary, index) => (
+                <div key={`tomorrow-${index}`} className="p-2 bg-white/5 border border-white/10 rounded text-sm">
+                  <div className="text-gray-800 dark:text-white">{anniversary.name}</div>
+                  <div className="text-gray-600 dark:text-white/60 text-xs">
+                    {anniversary.years} years • {anniversary.department} • Tomorrow
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}

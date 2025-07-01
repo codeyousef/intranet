@@ -173,16 +173,16 @@ export function VivaEngage({
 
   // Render a community card
   const renderCommunityCard = (community) => (
-    <div key={community.id} className="p-4 border border-gray-200 rounded-lg bg-white/50 hover:bg-white transition-colors">
-      <h3 className="font-medium text-gray-800">{community.name}</h3>
+    <div key={community.id} className={`p-4 border ${theme === 'dark' ? 'border-gray-700 bg-gray-700/50 hover:bg-gray-700' : 'border-gray-200 bg-white/50 hover:bg-white'} rounded-lg transition-colors`}>
+      <h3 className={`font-medium ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'}`}>{community.name}</h3>
       {community.description && (
-        <p className="text-sm text-gray-600 mt-1">{community.description}</p>
+        <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mt-1`}>{community.description}</p>
       )}
       <div className="mt-3 flex justify-end">
         <Button 
           size="sm" 
           variant="outline"
-          className="text-xs"
+          className={`text-xs ${theme === 'dark' ? 'border-gray-600 text-gray-200 hover:bg-gray-600' : ''}`}
           onClick={() => window.open(`https://web.yammer.com/main/groups/${community.id}`, '_blank')}
         >
           <MessageSquare className="w-3 h-3 mr-1" />
@@ -194,25 +194,25 @@ export function VivaEngage({
 
   // Render a post card
   const renderPostCard = (post) => (
-    <div key={post.id} className="p-4 border border-gray-200 rounded-lg bg-white/50 hover:bg-white transition-colors mb-3">
+    <div key={post.id} className={`p-4 border ${theme === 'dark' ? 'border-gray-700 bg-gray-700/50 hover:bg-gray-700' : 'border-gray-200 bg-white/50 hover:bg-white'} rounded-lg transition-colors mb-3`}>
       {post.author && (
         <div className="flex items-center mb-2">
-          <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-600">
+          <div className={`w-8 h-8 rounded-full ${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-300 text-gray-600'} flex items-center justify-center`}>
             <User className="w-4 h-4" />
           </div>
           <div className="ml-2">
-            <div className="font-medium text-gray-800">{post.author.name}</div>
-            <div className="text-xs text-gray-500">
+            <div className={`font-medium ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'}`}>{post.author.name}</div>
+            <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
               {post.createdDateTime && formatDistanceToNow(new Date(post.createdDateTime), { addSuffix: true })}
             </div>
           </div>
         </div>
       )}
 
-      <h3 className="font-medium text-gray-800">{post.title}</h3>
-      <p className="text-sm text-gray-600 mt-1">{post.content}</p>
+      <h3 className={`font-medium ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'}`}>{post.title}</h3>
+      <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mt-1`}>{post.content}</p>
 
-      <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+      <div className={`mt-3 flex items-center justify-between text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
         <div className="flex items-center">
           <ThumbsUp className="w-3 h-3 mr-1" />
           <span>Like</span>
@@ -234,7 +234,7 @@ export function VivaEngage({
   )
 
   return (
-    <div className={`bg-white rounded-lg overflow-hidden ${isFullscreen ? 'fixed inset-0 z-50' : 'h-[calc(100%-2.5rem)]'}`}>
+    <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg overflow-hidden ${isFullscreen ? 'fixed inset-0 z-50' : 'h-[calc(100%-2.5rem)]'}`}>
       {isFullscreen && (
         <div className="bg-flyadeal-purple p-3 text-white flex items-center justify-between">
           <h3 className="font-medium">Viva Engage</h3>
@@ -252,14 +252,14 @@ export function VivaEngage({
       <div className={`${isFullscreen ? 'h-[calc(100%-48px)]' : 'h-full'} overflow-y-auto p-4`}>
         {/* Header with refresh button */}
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium text-gray-800">
+          <h3 className={`text-lg font-medium ${theme === 'dark' ? 'text-gray-100' : 'text-gray-800'}`}>
             {feedType === 'community' ? 'Community Posts' : 'Your Communities'}
           </h3>
           <Button
             onClick={handleRefresh}
             size="sm"
             variant="ghost"
-            className="text-gray-600 hover:text-gray-900"
+            className={`${theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
           >
             <RefreshCw className="w-4 h-4 mr-1" />
             Refresh
@@ -271,36 +271,36 @@ export function VivaEngage({
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-flyadeal-yellow mx-auto mb-3"></div>
-              <p className="text-gray-500">Loading Viva Engage...</p>
+              <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Loading Viva Engage...</p>
             </div>
           </div>
         )}
 
         {/* Error state */}
         {error && !isLoading && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className={`${theme === 'dark' ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-200'} border rounded-lg p-4`}>
             <div className="text-center">
-              <p className="text-red-500 font-medium mb-2">Error loading Viva Engage</p>
-              <p className="text-gray-600 text-sm mb-4">{error}</p>
+              <p className={`${theme === 'dark' ? 'text-red-400' : 'text-red-500'} font-medium mb-2`}>Error loading Viva Engage</p>
+              <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} text-sm mb-4`}>{error}</p>
 
               {showPermissionsInfo && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-left">
+                <div className={`${theme === 'dark' ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'} border rounded-lg p-4 mb-4 text-left`}>
                   <div className="flex items-start">
-                    <AlertCircle className="w-5 h-5 text-blue-500 mt-0.5 mr-2 flex-shrink-0" />
+                    <AlertCircle className={`w-5 h-5 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-500'} mt-0.5 mr-2 flex-shrink-0`} />
                     <div>
-                      <p className="text-blue-700 font-medium mb-2">Permissions Consent Required</p>
-                      <p className="text-gray-600 text-sm mb-2">
+                      <p className={`${theme === 'dark' ? 'text-blue-300' : 'text-blue-700'} font-medium mb-2`}>Permissions Consent Required</p>
+                      <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} text-sm mb-2`}>
                         The necessary Graph API permissions have been added, but you need to consent to them.
                         You're seeing mock data until you complete this step.
                       </p>
-                      <p className="text-gray-600 text-sm mb-2">
+                      <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} text-sm mb-2`}>
                         The following Microsoft Graph permissions are now available:
                       </p>
-                      <ul className="list-disc pl-5 text-sm text-gray-600 mb-2">
+                      <ul className={`list-disc pl-5 text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-2`}>
                         <li>Group.Read.All</li>
                         <li>User.Read.All</li>
                       </ul>
-                      <p className="text-gray-600 text-sm font-medium">
+                      <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} text-sm font-medium`}>
                         To access Viva Engage data, please sign out and sign back in to consent to these permissions.
                       </p>
                     </div>
@@ -350,15 +350,15 @@ export function VivaEngage({
           <div>
             {/* Mock data notice */}
             {useMockData && !error && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+              <div className={`${theme === 'dark' ? 'bg-yellow-900/20 border-yellow-800' : 'bg-yellow-50 border-yellow-200'} border rounded-lg p-4 mb-4`}>
                 <div className="flex items-start">
-                  <AlertCircle className="w-4 h-4 text-yellow-500 mt-0.5 mr-2 flex-shrink-0" />
+                  <AlertCircle className={`w-4 h-4 ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-500'} mt-0.5 mr-2 flex-shrink-0`} />
                   <div className="flex-1">
                     <div className="mb-2">
-                      <p className="text-yellow-700 text-sm">
+                      <p className={`${theme === 'dark' ? 'text-yellow-300' : 'text-yellow-700'} text-sm`}>
                         Showing sample data. The necessary permissions have been added.
                       </p>
-                      <p className="text-yellow-700 text-sm font-medium">
+                      <p className={`${theme === 'dark' ? 'text-yellow-300' : 'text-yellow-700'} text-sm font-medium`}>
                         Please sign out and sign back in to consent to the new permissions.
                       </p>
                     </div>
@@ -388,8 +388,8 @@ export function VivaEngage({
                 {data.posts.length > 0 ? (
                   data.posts.map(post => renderPostCard(post))
                 ) : (
-                  <div className="text-center text-gray-500 py-8">
-                    <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <div className={`text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} py-8`}>
+                    <MessageSquare className={`w-12 h-12 mx-auto mb-3 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-300'}`} />
                     <p>No posts found in this community</p>
                   </div>
                 )}
@@ -403,8 +403,8 @@ export function VivaEngage({
           (data.type === 'home' && (!data.communities || data.communities.length === 0)) || 
           (data.type === 'community' && (!data.posts || data.posts.length === 0))
         ) && (
-          <div className="text-center text-gray-500 py-8">
-            <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+          <div className={`text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'} py-8`}>
+            <MessageSquare className={`w-12 h-12 mx-auto mb-3 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-300'}`} />
             <p>No content available</p>
             <p className="text-sm mt-1">Try refreshing or check back later</p>
           </div>
@@ -417,7 +417,7 @@ export function VivaEngage({
             onClick={openInNewTab}
             size="sm"
             variant="outline"
-            className="bg-white/10 border-gray-300 text-gray-700 hover:bg-gray-100"
+            className={`${theme === 'dark' ? 'bg-gray-700/10 border-gray-600 text-gray-300 hover:bg-gray-600' : 'bg-white/10 border-gray-300 text-gray-700 hover:bg-gray-100'}`}
           >
             <ExternalLink className="w-4 h-4 mr-1" />
             Open

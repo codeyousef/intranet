@@ -11,7 +11,7 @@ import Image from 'next/image'
 // Custom signout function
 const handleSignOut = () => {
   console.log('Sign out button clicked')
-  
+
   // Navigate to the dedicated signout page
   window.location.href = '/signout'
 }
@@ -65,7 +65,7 @@ export function Navigation() {
               height={40} 
               className="rounded-sm"
             />
-            <h1 className="text-xl font-bold text-black font-raleway">
+            <h1 className="text-xl font-bold text-black dark:text-white font-raleway">
               flyadeal Lounge
             </h1>
           </div>
@@ -78,8 +78,7 @@ export function Navigation() {
                 <a
                   key={item.href}
                   href={item.href}
-                  className="flex items-center space-x-2 text-black/80 hover:text-black transition-colors no-underline text-inherit"
-                  style={{ textDecoration: 'none', color: 'inherit' }}
+                  className="flex items-center space-x-2 text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors"
                 >
                   <Icon size={18} />
                   <span>{item.label}</span>
@@ -91,8 +90,7 @@ export function Navigation() {
             {isAdmin && (
               <a
                 href="/admin"
-                className="flex items-center space-x-2 text-black/80 hover:text-black transition-colors no-underline text-inherit"
-                style={{ textDecoration: 'none', color: 'inherit' }}
+                className="flex items-center space-x-2 text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors"
               >
                 <Settings size={18} />
                 <span>Admin</span>
@@ -108,10 +106,10 @@ export function Navigation() {
                 <ThemeToggle />
 
                 <div className="text-right">
-                  <p className="text-black text-sm font-medium">
+                  <p className="text-black dark:text-white text-sm font-medium">
                     {session.user.name}
                   </p>
-                  <p className="text-black/60 text-xs">
+                  <p className="text-black/60 dark:text-white/60 text-xs">
                     {session.user.email}
                   </p>
                 </div>
@@ -123,7 +121,7 @@ export function Navigation() {
                     e.stopPropagation()
                     handleSignOut()
                   }}
-                  className="text-black hover:bg-black/10"
+                  className="text-black dark:text-white hover:bg-black/10 dark:hover:bg-white/10"
                   title="Sign Out"
                 >
                   <LogOut size={18} />
@@ -138,7 +136,7 @@ export function Navigation() {
                   e.stopPropagation()
                   handleSignOut()
                 }}
-                className="text-black hover:bg-black/10"
+                className="text-black dark:text-white hover:bg-black/10 dark:hover:bg-white/10"
               >
                 <LogOut size={18} className="mr-2" />
                 Sign Out
@@ -150,7 +148,7 @@ export function Navigation() {
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden text-black"
+            className="md:hidden text-black dark:text-white"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
@@ -159,7 +157,7 @@ export function Navigation() {
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden mt-4 pt-4 border-t border-black/20">
+          <div className="md:hidden mt-4 pt-4 border-t border-black/20 dark:border-white/20">
             <div className="flex flex-col space-y-3">
               {navItems.map((item) => {
                 const Icon = item.icon
@@ -167,8 +165,7 @@ export function Navigation() {
                   <a
                     key={item.href}
                     href={item.href}
-                    className="flex items-center space-x-2 text-black/80 hover:text-black transition-colors p-2 no-underline text-inherit"
-                    style={{ textDecoration: 'none', color: 'inherit' }}
+                    className="flex items-center space-x-2 text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors p-2"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     <Icon size={18} />
@@ -181,8 +178,7 @@ export function Navigation() {
               {isAdmin && (
                 <a
                   href="/admin"
-                  className="flex items-center space-x-2 text-black/80 hover:text-black transition-colors p-2 no-underline text-inherit"
-                  style={{ textDecoration: 'none', color: 'inherit' }}
+                  className="flex items-center space-x-2 text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors p-2"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <Settings size={18} />
@@ -191,13 +187,13 @@ export function Navigation() {
               )}
 
               {session?.user ? (
-                <div className="pt-3 border-t border-black/20">
+                <div className="pt-3 border-t border-black/20 dark:border-white/20">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-black text-sm font-medium">
+                      <p className="text-black dark:text-white text-sm font-medium">
                         {session.user.name}
                       </p>
-                      <p className="text-black/60 text-xs">
+                      <p className="text-black/60 dark:text-white/60 text-xs">
                         {session.user.email}
                       </p>
                     </div>
@@ -211,7 +207,7 @@ export function Navigation() {
                           e.stopPropagation()
                           handleSignOut()
                         }}
-                        className="text-black hover:bg-black/10"
+                        className="text-black dark:text-white hover:bg-black/10 dark:hover:bg-white/10"
                         title="Sign Out"
                       >
                         <LogOut size={18} />
@@ -220,7 +216,7 @@ export function Navigation() {
                   </div>
                 </div>
               ) : (
-                <div className="pt-3 border-t border-black/20">
+                <div className="pt-3 border-t border-black/20 dark:border-white/20">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -229,7 +225,7 @@ export function Navigation() {
                       e.stopPropagation()
                       handleSignOut()
                     }}
-                    className="text-black hover:bg-black/10 w-full justify-start"
+                    className="text-black dark:text-white hover:bg-black/10 dark:hover:bg-white/10 w-full justify-start"
                   >
                     <LogOut size={18} className="mr-2" />
                     Sign Out

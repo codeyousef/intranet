@@ -28,9 +28,8 @@ const NewsletterArchive: React.FC<INewsletterArchiveProps> = (props) => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // --- Configuration ---
-  // Site-relative path to the folder containing the HTML files.
-  // IMPORTANT: This path MUST be relative to the site root (e.g., /sites/Thelounge).
-  const folderServerRelativeUrl = "/sites/Thelounge/CEO Newsletter/Archive";
+  // Path to the folder containing the HTML files.
+  const folderServerRelativeUrl = "/CEO Newsletter/Archive";
   // --- End Configuration ---
 
   // Effect to generate the file list once when the component mounts
@@ -114,21 +113,21 @@ const NewsletterArchive: React.FC<INewsletterArchiveProps> = (props) => {
   };
 
   return (
-    <div className="flex h-[600px] rounded-lg overflow-hidden bg-white shadow md:flex-row">
+    <div className="flex h-[600px] rounded-lg overflow-hidden bg-white dark:bg-gray-800 shadow md:flex-row">
       {/* Sidebar */}
-      <div className="w-full md:w-64 bg-gray-50 border-r border-gray-200 overflow-y-auto md:h-auto h-48">
-        <h2 className="p-4 font-semibold text-lg text-gray-900 border-b border-gray-200">Newsletters</h2>
+      <div className="w-full md:w-64 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 overflow-y-auto md:h-auto h-48">
+        <h2 className="p-4 font-semibold text-lg text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700">Newsletters</h2>
         <ul className="list-none p-0 m-0">
           {files.length === 0 && !errorMessage && (
-            <li className="p-4 text-gray-500 italic">Loading files...</li>
+            <li className="p-4 text-gray-500 dark:text-gray-400 italic">Loading files...</li>
           )}
           {files.map((file) => (
-            <li key={file.path} className="border-b border-gray-200">
+            <li key={file.path} className="border-b border-gray-200 dark:border-gray-700">
               <a
                 href="#"
                 className={cn(
-                  "block py-3 px-4 text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors",
-                  activeFilePath === file.path && "bg-gray-100 text-gray-900 font-medium border-l-3 border-amber-500"
+                  "block py-3 px-4 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-colors",
+                  activeFilePath === file.path && "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-medium border-l-3 border-amber-500"
                 )}
                 onClick={(e) => handleFileClick(e, file.path)}
                 aria-busy={isLoading && activeFilePath === file.path}
@@ -142,20 +141,20 @@ const NewsletterArchive: React.FC<INewsletterArchiveProps> = (props) => {
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 overflow-hidden flex flex-col justify-center items-center bg-white">
+      <div className="flex-1 overflow-hidden flex flex-col justify-center items-center bg-white dark:bg-gray-800">
         {isLoading && (
-          <div className="flex flex-col items-center justify-center gap-4 text-gray-500">
+          <div className="flex flex-col items-center justify-center gap-4 text-gray-500 dark:text-gray-400">
             <Spinner size="lg" />
             <p>Loading file content...</p>
           </div>
         )}
         {!isLoading && errorMessage && (
-          <p className="text-red-500 p-4 bg-red-100 rounded-md max-w-[80%] text-center">
+          <p className="text-red-500 p-4 bg-red-100 dark:bg-red-900 dark:bg-opacity-20 rounded-md max-w-[80%] text-center">
             Error: {errorMessage}
           </p>
         )}
         {!isLoading && !errorMessage && !selectedFileContent && (
-          <p className="text-gray-500 text-center p-8">
+          <p className="text-gray-500 dark:text-gray-400 text-center p-8">
             Select a file from the list to view its content.
           </p>
         )}
@@ -164,7 +163,7 @@ const NewsletterArchive: React.FC<INewsletterArchiveProps> = (props) => {
             id="content-frame"
             title="File Content"
             srcDoc={selectedFileContent}
-            className="w-full h-full border-none"
+            className="w-full h-full border-none bg-white"
             sandbox="allow-same-origin"
           >
             Your browser does not support iframes or srcdoc.

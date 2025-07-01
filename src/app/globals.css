@@ -3,6 +3,31 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+  a:visited {
+    color: inherit !important;
+  }
+  a:hover {
+    color: inherit !important;
+  }
+  a:active {
+    color: inherit !important;
+  }
+
+  /* Specific selectors for platform links */
+  .grid a, 
+  [class*="platform"] a,
+  [class*="news"] a,
+  [class*="newsletter"] a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+}
+
 :root {
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
