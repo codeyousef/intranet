@@ -12,9 +12,9 @@ const buttonVariants = cva(
         destructive: "bg-flyadeal-red text-white hover:bg-flyadeal-red/90",
         outline: "border border-flyadeal-purple text-flyadeal-purple hover:bg-flyadeal-purple hover:text-white",
         secondary: "bg-flyadeal-yellow text-flyadeal-purple hover:bg-flyadeal-yellow/80",
-        ghost: "hover:bg-flyadeal-purple/10 hover:text-flyadeal-purple",
+        ghost: "text-black dark:text-white hover:bg-flyadeal-purple/10 hover:text-black dark:hover:text-white",
         link: "text-flyadeal-purple underline-offset-4 hover:underline",
-        glass: "glass-morphism text-white border-white/20 hover:bg-white/20"
+        glass: "glass-morphism text-black dark:text-white border-white/20 hover:bg-white/20"
       },
       size: {
         default: "h-10 px-4 py-2",

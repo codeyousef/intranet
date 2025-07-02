@@ -65,7 +65,7 @@ export function Navigation() {
               height={40} 
               className="rounded-sm"
             />
-            <h1 className="text-xl font-bold text-black dark:text-white font-raleway">
+            <h1 className="text-xl font-bold !text-black dark:!text-white font-raleway">
               flyadeal Lounge
             </h1>
           </div>
@@ -106,10 +106,10 @@ export function Navigation() {
                 <ThemeToggle />
 
                 <div className="text-right">
-                  <p className="text-black dark:text-white text-sm font-medium">
+                  <p className="!text-black dark:!text-white text-sm font-medium">
                     {session.user.name}
                   </p>
-                  <p className="text-black/60 dark:text-white/60 text-xs">
+                  <p className="!text-black/60 dark:!text-white/60 text-xs">
                     {session.user.email}
                   </p>
                 </div>
@@ -190,10 +190,10 @@ export function Navigation() {
                 <div className="pt-3 border-t border-black/20 dark:border-white/20">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-black dark:text-white text-sm font-medium">
+                      <p className="!text-black dark:!text-white text-sm font-medium">
                         {session.user.name}
                       </p>
-                      <p className="text-black/60 dark:text-white/60 text-xs">
+                      <p className="!text-black/60 dark:!text-white/60 text-xs">
                         {session.user.email}
                       </p>
                     </div>

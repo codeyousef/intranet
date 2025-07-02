@@ -89,6 +89,45 @@ export function VivaEngage({
 
       // Check for 401 Unauthorized specifically
       if (response.status === 401) {
+        console.log('Received 401 Unauthorized, attempting to refresh token')
+
+        // Try to refresh the token first
+        try {
+          const refreshResponse = await fetch('/api/auth/refresh-token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          })
+
+          const refreshData = await refreshResponse.json()
+
+          if (refreshResponse.ok && refreshData.success) {
+            console.log('Token refreshed successfully, retrying request')
+
+            // Retry the original request with the new token
+            const retryResponse = await fetch(`/api/viva-engage-graph?${params.toString()}`)
+
+            if (retryResponse.ok) {
+              const retryResult = await retryResponse.json()
+
+              if (retryResult.success) {
+                console.log('Request succeeded after token refresh')
+                setData(retryResult.data)
+                setIsLoading(false)
+                return
+              }
+            }
+
+            console.log('Request still failed after token refresh')
+          } else {
+            console.log('Token refresh failed:', refreshData.error || 'Unknown error')
+          }
+        } catch (refreshError) {
+          console.error('Error during token refresh:', refreshError)
+        }
+
+        // If we get here, token refresh didn't work, fall back to mock data
         console.log('Using mock data due to 401 Unauthorized response')
         setUseMockData(true)
         setShowPermissionsInfo(true)

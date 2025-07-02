@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
             client_secret: process.env.AZURE_AD_CLIENT_SECRET!,
             grant_type: 'refresh_token',
             refresh_token: session.refreshToken,
-            scope: 'openid profile email offline_access https://analysis.windows.net/powerbi/api/Dataset.Read.All https://analysis.windows.net/powerbi/api/Report.Read.All https://graph.microsoft.com/Sites.Read.All https://graph.microsoft.com/Files.Read.All',
+            scope: 'openid profile email offline_access https://analysis.windows.net/powerbi/api/Dataset.Read.All https://analysis.windows.net/powerbi/api/Report.Read.All https://graph.microsoft.com/Sites.Read.All https://graph.microsoft.com/Files.Read.All https://graph.microsoft.com/Group.Read.All https://graph.microsoft.com/User.Read.All',
           }),
         })
 

@@ -175,8 +175,9 @@ function DashboardPage() {
   // We no longer need a fallback timer ref since we're not using fallback content
 
   useEffect(() => {
-    // Create a debug logger function
+    // Create enhanced logging functions
     const debugLog = (message, ...args) => {
+      // Always log to console in development mode if debug is true
       if (process.env.NODE_ENV === 'development' && 
           typeof window !== 'undefined' && 
           localStorage.getItem('debug') === 'true') {
@@ -184,13 +185,30 @@ function DashboardPage() {
       }
     };
 
+    // Critical logs are always shown regardless of debug setting
+    const criticalLog = (message, ...args) => {
+      console.log(`[NEWSLETTER-CRITICAL] ${message}`, ...args);
+    };
+
+    // Info logs are shown in both development and production
+    const infoLog = (message, ...args) => {
+      console.log(`[NEWSLETTER-INFO] ${message}`, ...args);
+    };
+
+    // Error logs are always shown
+    const errorLog = (message, ...args) => {
+      console.error(`[NEWSLETTER-ERROR] ${message}`, ...args);
+    };
+
     // Check if newsletter has already been loaded in this session
     if (typeof window !== 'undefined') {
       const newsletterLoaded = localStorage.getItem('newsletterLoaded') === 'true';
       globalNewsletterLoaded.current = newsletterLoaded;
+      infoLog(`Newsletter loading state check: ${newsletterLoaded ? 'Already loaded' : 'Not loaded yet'}`);
 
       if (newsletterLoaded) {
         debugLog('🔍 Newsletter already loaded in this session, checking localStorage for data');
+        infoLog('Attempting to load newsletter from localStorage');
 
         // Try to get newsletter data from localStorage
         const storedNewsletter = localStorage.getItem('newsletterData');
@@ -199,10 +217,19 @@ function DashboardPage() {
             const parsedNewsletter = JSON.parse(storedNewsletter);
             setNewsletter(parsedNewsletter);
             debugLog('✅ Loaded newsletter data from localStorage', parsedNewsletter);
+            infoLog('Successfully loaded newsletter from localStorage', {
+              title: parsedNewsletter.title,
+              contentLength: parsedNewsletter.content?.length || 0,
+              lastUpdated: parsedNewsletter.lastUpdated,
+              source: parsedNewsletter.source
+            });
           } catch (error) {
             debugLog('❌ Error parsing newsletter data from localStorage', error);
+            errorLog('Failed to parse newsletter data from localStorage', error);
             setNewsletterError('Error loading saved newsletter data. Please try refreshing the page.');
           }
+        } else {
+          infoLog('No newsletter data found in localStorage despite loaded flag being set');
         }
 
         return () => {};
@@ -213,29 +240,68 @@ function DashboardPage() {
     const forceFetch = typeof window !== 'undefined' && 
       new URLSearchParams(window.location.search).get('force_fetch') === 'true';
 
+    infoLog(`Force fetch parameter check: ${forceFetch ? 'Force fetch requested' : 'Normal fetch flow'}`);
+
     // If newsletter hasn't been loaded or force_fetch is true, fetch it
     if (!globalNewsletterLoaded.current || forceFetch) {
       // Implement debounce to prevent rapid successive fetches
       const now = Date.now();
       if (now - lastFetchAttempt.timestamp < lastFetchAttempt.minInterval) {
         debugLog('🔒 Fetch attempt too soon after previous attempt, skipping');
+        infoLog(`Debounce protection triggered - last attempt was ${now - lastFetchAttempt.timestamp}ms ago (minimum interval: ${lastFetchAttempt.minInterval}ms)`);
         return () => {};
       }
 
       lastFetchAttempt.timestamp = now;
       debugLog('🔄 Fetching newsletter from API');
+      criticalLog(`Initiating newsletter fetch from API at ${new Date().toISOString()}`);
+
+      // Log browser and environment information for troubleshooting
+      infoLog('Environment information', {
+        userAgent: navigator.userAgent,
+        language: navigator.language,
+        cookiesEnabled: navigator.cookieEnabled,
+        windowDimensions: `${window.innerWidth}x${window.innerHeight}`,
+        timestamp: new Date().toISOString(),
+        endpoint: '/api/sharepoint/newsletter-iframe'
+      });
 
       // Fetch the newsletter
-      fetch('/api/newsletter-iframe')
+      fetch('/api/sharepoint/newsletter-iframe')
         .then(response => {
+          criticalLog(`Newsletter API response received - Status: ${response.status} ${response.statusText}`);
+          infoLog('Response headers', {
+            contentType: response.headers.get('content-type'),
+            contentLength: response.headers.get('content-length'),
+            cacheControl: response.headers.get('cache-control'),
+            etag: response.headers.get('etag')
+          });
+
           if (!response.ok) {
+            errorLog(`API returned error status: ${response.status} ${response.statusText}`);
             throw new Error(`API returned ${response.status}: ${response.statusText}`);
           }
           return response.json();
         })
         .then(data => {
+          infoLog('Newsletter API response data', {
+            success: data.success,
+            hasNewsletter: !!data.newsletter,
+            error: data.error || 'none',
+            details: data.details || 'none'
+          });
+
           if (data.success && data.newsletter) {
             debugLog('✅ Newsletter fetched successfully', data.newsletter);
+            criticalLog(`Newsletter fetch successful - Content length: ${data.newsletter.content?.length || 0} characters`);
+            infoLog('Newsletter metadata', {
+              title: data.newsletter.title,
+              lastUpdated: data.newsletter.lastUpdated,
+              source: data.newsletter.source,
+              type: data.newsletter.type,
+              sharePointUrl: data.newsletter.sharePointUrl || 'none'
+            });
+
             setNewsletter(data.newsletter);
 
             // Save to localStorage to avoid refetching
@@ -243,17 +309,44 @@ function DashboardPage() {
               localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
               localStorage.setItem('newsletterLoaded', 'true');
               globalNewsletterLoaded.current = true;
+              infoLog('Newsletter data saved to localStorage');
             }
           } else {
+            errorLog('API returned success:false or missing newsletter data', {
+              success: data.success,
+              error: data.error || 'Unknown error',
+              details: data.details || 'No details provided'
+            });
+
+            // If there's a newsletter object in the error response, log its details
+            if (data.newsletter) {
+              infoLog('Error response included newsletter fallback content', {
+                title: data.newsletter.title,
+                contentLength: data.newsletter.content?.length || 0,
+                source: data.newsletter.source
+              });
+            }
+
             throw new Error(data.error || 'Unknown error fetching newsletter');
           }
         })
         .catch(error => {
           debugLog('❌ Error fetching newsletter', error);
+          errorLog(`Newsletter fetch failed: ${error.message}`, {
+            stack: error.stack,
+            timestamp: new Date().toISOString()
+          });
+
+          // Check if it's a network error
+          if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+            criticalLog('Network error detected - possible connectivity issue or CORS problem');
+          }
+
           setNewsletterError(`Failed to load the newsletter. ${error.message}\n\nPlease try again later or contact IT support if the issue persists.`);
         });
     } else {
       debugLog('🔍 Newsletter already loaded in this session, skipping fetch');
+      infoLog('Newsletter fetch skipped - already loaded in this session');
     }
 
     // Return cleanup function
