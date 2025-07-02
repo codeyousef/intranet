@@ -60,10 +60,15 @@ export async function GET(request: NextRequest) {
   // Only log essential information to help troubleshoot the issue
   terminalLog('INFO', 'Viva Engage API route called');
 
-  // Check if the request is asking for JSON format
+  // Parse query parameters
   const url = new URL(request.url);
   const format = url.searchParams.get('format');
   const isJsonRequest = format === 'json';
+  const feedType = url.searchParams.get('feedType') || 'home';
+  const communityId = url.searchParams.get('communityId');
+  const postType = url.searchParams.get('postType') || 'latest'; // Can be 'latest' or 'top'
+
+  terminalLog('INFO', 'Query parameters', { feedType, communityId, postType, format });
 
   try {
     // Get the user's session
@@ -127,8 +132,18 @@ export async function GET(request: NextRequest) {
       terminalLog('INFO', 'Approach 2: Using a different URL and method');
 
       try {
-        // Try a different URL or approach
-        const alternateUrl = "https://www.yammer.com/api/v1/messages/following.json";
+        // Try a different URL based on the postType parameter
+        let alternateUrl;
+
+        if (postType === 'top') {
+          // For top posts, use the algo endpoint which returns trending/popular content
+          alternateUrl = "https://www.yammer.com/api/v1/messages/algo.json";
+          terminalLog('INFO', 'Using top posts endpoint');
+        } else {
+          // For latest posts, use the following endpoint which returns the latest content
+          alternateUrl = "https://www.yammer.com/api/v1/messages/following.json";
+          terminalLog('INFO', 'Using latest posts endpoint');
+        }
 
         response = await fetch(alternateUrl, {
           headers: {
@@ -512,6 +527,7 @@ export async function GET(request: NextRequest) {
             .replace(/`/g, '\\`')
             .replace(/\${/g, '\\${')
             .replace(/\b(re)\s+/g, 'var $1_safe = ') // Fix 'Unexpected identifier 're'' error
+            .replace(/\bre\s/g, 'var re_safe = ') // Additional fix for 're' identifier
             .replace(/return\s+/g, 'return; '); // Ensure return statements are properly terminated
 
           terminalLog('INFO', 'Escaped potentially problematic characters in script content');
@@ -956,7 +972,7 @@ User Agent: ${request.headers.get('user-agent') || 'Not available'}
                 // Try to fetch the user's profile from Microsoft Graph
                 fetch('https://graph.microsoft.com/v1.0/me', {
                   headers: {
-                    'Authorization': 'Bearer \${session.accessToken}'
+                    'Authorization': 'Bearer ${session.accessToken}'
                   }
                 })
                 .then(response => {
@@ -2623,13 +2639,19 @@ User Agent: ${request.headers.get('user-agent') || 'Not available'}
       wrappedContentLength: wrappedContent.length
     });
 
-    // Return the HTML content with appropriate headers
-    return new NextResponse(wrappedContent, {
+    // Return the HTML content wrapped in a JSON object
+    return NextResponse.json({
+      success: true,
+      data: {
+        type: feedType,
+        html: wrappedContent,
+        ...(feedType === 'community' 
+          ? { communityId, posts: [] } 
+          : { communities: [] })
+      }
+    }, {
       headers: {
-        'Content-Type': 'text/html',
         'X-Frame-Options': 'SAMEORIGIN',
-        // Use a more permissive CSP to ensure content can be displayed properly
-        'Content-Security-Policy': "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; style-src * 'unsafe-inline' data:; img-src * data: blob:; font-src * data:; connect-src * data: blob:; frame-src * data: blob:; frame-ancestors 'self';",
         // Add CORS headers to allow requests from the iframe
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -2829,13 +2851,19 @@ ${JSON.stringify({
       </html>
     `;
 
-    // Return the error HTML with appropriate headers
-    return new NextResponse(errorHtml, {
+    // Return the error as JSON with the HTML content included
+    return NextResponse.json({
+      success: false,
+      error: errorMessage,
+      errorId: errorId,
+      errorTime: errorTime,
+      data: {
+        html: errorHtml
+      }
+    }, {
       status: 500,
       headers: {
-        'Content-Type': 'text/html',
         'X-Frame-Options': 'SAMEORIGIN',
-        'Content-Security-Policy': "default-src 'self' https://web.yammer.com http://localhost:3001 https://login.microsoftonline.com https://outlook-1.cdn.office.net; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://web.yammer.com http://localhost:3001 https://login.microsoftonline.com https://alcdn.msauth.net https://outlook-1.cdn.office.net; style-src 'self' 'unsafe-inline' https://web.yammer.com https://outlook-1.cdn.office.net; img-src 'self' https://web.yammer.com https://outlook-1.cdn.office.net data:; connect-src 'self' https://web.yammer.com http://localhost:3001 https://login.microsoftonline.com https://outlook-1.cdn.office.net; frame-ancestors 'self';",
         // Add CORS headers to allow requests from the iframe
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',

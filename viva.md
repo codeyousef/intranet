@@ -18,20 +18,20 @@ const VivaEngageEmbed = ({
   theme = 'light' 
 }) => {
   // Base URL for Viva Engage embed
-  const baseUrl = 'https://engage.cloud.microsoft/embed/widget';
-  
+  const baseUrl = 'https://engage.cloud.microsoft.com/embed/widget';
+
   // Build query parameters based on feed type
   const buildEmbedUrl = () => {
     const params = new URLSearchParams({
       domainRedirect: 'true',
       theme: theme
     });
-    
+
     if (feedType === 'community' && communityName) {
       params.append('feedType', 'group');
       params.append('feedId', communityName);
     }
-    
+
     return `${baseUrl}?${params.toString()}`;
   };
 
@@ -64,14 +64,14 @@ export default function Dashboard() {
   return (
     <div>
       <h1>Company Dashboard</h1>
-      
+
       {/* Embed Home Feed */}
       <VivaEngageEmbed 
         feedType="home"
         height="600px"
         theme="light"
       />
-      
+
       {/* Embed Specific Community Feed */}
       <VivaEngageEmbed 
         feedType="community"
