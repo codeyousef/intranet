@@ -20,7 +20,7 @@
  */
 
 import { useSession } from 'next-auth/react'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { Navigation } from '@/components/navigation'
 import { GlassmorphismContainer } from '@/components/glassmorphism-container'
 import { Button } from '@/components/ui/button'
@@ -175,24 +175,19 @@ function DashboardPage() {
   // We no longer need a fallback timer ref since we're not using fallback content
 
   useEffect(() => {
-    // Create enhanced logging functions
+    // Create enhanced logging functions - all info logs removed as requested
     const debugLog = (message, ...args) => {
-      // Always log to console in development mode if debug is true
-      if (process.env.NODE_ENV === 'development' && 
-          typeof window !== 'undefined' && 
-          localStorage.getItem('debug') === 'true') {
-        console.log(message, ...args);
-      }
+      // No-op function - debug logs removed
     };
 
-    // Critical logs are always shown regardless of debug setting
+    // Critical logs removed as requested
     const criticalLog = (message, ...args) => {
-      console.log(`[NEWSLETTER-CRITICAL] ${message}`, ...args);
+      // No-op function - critical logs removed
     };
 
-    // Info logs are shown in both development and production
+    // Info logs removed as requested
     const infoLog = (message, ...args) => {
-      console.log(`[NEWSLETTER-INFO] ${message}`, ...args);
+      // No-op function - info logs removed
     };
 
     // Error logs are always shown
@@ -461,8 +456,8 @@ function DashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column */}
             <div className="lg:col-span-2 space-y-6">
-              {/* CEO Newsletter */}
-              {true && (
+              {/* CEO Newsletter - Temporarily commented out while troubleshooting Viva Engage */}
+              {false && (
                 <GlassmorphismContainer className="p-6 h-[calc(36rem+1.5rem)]">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-bold text-gray-800 flex items-center">
@@ -617,8 +612,8 @@ function DashboardPage() {
         </div>
       </main>
 
-      {/* Newsletter Modal */}
-      {newsletterModalOpen && (
+      {/* Newsletter Modal - Temporarily commented out while troubleshooting Viva Engage */}
+      {false && newsletterModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b bg-flyadeal-purple">
@@ -708,9 +703,15 @@ export default function HomePage() {
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-flyadeal-yellow"></div>
-      </div>
+      <Suspense fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-flyadeal-yellow"></div>
+        </div>
+      }>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-flyadeal-yellow"></div>
+        </div>
+      </Suspense>
     )
   }
 

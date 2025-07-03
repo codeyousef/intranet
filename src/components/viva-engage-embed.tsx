@@ -53,17 +53,16 @@ export function VivaEngageEmbed({
 
       try {
         const response = await fetch(buildApiUrl())
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch content: ${response.status} ${response.statusText}`)
-        }
-
         const data = await response.json()
 
         if (data.success && data.data && data.data.html) {
           setHtmlContent(data.data.html)
+        } else if (!response.ok && data.data && data.data.html) {
+          // Handle error response that contains HTML content
+          setHtmlContent(data.data.html)
+          // Don't log to console as this is an expected case where we show the error in the iframe
         } else {
-          throw new Error('Invalid response format')
+          throw new Error(data.error || 'Invalid response format')
         }
       } catch (err) {
         console.error('Error fetching Viva Engage content:', err)
@@ -116,7 +115,7 @@ export function VivaEngageEmbed({
           style={{ border: 'none' }}
           title="Viva Engage Feed"
           loading="lazy"
-          sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-modals"
+          sandbox="allow-scripts allow-popups allow-forms allow-modals"
           onLoad={handleIframeLoad}
           className={iframeLoaded ? 'opacity-100' : 'opacity-0'}
           allow="camera; microphone"

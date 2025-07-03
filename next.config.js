@@ -1,5 +1,25 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Set the asset prefix for development environment
+  assetPrefix: process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : undefined,
+
+  // Add rewrites to handle specific files
+  async rewrites() {
+    return [
+      {
+        // Handle direct requests to the file
+        source: '/4-auth-msal.js',
+        destination: '/4-auth-msal.js',
+      },
+    ];
+  },
+
+  // Custom handling for public files
+  publicRuntimeConfig: {
+    // Add any runtime config needed
+    vivaEngageChunkUrl: '/4-auth-msal.js',
+  },
+
   async headers() {
     return [
       {
@@ -16,6 +36,18 @@ const nextConfig = {
           {
             key: 'Referrer-Policy',
             value: 'origin-when-cross-origin',
+          },
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET, POST, OPTIONS',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'Content-Type, Authorization',
           },
         ],
       },

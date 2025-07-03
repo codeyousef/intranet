@@ -21,9 +21,36 @@ const httpsOptions = {
 app.prepare().then(() => {
   createServer(httpsOptions, async (req, res) => {
     try {
+      // Add CORS headers
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+      // Handle OPTIONS method for preflight requests
+      if (req.method === 'OPTIONS') {
+        res.statusCode = 204;
+        res.end();
+        return;
+      }
+
       // Parse the URL
       const parsedUrl = parse(req.url, true)
-      
+
+      // Special handling for 4-auth-msal.js
+      if (parsedUrl.pathname === '/4-auth-msal.js') {
+        try {
+          const filePath = path.join(__dirname, 'public', '4-auth-msal.js');
+          const content = fs.readFileSync(filePath, 'utf8');
+          res.setHeader('Content-Type', 'application/javascript');
+          res.statusCode = 200;
+          res.end(content);
+          return;
+        } catch (err) {
+          console.error('Error serving 4-auth-msal.js:', err);
+          // Fall through to normal handling if there's an error
+        }
+      }
+
       // Handle the request
       await handle(req, res, parsedUrl)
     } catch (err) {

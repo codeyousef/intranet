@@ -29,9 +29,7 @@ if (typeof window !== 'undefined') {
 
       // Skip logging for excluded request types
       const isCustomSignoutRequest = url.includes('/api/auth/custom-signout');
-      if (!isNewsletterRequest && !isAuthSessionRequest && !isCustomSignoutRequest) {
-        console.log(`[Fetch Interceptor] Request: ${method} ${url}`);
-      }
+      // Informative log removed to reduce console output
 
       // Call the original fetch function
       const response = await originalFetch(input, init);
@@ -41,10 +39,10 @@ if (typeof window !== 'undefined') {
 
       // Check if this is a NextAuth request
       const isNextAuthRequest = url.includes('/api/auth/') || url.includes('/_next/auth');
-      
+
       // If this is our custom signout endpoint, don't interfere
       if (isCustomSignoutRequest) {
-        console.log('[Fetch Interceptor] Custom signout request - passing through');
+        // Informative log removed to reduce console output
         return response;
       }
 
@@ -63,13 +61,13 @@ if (typeof window !== 'undefined') {
 
         // Check if the response is a redirect (status 302 or 303)
         if (response.status === 302 || response.status === 303) {
-          console.log(`[Fetch Interceptor] Allowing signout redirect to pass through: ${response.status} ${response.statusText}`);
+          // Informative log removed to reduce console output
           return response;
         }
 
         // If the response is not a redirect but is successful, also pass it through
         if (response.ok) {
-          console.log(`[Fetch Interceptor] Allowing successful signout response to pass through: ${response.status} ${response.statusText}`);
+          // Informative log removed to reduce console output
           return response;
         }
 
@@ -86,7 +84,7 @@ if (typeof window !== 'undefined') {
           // This ensures the user can still sign out even if there's a server error
           const redirectUrl = window.location.href.split('?')[0]; // Remove any query params
 
-          console.log(`[Fetch Interceptor] Creating fake redirect for signout to: ${redirectUrl}`);
+          // Informative log removed to reduce console output
 
           return new Response(null, {
             status: 302,
@@ -115,7 +113,7 @@ if (typeof window !== 'undefined') {
             // Try to get the text to see what was returned
             const text = await clonedResponse.text();
 
-            console.log(`[Fetch Interceptor] Transforming CSRF error response: ${response.status} ${response.statusText}`);
+            // Informative log removed to reduce console output
 
             // Return a valid JSON response with a CSRF token
             // This allows NextAuth to continue with the signout process

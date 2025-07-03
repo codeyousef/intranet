@@ -300,7 +300,7 @@ if (typeof window !== 'undefined') {
     }
   }, true);
 
-  console.log('[ChunkErrorHandler] Initialized global chunk error handlers with retry logic');
+  // Informative log removed to reduce console output
 }
 
 export {};
