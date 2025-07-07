@@ -1748,7 +1748,9 @@ User Agent: ${request.headers.get('user-agent') || 'Not available'}
           // Handle all types of errors
           window.addEventListener('error', function(e) {
             // Track the error
-            window.__vivaEngageErrorTracking.lastError = e.message || 'Unknown error';
+            if (typeof window !== 'undefined' && window.__vivaEngageErrorTracking) {
+              window.__vivaEngageErrorTracking.lastError = e.message || 'Unknown error';
+            }
 
             // Handle script loading errors
             if (e.target && e.target.tagName === 'SCRIPT') {
@@ -1757,7 +1759,9 @@ User Agent: ${request.headers.get('user-agent') || 'Not available'}
               // Handle MSAL script errors
               if (src.includes('4-auth-msal.js') || src.includes('auth-msal.js')) {
                 console.log('[VivaEngage] Intercepted MSAL script error:', src);
-                window.__vivaEngageErrorTracking.addError('msal', 'MSAL script loading error', src);
+                if (typeof window !== 'undefined' && window.__vivaEngageErrorTracking) {
+                  window.__vivaEngageErrorTracking.addError('msal', 'MSAL script loading error', src);
+                }
                 e.preventDefault();
                 return false;
               }
@@ -1765,14 +1769,18 @@ User Agent: ${request.headers.get('user-agent') || 'Not available'}
               // Handle chunk loading errors
               if (src.includes('chunk') || src.includes('localhost:3001')) {
                 console.log('[VivaEngage] Intercepted chunk loading error:', src);
-                window.__vivaEngageErrorTracking.addError('chunk', 'Chunk loading error', src);
+                if (typeof window !== 'undefined' && window.__vivaEngageErrorTracking) {
+                  window.__vivaEngageErrorTracking.addError('chunk', 'Chunk loading error', src);
+                }
                 e.preventDefault();
                 return false;
               }
 
               // Log other script errors
               console.error('[VivaEngage] Script error:', src);
-              window.__vivaEngageErrorTracking.addError('script', 'Script error', src);
+              if (typeof window !== 'undefined' && window.__vivaEngageErrorTracking) {
+                window.__vivaEngageErrorTracking.addError('script', 'Script error', src);
+              }
             }
 
             // Handle security errors
@@ -1787,17 +1795,21 @@ User Agent: ${request.headers.get('user-agent') || 'Not available'}
               if (e.message.includes('Failed to read a named property') && 
                   (e.message.includes("'e' from 'Window'") || e.message.includes("'f' from 'Window'"))) {
                 console.log('[VivaEngage] Intercepted specific security error from issue description');
-                window.__vivaEngageErrorTracking.addError('security', 'Specific security error from issue description', e.message);
+                if (typeof window !== 'undefined' && window.__vivaEngageErrorTracking) {
+                  window.__vivaEngageErrorTracking.addError('security', 'Specific security error from issue description', e.message);
 
-                // Set a flag to indicate we've seen this specific error
-                window.__vivaEngageSpecificSecurityErrorSeen = true;
+                  // Set a flag to indicate we've seen this specific error
+                  window.__vivaEngageSpecificSecurityErrorSeen = true;
+                }
 
                 // For these specific errors, we want to prevent default to avoid console spam
                 e.preventDefault();
                 return false;
               }
 
-              window.__vivaEngageErrorTracking.addError('security', 'Security error', e.message);
+              if (typeof window !== 'undefined' && window.__vivaEngageErrorTracking) {
+                window.__vivaEngageErrorTracking.addError('security', 'Security error', e.message);
+              }
 
               // Don't prevent default for other security errors as they're expected
               // Just log them and continue
@@ -1812,10 +1824,12 @@ User Agent: ${request.headers.get('user-agent') || 'Not available'}
               e.filename.includes('auth.ts')
             )) {
               console.log('[VivaEngage] Intercepted error in specific execution path:', e.filename, e.lineno);
-              window.__vivaEngageErrorTracking.addError('path', 'Error in specific execution path', {
-                filename: e.filename,
-                line: e.lineno
-              });
+              if (typeof window !== 'undefined' && window.__vivaEngageErrorTracking) {
+                window.__vivaEngageErrorTracking.addError('path', 'Error in specific execution path', {
+                  filename: e.filename,
+                  line: e.lineno
+                });
+              }
               e.preventDefault();
               return false;
             }
@@ -1827,14 +1841,16 @@ User Agent: ${request.headers.get('user-agent') || 'Not available'}
               e.message.includes('localhost:3001/4-auth-msal.js')
             )) {
               console.log('[VivaEngage] Intercepted specific chunk load error:', e.message);
-              window.__vivaEngageErrorTracking.addError('chunk', 'Specific chunk load error', e.message);
+              if (typeof window !== 'undefined' && window.__vivaEngageErrorTracking) {
+                window.__vivaEngageErrorTracking.addError('chunk', 'Specific chunk load error', e.message);
 
-              // Check for the exact error message from the issue description
-              if (e.message.includes('Uncaught (in promise) ChunkLoadError: Loading chunk 1278 failed') &&
-                  e.message.includes('http://localhost:3001/4-auth-msal.js')) {
-                console.log('[VivaEngage] Intercepted the exact error from the issue description');
-                console.log('[VivaEngage] Preventing error propagation for the specific ChunkLoadError');
-                window.__vivaEngageErrorTracking.addError('chunk', 'Exact error from issue description', e.message);
+                // Check for the exact error message from the issue description
+                if (e.message.includes('Uncaught (in promise) ChunkLoadError: Loading chunk 1278 failed') &&
+                    e.message.includes('http://localhost:3001/4-auth-msal.js')) {
+                  console.log('[VivaEngage] Intercepted the exact error from the issue description');
+                  console.log('[VivaEngage] Preventing error propagation for the specific ChunkLoadError');
+                  window.__vivaEngageErrorTracking.addError('chunk', 'Exact error from issue description', e.message);
+                }
               }
 
               e.preventDefault();
@@ -1842,16 +1858,19 @@ User Agent: ${request.headers.get('user-agent') || 'Not available'}
             }
 
             // For any other errors, log them but don't prevent default
-            window.__vivaEngageErrorTracking.addError('other', e.message || 'Unknown error', {
-              filename: e.filename,
-              line: e.lineno,
-              column: e.colno
-            });
+            if (typeof window !== 'undefined' && window.__vivaEngageErrorTracking) {
+              window.__vivaEngageErrorTracking.addError('other', e.message || 'Unknown error', {
+                filename: e.filename,
+                line: e.lineno,
+                column: e.colno
+              });
+            }
           }, true);
 
           // Override fetch to handle MSAL script requests
-          const originalFetch = window.fetch;
-          window.fetch = function(url, options) {
+          if (typeof window !== 'undefined') {
+            const originalFetch = window.fetch;
+            window.fetch = function(url, options) {
             if (url && typeof url === 'string') {
               // Handle MSAL script requests
               if (url.includes('4-auth-msal.js') || url.includes('auth-msal.js')) {
@@ -2556,6 +2575,7 @@ console.log('[VivaEngage] 4-auth-msal.js initialization complete');`,
           });
 
           console.log('[VivaEngage] Script handlers initialized');
+          }
         </script>
       </head>
       <body>

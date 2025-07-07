@@ -19,6 +19,12 @@ export function UpcomingEvents() {
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isClient, setIsClient] = useState(false)
+
+  // Set isClient to true on mount to track if we're on the client
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   useEffect(() => {
     async function fetchEvents() {
@@ -79,7 +85,21 @@ export function UpcomingEvents() {
           events.map((event) => (
             <div key={event.id} className="p-3 bg-white/5 border border-white/10 rounded-lg">
               <div className="text-gray-800 font-medium mb-1">{event.title}</div>
-              <div className="text-gray-600 text-sm">{new Date(event.event_date).toLocaleDateString()} at {new Date(event.event_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+              <div className="text-gray-600 text-sm">
+                {event.event_date ? (
+                  <>
+                    {isClient ? (
+                      <>
+                        {new Date(event.event_date).toLocaleDateString()} at {new Date(event.event_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </>
+                    ) : (
+                      'Loading event date and time...'
+                    )}
+                  </>
+                ) : (
+                  'Date and time unavailable'
+                )}
+              </div>
               {event.description && (
                 <div className="text-gray-500 text-xs mt-1">
                   {event.description.length > 100 

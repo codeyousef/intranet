@@ -88,8 +88,11 @@ if (typeof window !== 'undefined') {
         // If there are no scripts to reload, try reloading the page after a delay
         setTimeout(() => {
           isRetrying = false;
-          // Remove the notification
-          document.getElementById('chunk-retry-notification')?.remove();
+          // Remove the notification if it exists and is a child of document.body
+          const notification = document.getElementById('chunk-retry-notification');
+          if (notification && notification.parentNode === document.body) {
+            document.body.removeChild(notification);
+          }
           resolve(false);
         }, 2000);
         return;
@@ -127,8 +130,11 @@ if (typeof window !== 'undefined') {
       function finishRetry() {
         setTimeout(() => {
           isRetrying = false;
-          // Remove the notification
-          document.getElementById('chunk-retry-notification')?.remove();
+          // Remove the notification if it exists and is a child of document.body
+          const notification = document.getElementById('chunk-retry-notification');
+          if (notification && notification.parentNode === document.body) {
+            document.body.removeChild(notification);
+          }
           resolve(true);
         }, 1000);
       }
@@ -137,8 +143,11 @@ if (typeof window !== 'undefined') {
       setTimeout(() => {
         if (isRetrying) {
           isRetrying = false;
-          // Remove the notification
-          document.getElementById('chunk-retry-notification')?.remove();
+          // Remove the notification if it exists and is a child of document.body
+          const notification = document.getElementById('chunk-retry-notification');
+          if (notification && notification.parentNode === document.body) {
+            document.body.removeChild(notification);
+          }
           resolve(false);
         }
       }, 10000); // 10 second timeout
@@ -189,8 +198,10 @@ if (typeof window !== 'undefined') {
 
     // Add event listener to the retry button
     document.getElementById('retry-btn')?.addEventListener('click', async () => {
-      // Remove the error message
-      errorMessage.remove();
+      // Remove the error message if it exists and is a child of document.body
+      if (errorMessage && errorMessage.parentNode === document.body) {
+        document.body.removeChild(errorMessage);
+      }
 
       if (chunkId) {
         // Try to reload the chunk

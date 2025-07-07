@@ -20,7 +20,7 @@
  */
 
 import { useSession } from 'next-auth/react'
-import { useState, useEffect, useRef, Suspense } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Navigation } from '@/components/navigation'
 import { GlassmorphismContainer } from '@/components/glassmorphism-container'
 import { Button } from '@/components/ui/button'
@@ -79,79 +79,104 @@ const lastFetchAttempt = {
 
 function LoginPage() {
   const [error, setError] = useState<string | null>(null)
+  const [errorParam, setErrorParam] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
 
+  // Set mounted to true on client-side and handle URL params
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const errorParam = urlParams.get('error')
-    if (errorParam) {
-      setError(errorParam)
+    setMounted(true)
+
+    // Only run on the client side
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const param = urlParams.get('error')
+      setErrorParam(param)
+      if (param) {
+        setError(param)
+      }
     }
   }, [])
 
+  // Get error message based on error code
+  const getErrorMessage = (errorCode: string) => {
+    if (errorCode === 'OAuthCallback') return 'Authentication error. Please try again.';
+    if (errorCode === 'Signin') return 'Sign in failed. Please try again.';
+    return `Error: ${errorCode}`;
+  };
+
+  // Return the content without the outer div, as it will be wrapped by HomePage
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <GlassmorphismContainer className="max-w-md w-full p-8 text-center">
-        <div className="mb-8">
-          <div className="w-16 h-16 mx-auto mb-4 bg-flyadeal-yellow rounded-full flex items-center justify-center">
-            <Plane className="w-8 h-8 text-flyadeal-purple" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2 font-raleway">
-            Welcome to Flyadeal Intranet
-          </h1>
-          <p className="text-gray-600">
-            Sign in with your Microsoft account to access the portal
-          </p>
-
-          {error && (
-            <div className="mt-4 p-3 bg-red-500/20 border border-red-500/40 rounded-lg">
-              <p className="text-red-400 text-sm">
-                {error === 'OAuthCallback' ? 'Authentication error. Please try again.' : 
-                 error === 'Signin' ? 'Sign in failed. Please try again.' :
-                 `Error: ${error}`}
-              </p>
-            </div>
-          )}
+    <GlassmorphismContainer className="max-w-md w-full p-8 text-center">
+      <div className="mb-8">
+        <div className="w-16 h-16 mx-auto mb-4 bg-flyadeal-yellow rounded-full flex items-center justify-center">
+          <Plane className="w-8 h-8 text-flyadeal-purple" />
         </div>
+        <h1 className="text-3xl font-bold text-gray-800 mb-2 font-raleway">
+          Welcome to Flyadeal Intranet
+        </h1>
+        <p className="text-gray-600">
+          Sign in with your Microsoft account to access the portal
+        </p>
 
-        <Button 
-          onClick={() => signIn('azure-ad')}
-          className="w-full bg-flyadeal-yellow text-flyadeal-purple hover:bg-flyadeal-yellow/90 font-semibold"
-        >
-          Sign in with Microsoft
-        </Button>
-      </GlassmorphismContainer>
-    </div>
+        {/* Always render the error container, but hide it when no error */}
+        <div className={`mt-4 p-3 bg-red-500/20 border border-red-500/40 rounded-lg ${mounted && error ? 'block' : 'hidden'}`}>
+          <p className="text-red-400 text-sm">
+            {error ? getErrorMessage(error) : ''}
+          </p>
+        </div>
+      </div>
+
+      <Button 
+        onClick={() => signIn('azure-ad')}
+        className="w-full bg-flyadeal-yellow text-flyadeal-purple hover:bg-flyadeal-yellow/90 font-semibold"
+      >
+        Sign in with Microsoft
+      </Button>
+    </GlassmorphismContainer>
   )
 }
 
 function DashboardPage() {
   const { theme } = useTheme()
   const { data: session } = useSession()
-  const [currentTime, setCurrentTime] = useState(new Date())
+  const [currentTime, setCurrentTime] = useState(null)
   const [weather] = useState({ temp: 32, condition: 'Sunny', location: 'Riyadh' })
   const [newsletterModalOpen, setNewsletterModalOpen] = useState(false)
   const [newsletter, setNewsletter] = useState<any>(null)
   const [newsletterError, setNewsletterError] = useState<string | null>(null)
+  const [isClient, setIsClient] = useState(false)
 
-  // Log component render state for debugging (only in development)
+  // Set isClient to true on mount to track if we're on the client
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  // Log component render state for debugging (only in development and only on client)
   const renderState = {
     hasSession: !!session,
     hasNewsletter: !!newsletter,
     hasNewsletterError: !!newsletterError,
-    newsletterModalOpen
+    newsletterModalOpen,
+    isClient
   };
-  if (process.env.NODE_ENV === 'development' && localStorage.getItem('debug') === 'true') {
-    console.log('🔄 DashboardPage rendering with:', renderState)
-  }
+
+  // Only run this on the client side
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined' && localStorage.getItem('debug') === 'true') {
+      console.log('🔄 DashboardPage rendering with:', renderState)
+    }
+  }, [renderState]);
 
   // Function to reset newsletter loading state and force a fresh fetch
   // This clears the localStorage flag, resets the debounce timestamp,
   // clears any error state, and reloads the page with a force_fetch parameter to ensure a fresh fetch
   const resetNewsletterLoadingState = () => {
-    globalNewsletterLoaded.current = false
-    lastFetchAttempt.timestamp = 0 // Reset the debounce timestamp
-    setNewsletterError(null) // Clear any error state
+    // Only run this on the client side
     if (typeof window !== 'undefined') {
+      globalNewsletterLoaded.current = false
+      lastFetchAttempt.timestamp = 0 // Reset the debounce timestamp
+      setNewsletterError(null) // Clear any error state
+
       localStorage.removeItem('newsletterLoaded')
       if (process.env.NODE_ENV === 'development' && localStorage.getItem('debug') === 'true') {
         console.log('🔄 Newsletter loading state and debounce timestamp reset')
@@ -165,6 +190,9 @@ function DashboardPage() {
   }
 
   useEffect(() => {
+    // Set initial time
+    setCurrentTime(new Date())
+    // Update time every second
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
@@ -174,7 +202,13 @@ function DashboardPage() {
 
   // We no longer need a fallback timer ref since we're not using fallback content
 
+  // Newsletter loading effect - only runs on client side
   useEffect(() => {
+    // Skip this effect during server-side rendering
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     // Create enhanced logging functions - all info logs removed as requested
     const debugLog = (message, ...args) => {
       // No-op function - debug logs removed
@@ -196,44 +230,41 @@ function DashboardPage() {
     };
 
     // Check if newsletter has already been loaded in this session
-    if (typeof window !== 'undefined') {
-      const newsletterLoaded = localStorage.getItem('newsletterLoaded') === 'true';
-      globalNewsletterLoaded.current = newsletterLoaded;
-      infoLog(`Newsletter loading state check: ${newsletterLoaded ? 'Already loaded' : 'Not loaded yet'}`);
+    const newsletterLoaded = localStorage.getItem('newsletterLoaded') === 'true';
+    globalNewsletterLoaded.current = newsletterLoaded;
+    infoLog(`Newsletter loading state check: ${newsletterLoaded ? 'Already loaded' : 'Not loaded yet'}`);
 
-      if (newsletterLoaded) {
-        debugLog('🔍 Newsletter already loaded in this session, checking localStorage for data');
-        infoLog('Attempting to load newsletter from localStorage');
+    if (newsletterLoaded) {
+      debugLog('🔍 Newsletter already loaded in this session, checking localStorage for data');
+      infoLog('Attempting to load newsletter from localStorage');
 
-        // Try to get newsletter data from localStorage
-        const storedNewsletter = localStorage.getItem('newsletterData');
-        if (storedNewsletter) {
-          try {
-            const parsedNewsletter = JSON.parse(storedNewsletter);
-            setNewsletter(parsedNewsletter);
-            debugLog('✅ Loaded newsletter data from localStorage', parsedNewsletter);
-            infoLog('Successfully loaded newsletter from localStorage', {
-              title: parsedNewsletter.title,
-              contentLength: parsedNewsletter.content?.length || 0,
-              lastUpdated: parsedNewsletter.lastUpdated,
-              source: parsedNewsletter.source
-            });
-          } catch (error) {
-            debugLog('❌ Error parsing newsletter data from localStorage', error);
-            errorLog('Failed to parse newsletter data from localStorage', error);
-            setNewsletterError('Error loading saved newsletter data. Please try refreshing the page.');
-          }
-        } else {
-          infoLog('No newsletter data found in localStorage despite loaded flag being set');
+      // Try to get newsletter data from localStorage
+      const storedNewsletter = localStorage.getItem('newsletterData');
+      if (storedNewsletter) {
+        try {
+          const parsedNewsletter = JSON.parse(storedNewsletter);
+          setNewsletter(parsedNewsletter);
+          debugLog('✅ Loaded newsletter data from localStorage', parsedNewsletter);
+          infoLog('Successfully loaded newsletter from localStorage', {
+            title: parsedNewsletter.title,
+            contentLength: parsedNewsletter.content?.length || 0,
+            lastUpdated: parsedNewsletter.lastUpdated,
+            source: parsedNewsletter.source
+          });
+        } catch (error) {
+          debugLog('❌ Error parsing newsletter data from localStorage', error);
+          errorLog('Failed to parse newsletter data from localStorage', error);
+          setNewsletterError('Error loading saved newsletter data. Please try refreshing the page.');
         }
-
-        return () => {};
+      } else {
+        infoLog('No newsletter data found in localStorage despite loaded flag being set');
       }
+
+      return;
     }
 
     // Check URL parameters for force_fetch flag
-    const forceFetch = typeof window !== 'undefined' && 
-      new URLSearchParams(window.location.search).get('force_fetch') === 'true';
+    const forceFetch = new URLSearchParams(window.location.search).get('force_fetch') === 'true';
 
     infoLog(`Force fetch parameter check: ${forceFetch ? 'Force fetch requested' : 'Normal fetch flow'}`);
 
@@ -244,7 +275,7 @@ function DashboardPage() {
       if (now - lastFetchAttempt.timestamp < lastFetchAttempt.minInterval) {
         debugLog('🔒 Fetch attempt too soon after previous attempt, skipping');
         infoLog(`Debounce protection triggered - last attempt was ${now - lastFetchAttempt.timestamp}ms ago (minimum interval: ${lastFetchAttempt.minInterval}ms)`);
-        return () => {};
+        return;
       }
 
       lastFetchAttempt.timestamp = now;
@@ -300,12 +331,10 @@ function DashboardPage() {
             setNewsletter(data.newsletter);
 
             // Save to localStorage to avoid refetching
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
-              localStorage.setItem('newsletterLoaded', 'true');
-              globalNewsletterLoaded.current = true;
-              infoLog('Newsletter data saved to localStorage');
-            }
+            localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
+            localStorage.setItem('newsletterLoaded', 'true');
+            globalNewsletterLoaded.current = true;
+            infoLog('Newsletter data saved to localStorage');
           } else {
             errorLog('API returned success:false or missing newsletter data', {
               success: data.success,
@@ -343,10 +372,7 @@ function DashboardPage() {
       debugLog('🔍 Newsletter already loaded in this session, skipping fetch');
       infoLog('Newsletter fetch skipped - already loaded in this session');
     }
-
-    // Return cleanup function
-    return () => {};
-  }, [session]) // Keep session as a dependency to avoid lint warnings
+  }, [session, isClient]) // Add isClient as a dependency to ensure this only runs on the client
 
   return (
     <div className="min-h-screen">
@@ -360,7 +386,7 @@ function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h1 className="text-3xl font-bold text-gray-800 mb-2">
-                    Welcome back, {session?.user?.name?.split(' ')[0]}! 👋
+                    Welcome back{session?.user?.name ? `, ${session.user.name.split(' ')[0]}` : ''}! 👋
                   </h1>
                   <p className="text-gray-600">
                     Here's what's happening at Flyadeal today
@@ -376,19 +402,19 @@ function DashboardPage() {
                   </div>
                   <div>
                     <div className="text-gray-800 text-lg font-semibold">
-                      {currentTime.toLocaleTimeString('en-US', { 
+                      {isClient && currentTime ? currentTime.toLocaleTimeString('en-US', { 
                         hour: '2-digit', 
                         minute: '2-digit',
                         hour12: true 
-                      })}
+                      }) : '--:--'}
                     </div>
                     <div className="text-gray-600 text-sm">
-                      {currentTime.toLocaleDateString('en-US', { 
+                      {isClient && currentTime ? currentTime.toLocaleDateString('en-US', { 
                         weekday: 'long',
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric'
-                      })}
+                      }) : 'Loading...'}
                     </div>
                   </div>
                 </div>
@@ -693,6 +719,12 @@ function DashboardPage() {
 export default function HomePage() {
   const { theme } = useTheme()
   const { data: session, status, error } = useSession()
+  const [mounted, setMounted] = useState(false)
+
+  // Set mounted to true on client-side
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Handle NextAuth errors
   useEffect(() => {
@@ -701,30 +733,28 @@ export default function HomePage() {
     }
   }, [error])
 
-  if (status === 'loading') {
-    return (
-      <Suspense fallback={
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-flyadeal-yellow"></div>
-        </div>
-      }>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-flyadeal-yellow"></div>
-        </div>
-      </Suspense>
-    )
-  }
+  // Determine which content to show, but don't conditionally render different components
+  // This ensures the same DOM structure on both server and client for initial render
+  const isLoading = status === 'loading' || !mounted
+  const isAuthenticated = mounted && status === 'authenticated' && !!session
+  const showLogin = mounted && (status === 'unauthenticated' || !!error || !session)
 
-  // If there's an error but we still have a session, we can try to continue
-  if (error && !session) {
-    return (
-      <LoginPage />
-    )
-  }
+  return (
+    <div className="min-h-screen">
+      {/* Loading spinner - shown during loading state */}
+      <div className={`min-h-screen flex items-center justify-center ${isLoading ? 'block' : 'hidden'}`}>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-flyadeal-yellow"></div>
+      </div>
 
-  if (!session) {
-    return <LoginPage />
-  }
+      {/* Login page - shown when not authenticated */}
+      <div className={`min-h-screen flex items-center justify-center ${showLogin && !isLoading ? 'block' : 'hidden'}`}>
+        <LoginPage />
+      </div>
 
-  return <DashboardPage />
+      {/* Dashboard - shown when authenticated */}
+      <div className={isAuthenticated && !isLoading ? 'block' : 'hidden'}>
+        <DashboardPage />
+      </div>
+    </div>
+  )
 }

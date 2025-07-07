@@ -1,12 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { X } from 'lucide-react'
 
 export function ChatButton() {
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [isClient, setIsClient] = useState(false)
+  const chatIframeRef = useRef<HTMLIFrameElement>(null)
+
+  // Set isClient to true on mount to track if we're on the client
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   const toggleChat = () => {
     setIsChatOpen(!isChatOpen)
@@ -14,6 +21,36 @@ export function ChatButton() {
       setSelectedCategory(null) // Reset selected category when opening chat
     }
   }
+
+  // Cleanup function to handle iframe removal properly - only on client side
+  useEffect(() => {
+    // Only set up cleanup if we're on the client side
+    if (!isClient) {
+      return;
+    }
+
+    return () => {
+      // Clear iframe content and references when component unmounts
+      if (chatIframeRef.current) {
+        try {
+          // Set src to empty to stop any active connections
+          chatIframeRef.current.src = 'about:blank';
+
+          // Clear any content
+          if (chatIframeRef.current.contentDocument) {
+            try {
+              chatIframeRef.current.contentDocument.documentElement.innerHTML = '';
+            } catch (e) {
+              // Ignore errors accessing contentDocument due to cross-origin restrictions
+            }
+          }
+        } catch (e) {
+          // Ignore any errors that might occur during cleanup
+          console.error('Error during iframe cleanup:', e);
+        }
+      }
+    };
+  }, [isClient]);
 
   return (
     <>
@@ -66,11 +103,18 @@ export function ChatButton() {
           <div className="flex-1 overflow-y-auto">
             {selectedCategory === 'hr-policy' ? (
               <div className="h-full">
-                <iframe 
-                  src="https://copilotstudio.microsoft.com/environments/Default-6b8805cf-83d0-4342-bd38-fb3b3df952be/bots/cr6d3_agent_bMRR9X/webchat?__version__=2" 
-                  frameBorder="0" 
-                  className="w-full h-full"
-                ></iframe>
+                {isClient ? (
+                  <iframe 
+                    ref={chatIframeRef}
+                    src="https://copilotstudio.microsoft.com/environments/Default-6b8805cf-83d0-4342-bd38-fb3b3df952be/bots/cr6d3_agent_bMRR9X/webchat?__version__=2" 
+                    frameBorder="0" 
+                    className="w-full h-full"
+                  ></iframe>
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <p className="text-gray-500">Loading chat interface...</p>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="p-4">

@@ -12,8 +12,8 @@ import Image from 'next/image'
 const handleSignOut = () => {
   console.log('Sign out button clicked')
 
-  // Navigate to the dedicated signout page
-  window.location.href = '/signout'
+  // Use the NextAuth signOut function
+  signOut({ callbackUrl: '/' })
 }
 
 const navItems = [
@@ -57,7 +57,7 @@ export function Navigation() {
     <nav className="fixed top-0 left-0 right-0 z-50 p-4">
       <GlassmorphismContainer className="px-6 py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">+
+          <div className="flex items-center space-x-4">
             <Image 
               src="/images/logo.png" 
               alt="Company Logo" 

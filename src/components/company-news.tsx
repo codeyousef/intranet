@@ -19,6 +19,12 @@ export function CompanyNews() {
   const [news, setNews] = useState<NewsItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isClient, setIsClient] = useState(false)
+
+  // Set isClient to true on mount to track if we're on the client
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   useEffect(() => {
     async function fetchNews() {
@@ -89,7 +95,9 @@ export function CompanyNews() {
                 <div className="flex-1">
                   <div className="text-gray-800 font-medium">{newsItem.title}</div>
                   <div className="text-gray-600 text-sm">
-                    {new Date(newsItem.published_at).toLocaleDateString()} • {getCategory(newsItem)}
+                    {newsItem.published_at ? 
+                      (isClient ? new Date(newsItem.published_at).toLocaleDateString() : 'Loading date...') 
+                      : 'Date unavailable'} • {getCategory(newsItem)}
                   </div>
                 </div>
                 <ChevronRight className="w-5 h-5 text-gray-400" />
