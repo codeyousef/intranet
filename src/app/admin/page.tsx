@@ -30,13 +30,39 @@ import {
   Download
 } from 'lucide-react'
 
+import { ClientOnly } from '@/lib/client-only'
+
 export default function AdminPage() {
+  // For server-side rendering, we'll render a simple loading state
+  // Then use ClientOnly to render the actual content on the client side only
+  // This completely avoids hydration mismatches by not rendering anything complex during SSR
+  return (
+    <div className="min-h-screen">
+      {/* Server-side and initial client render just shows a loading spinner */}
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-8 w-8 animate-spin text-flyadeal-yellow" />
+          <p className="mt-2 text-gray-600">Loading admin panel...</p>
+        </div>
+      </div>
+
+      {/* Client-only content - only rendered after hydration */}
+      <ClientOnly>
+        <AdminPageContent />
+      </ClientOnly>
+    </div>
+  );
+}
+
+// The actual content component with all the logic - only rendered on client
+function AdminPageContent() {
   const { data: session, status } = useSession()
   const router = useRouter()
 
   const [isAdmin, setIsAdmin] = useState(false)
   const [isPeopleAdmin, setIsPeopleAdmin] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+
   const [platformLinks, setPlatformLinks] = useState([])
   const [adminUsers, setAdminUsers] = useState([])
   const [peopleAdminUsers, setPeopleAdminUsers] = useState([])
@@ -734,286 +760,292 @@ export default function AdminPage() {
     }
   }
 
-  // If loading or not authenticated, show loading state
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
+  // For server-side rendering, we need to ensure the initial state matches what will be rendered
+  // We'll use a combination of CSS classes and client-side JS to handle the transitions
+  // This approach avoids hydration mismatches by ensuring server and client render the same initial HTML
+
+  // Determine visibility states based on component state and mounted status
+  const showLoading = isLoading || !mounted
+  const showAdmin = mounted && isAdmin && !isLoading
+
+  return (
+    <div className="min-h-screen">
+      {/* Loading state - always rendered but visibility controlled by CSS */}
+      <div 
+        className="min-h-screen flex items-center justify-center" 
+        style={{display: showLoading ? "flex" : "none"}}
+      >
         <div className="flex flex-col items-center">
           <Loader2 className="h-8 w-8 animate-spin text-flyadeal-yellow" />
           <p className="mt-2 text-gray-600">Loading admin panel...</p>
         </div>
       </div>
-    )
-  }
 
-  // If not admin, redirect (handled in useEffect)
-  if (!isAdmin) {
-    return null
-  }
+      {/* Admin panel - always rendered but visibility controlled by CSS */}
+      <div style={{display: showAdmin ? "block" : "none"}}>
+        <Navigation />
 
-  return (
-    <div className="min-h-screen">
-      <Navigation />
+        <main className="pt-28 p-6">
+          <div className="max-w-7xl mx-auto">
+            <GlassmorphismContainer className="p-6 mb-6">
+              <h1 className="text-3xl font-bold text-gray-800 mb-2">Admin Panel</h1>
+              <p className="text-gray-600">
+                Manage platform links, admin users, events, and company news
+              </p>
+            </GlassmorphismContainer>
 
-      <main className="pt-28 p-6">
-        <div className="max-w-7xl mx-auto">
-          <GlassmorphismContainer className="p-6 mb-6">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Admin Panel</h1>
-            <p className="text-gray-600">
-              Manage platform links, admin users, events, and company news
-            </p>
-          </GlassmorphismContainer>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 flex items-start">
-              <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
-              <p>{error}</p>
-            </div>
-          )}
-
-          {success && (
-            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6">
-              {success}
-            </div>
-          )}
-
-          <Tabs defaultValue="platform-links">
-            <TabsList className="mb-6">
-              <TabsTrigger value="platform-links">Platform Links</TabsTrigger>
-              <TabsTrigger value="admin-users">Admin Users</TabsTrigger>
-              {isAdmin && (
-                <>
-                  <TabsTrigger value="people-admin-users">People Admin Users</TabsTrigger>
-                  <TabsTrigger value="ftp-browser">FTP Browser</TabsTrigger>
-                </>
-              )}
-              {isPeopleAdmin && (
-                <>
-                  <TabsTrigger value="events">Events</TabsTrigger>
-                  <TabsTrigger value="company-news">Company News</TabsTrigger>
-                </>
-              )}
-            </TabsList>
-
-            <TabsContent value="platform-links">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Add new platform link */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Add New Platform Link</CardTitle>
-                    <CardDescription>
-                      Create a new link to be displayed on the homepage
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <form onSubmit={addPlatformLink} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="title">Title</Label>
-                        <Input 
-                          id="title" 
-                          value={newLink.title} 
-                          onChange={(e) => setNewLink({...newLink, title: e.target.value})}
-                          placeholder="e.g. SharePoint"
-                          required
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="url">URL</Label>
-                        <Input 
-                          id="url" 
-                          value={newLink.url} 
-                          onChange={(e) => setNewLink({...newLink, url: e.target.value})}
-                          placeholder="e.g. https://flyadeal.sharepoint.com"
-                          required
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="icon">Icon</Label>
-                        <Select 
-                          value={newLink.icon} 
-                          onValueChange={(value) => setNewLink({...newLink, icon: value})}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select an icon" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableIcons.map((icon) => (
-                              <SelectItem key={icon} value={icon}>
-                                {icon}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="display_order">Display Order</Label>
-                        <Input 
-                          id="display_order" 
-                          type="number" 
-                          value={newLink.display_order} 
-                          onChange={(e) => setNewLink({...newLink, display_order: parseInt(e.target.value)})}
-                          min="0"
-                        />
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <Switch 
-                          id="is_active" 
-                          checked={newLink.is_active} 
-                          onCheckedChange={(checked) => setNewLink({...newLink, is_active: checked})}
-                        />
-                        <Label htmlFor="is_active">Active</Label>
-                      </div>
-
-                      <Button type="submit" className="w-full">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Platform Link
-                      </Button>
-                    </form>
-                  </CardContent>
-                </Card>
-
-                {/* Existing platform links */}
-                <Card className="md:col-span-2">
-                  <CardHeader>
-                    <CardTitle>Existing Platform Links</CardTitle>
-                    <CardDescription>
-                      Manage existing platform links
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {platformLinks.length === 0 ? (
-                      <p className="text-gray-500 text-center py-4">No platform links found</p>
-                    ) : (
-                      <div className="space-y-4">
-                        {platformLinks.map((link) => (
-                          <div key={link.id} className="flex items-center justify-between p-3 border rounded-lg">
-                            <div>
-                              <div className="font-medium">{link.title}</div>
-                              <div className="text-sm text-gray-500">{link.url}</div>
-                              <div className="text-xs text-gray-400 mt-1">
-                                Icon: {link.icon} | Order: {link.display_order} | 
-                                {link.is_active ? ' Active' : ' Inactive'}
-                              </div>
-                            </div>
-                            <Button 
-                              variant="destructive" 
-                              size="sm" 
-                              onClick={() => deletePlatformLink(link.id)}
-                            >
-                              <Trash className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 flex items-start">
+                <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+                <p>{error}</p>
               </div>
-            </TabsContent>
+            )}
 
-            <TabsContent value="admin-users">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Add new admin user */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Add New Admin User</CardTitle>
-                    <CardDescription>
-                      Grant admin privileges to a user
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <form onSubmit={addAdminUser} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Email Address</Label>
-                        <Input 
-                          id="email" 
-                          type="email" 
-                          value={newAdminEmail} 
-                          onChange={(e) => setNewAdminEmail(e.target.value)}
-                          placeholder="e.g. user@flyadeal.com"
-                          required
-                        />
-                      </div>
-
-                      <Button type="submit" className="w-full">
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        Add Admin User
-                      </Button>
-                    </form>
-                  </CardContent>
-                </Card>
-
-                {/* Existing admin users */}
-                <Card className="md:col-span-2">
-                  <CardHeader>
-                    <CardTitle>Existing Admin Users</CardTitle>
-                    <CardDescription>
-                      Manage existing admin users
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {adminUsers.length === 0 ? (
-                      <p className="text-gray-500 text-center py-4">No admin users found</p>
-                    ) : (
-                      <div className="space-y-4">
-                        {adminUsers.map((user) => (
-                          <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg">
-                            <div>
-                              <div className="font-medium">{user.email}</div>
-                              <div className="text-xs text-gray-400 mt-1">
-                                Added: {new Date(user.created_at).toLocaleDateString()}
-                              </div>
-                            </div>
-                            <Button 
-                              variant="destructive" 
-                              size="sm" 
-                              onClick={() => removeAdminUser(user.email)}
-                              disabled={user.email === session?.user?.email}
-                              title={user.email === session?.user?.email ? "Cannot remove yourself" : "Remove admin"}
-                            >
-                              <UserMinus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+            {success && (
+              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6">
+                {success}
               </div>
-            </TabsContent>
+            )}
 
-            {isAdmin && (
-              <TabsContent value="people-admin-users">
+            <Tabs defaultValue="platform-links">
+              <TabsList className="mb-6">
+                <TabsTrigger value="platform-links">Platform Links</TabsTrigger>
+                <TabsTrigger value="admin-users">Admin Users</TabsTrigger>
+                {isAdmin && (
+                  <>
+                    <TabsTrigger value="people-admin-users">People Admin Users</TabsTrigger>
+                    <TabsTrigger value="ftp-browser">FTP Browser</TabsTrigger>
+                  </>
+                )}
+                {isPeopleAdmin && (
+                  <>
+                    <TabsTrigger value="events">Events</TabsTrigger>
+                    <TabsTrigger value="company-news">Company News</TabsTrigger>
+                  </>
+                )}
+              </TabsList>
+
+              <TabsContent value="platform-links">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Add new people admin user */}
+                  {/* Add new platform link */}
                   <Card>
                     <CardHeader>
-                      <CardTitle>Add New People Admin User</CardTitle>
+                      <CardTitle>Add New Platform Link</CardTitle>
                       <CardDescription>
-                        Grant people admin privileges to a user
+                        Create a new link to be displayed on the homepage
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <form onSubmit={addPeopleAdminUser} className="space-y-4">
+                      <form onSubmit={addPlatformLink} className="space-y-4">
                         <div className="space-y-2">
-                          <Label htmlFor="people-admin-email">Email Address</Label>
+                          <Label htmlFor="title">Title</Label>
                           <Input 
-                            id="people-admin-email" 
-                            type="email" 
-                            value={newPeopleAdminEmail} 
-                            onChange={(e) => setNewPeopleAdminEmail(e.target.value)}
+                            id="title" 
+                            value={newLink.title} 
+                            onChange={(e) => setNewLink({...newLink, title: e.target.value})}
+                            placeholder="e.g. SharePoint"
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="url">URL</Label>
+                          <Input 
+                            id="url" 
+                            value={newLink.url} 
+                            onChange={(e) => setNewLink({...newLink, url: e.target.value})}
+                            placeholder="e.g. https://flyadeal.sharepoint.com"
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="icon">Icon</Label>
+                          <Select 
+                            value={newLink.icon} 
+                            onValueChange={(value) => setNewLink({...newLink, icon: value})}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select an icon" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableIcons.map((icon) => (
+                                <SelectItem key={icon} value={icon}>
+                                  {icon}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="display_order">Display Order</Label>
+                          <Input 
+                            id="display_order" 
+                            type="number" 
+                            value={newLink.display_order} 
+                            onChange={(e) => setNewLink({...newLink, display_order: parseInt(e.target.value)})}
+                            min="0"
+                          />
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <Switch 
+                            id="is_active" 
+                            checked={newLink.is_active} 
+                            onCheckedChange={(checked) => setNewLink({...newLink, is_active: checked})}
+                          />
+                          <Label htmlFor="is_active">Active</Label>
+                        </div>
+
+                        <Button type="submit" className="w-full">
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Link
+                        </Button>
+                      </form>
+                    </CardContent>
+                  </Card>
+
+                  {/* Existing platform links */}
+                  <Card className="md:col-span-2">
+                    <CardHeader>
+                      <CardTitle>Existing Platform Links</CardTitle>
+                      <CardDescription>
+                        Manage existing links displayed on the homepage
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {platformLinks.length === 0 ? (
+                        <p className="text-gray-500 text-center py-4">No platform links found</p>
+                      ) : (
+                        <div className="space-y-4">
+                          {platformLinks.map((link) => (
+                            <div key={link.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                              <div>
+                                <p className="font-medium">{link.title}</p>
+                                <p className="text-sm text-gray-500">{link.url}</p>
+                                <div className="flex items-center mt-1">
+                                  <span className="text-xs bg-gray-200 px-2 py-0.5 rounded mr-2">
+                                    Icon: {link.icon}
+                                  </span>
+                                  <span className="text-xs bg-gray-200 px-2 py-0.5 rounded mr-2">
+                                    Order: {link.display_order}
+                                  </span>
+                                  <span className={`text-xs px-2 py-0.5 rounded ${link.is_active ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+                                    {link.is_active ? 'Active' : 'Inactive'}
+                                  </span>
+                                </div>
+                              </div>
+                              <Button 
+                                variant="destructive" 
+                                size="sm" 
+                                onClick={() => deletePlatformLink(link.id)}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="admin-users">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Add new admin user */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Add New Admin User</CardTitle>
+                      <CardDescription>
+                        Grant admin access to a user by email
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <form onSubmit={addAdminUser} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="admin-email">Email</Label>
+                          <Input 
+                            id="admin-email" 
+                            value={newAdminEmail} 
+                            onChange={(e) => setNewAdminEmail(e.target.value)}
                             placeholder="e.g. user@flyadeal.com"
+                            type="email"
                             required
                           />
                         </div>
 
                         <Button type="submit" className="w-full">
                           <UserPlus className="h-4 w-4 mr-2" />
-                          Add People Admin User
+                          Add Admin
+                        </Button>
+                      </form>
+                    </CardContent>
+                  </Card>
+
+                  {/* Existing admin users */}
+                  <Card className="md:col-span-2">
+                    <CardHeader>
+                      <CardTitle>Existing Admin Users</CardTitle>
+                      <CardDescription>
+                        Manage users with admin access
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {adminUsers.length === 0 ? (
+                        <p className="text-gray-500 text-center py-4">No admin users found</p>
+                      ) : (
+                        <div className="space-y-4">
+                          {adminUsers.map((user) => (
+                            <div key={user.email} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                              <div>
+                                <p className="font-medium">{user.email}</p>
+                                <p className="text-xs text-gray-500">Added: {new Date(user.created_at).toLocaleDateString()}</p>
+                              </div>
+                              <Button 
+                                variant="destructive" 
+                                size="sm" 
+                                onClick={() => removeAdminUser(user.email)}
+                              >
+                                <UserMinus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="people-admin-users">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Add new people admin user */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Add New People Admin</CardTitle>
+                      <CardDescription>
+                        Grant people admin access to a user by email
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <form onSubmit={addPeopleAdminUser} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="people-admin-email">Email</Label>
+                          <Input 
+                            id="people-admin-email" 
+                            value={newPeopleAdminEmail} 
+                            onChange={(e) => setNewPeopleAdminEmail(e.target.value)}
+                            placeholder="e.g. user@flyadeal.com"
+                            type="email"
+                            required
+                          />
+                        </div>
+
+                        <Button type="submit" className="w-full">
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Add People Admin
                         </Button>
                       </form>
                     </CardContent>
@@ -1022,9 +1054,9 @@ export default function AdminPage() {
                   {/* Existing people admin users */}
                   <Card className="md:col-span-2">
                     <CardHeader>
-                      <CardTitle>Existing People Admin Users</CardTitle>
+                      <CardTitle>Existing People Admins</CardTitle>
                       <CardDescription>
-                        Manage existing people admin users
+                        Manage users with people admin access
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -1033,12 +1065,10 @@ export default function AdminPage() {
                       ) : (
                         <div className="space-y-4">
                           {peopleAdminUsers.map((user) => (
-                            <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg">
+                            <div key={user.email} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                               <div>
-                                <div className="font-medium">{user.email}</div>
-                                <div className="text-xs text-gray-400 mt-1">
-                                  Added: {new Date(user.created_at).toLocaleDateString()}
-                                </div>
+                                <p className="font-medium">{user.email}</p>
+                                <p className="text-xs text-gray-500">Added: {new Date(user.created_at).toLocaleDateString()}</p>
                               </div>
                               <Button 
                                 variant="destructive" 
@@ -1055,9 +1085,7 @@ export default function AdminPage() {
                   </Card>
                 </div>
               </TabsContent>
-            )}
 
-            {isPeopleAdmin && (
               <TabsContent value="events">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Add new event */}
@@ -1065,7 +1093,7 @@ export default function AdminPage() {
                     <CardHeader>
                       <CardTitle>Add New Event</CardTitle>
                       <CardDescription>
-                        Create a new upcoming event
+                        Create a new event to be displayed on the homepage
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -1076,7 +1104,7 @@ export default function AdminPage() {
                             id="event-title" 
                             value={newEvent.title} 
                             onChange={(e) => setNewEvent({...newEvent, title: e.target.value})}
-                            placeholder="e.g. Company Picnic"
+                            placeholder="e.g. Company Meeting"
                             required
                           />
                         </div>
@@ -1088,7 +1116,7 @@ export default function AdminPage() {
                             value={newEvent.description} 
                             onChange={(e) => setNewEvent({...newEvent, description: e.target.value})}
                             placeholder="Event details..."
-                            rows={4}
+                            rows={3}
                           />
                         </div>
 
@@ -1104,7 +1132,7 @@ export default function AdminPage() {
                         </div>
 
                         <Button type="submit" className="w-full">
-                          <Plus className="h-4 w-4 mr-2" />
+                          <Calendar className="h-4 w-4 mr-2" />
                           Add Event
                         </Button>
                       </form>
@@ -1114,9 +1142,9 @@ export default function AdminPage() {
                   {/* Existing events */}
                   <Card className="md:col-span-2">
                     <CardHeader>
-                      <CardTitle>Upcoming Events</CardTitle>
+                      <CardTitle>Existing Events</CardTitle>
                       <CardDescription>
-                        Manage upcoming events
+                        Manage events displayed on the homepage
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -1125,13 +1153,13 @@ export default function AdminPage() {
                       ) : (
                         <div className="space-y-4">
                           {events.map((event) => (
-                            <div key={event.id} className="flex items-start justify-between p-3 border rounded-lg">
+                            <div key={event.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                               <div>
-                                <div className="font-medium">{event.title}</div>
-                                <div className="text-sm text-gray-500 mt-1">{event.description}</div>
-                                <div className="text-xs text-gray-400 mt-1">
+                                <p className="font-medium">{event.title}</p>
+                                <p className="text-sm text-gray-500">{event.description}</p>
+                                <p className="text-xs text-gray-500 mt-1">
                                   Date: {new Date(event.event_date).toLocaleDateString()}
-                                </div>
+                                </p>
                               </div>
                               <Button 
                                 variant="destructive" 
@@ -1148,9 +1176,7 @@ export default function AdminPage() {
                   </Card>
                 </div>
               </TabsContent>
-            )}
 
-            {isPeopleAdmin && (
               <TabsContent value="company-news">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Add new company news */}
@@ -1158,7 +1184,7 @@ export default function AdminPage() {
                     <CardHeader>
                       <CardTitle>Add Company News</CardTitle>
                       <CardDescription>
-                        Create a new company news item
+                        Create a new news item to be displayed on the homepage
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -1181,24 +1207,24 @@ export default function AdminPage() {
                             value={newNewsItem.content} 
                             onChange={(e) => setNewNewsItem({...newNewsItem, content: e.target.value})}
                             placeholder="News content..."
-                            rows={6}
+                            rows={5}
                           />
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="news-date">Publication Date</Label>
+                          <Label htmlFor="news-date">Publish Date</Label>
                           <Input 
                             id="news-date" 
                             type="date" 
                             value={newNewsItem.published_at} 
                             onChange={(e) => setNewNewsItem({...newNewsItem, published_at: e.target.value})}
+                            required
                           />
-                          <p className="text-xs text-gray-500">Leave empty to use current date</p>
                         </div>
 
                         <Button type="submit" className="w-full">
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add News Item
+                          <Newspaper className="h-4 w-4 mr-2" />
+                          Add News
                         </Button>
                       </form>
                     </CardContent>
@@ -1207,9 +1233,9 @@ export default function AdminPage() {
                   {/* Existing company news */}
                   <Card className="md:col-span-2">
                     <CardHeader>
-                      <CardTitle>Company News</CardTitle>
+                      <CardTitle>Existing News</CardTitle>
                       <CardDescription>
-                        Manage company news items
+                        Manage news items displayed on the homepage
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -1217,23 +1243,19 @@ export default function AdminPage() {
                         <p className="text-gray-500 text-center py-4">No news items found</p>
                       ) : (
                         <div className="space-y-4">
-                          {companyNews.map((newsItem) => (
-                            <div key={newsItem.id} className="flex items-start justify-between p-3 border rounded-lg">
+                          {companyNews.map((news) => (
+                            <div key={news.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                               <div>
-                                <div className="font-medium">{newsItem.title}</div>
-                                <div className="text-sm text-gray-500 mt-1">
-                                  {newsItem.content.length > 100 
-                                    ? `${newsItem.content.substring(0, 100)}...` 
-                                    : newsItem.content}
-                                </div>
-                                <div className="text-xs text-gray-400 mt-1">
-                                  Published: {new Date(newsItem.published_at).toLocaleDateString()}
-                                </div>
+                                <p className="font-medium">{news.title}</p>
+                                <p className="text-sm text-gray-500">{news.content.length > 100 ? `${news.content.substring(0, 100)}...` : news.content}</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Published: {new Date(news.published_at).toLocaleDateString()}
+                                </p>
                               </div>
                               <Button 
                                 variant="destructive" 
                                 size="sm" 
-                                onClick={() => deleteCompanyNews(newsItem.id)}
+                                onClick={() => deleteCompanyNews(news.id)}
                               >
                                 <Trash className="h-4 w-4" />
                               </Button>
@@ -1245,284 +1267,219 @@ export default function AdminPage() {
                   </Card>
                 </div>
               </TabsContent>
-            )}
 
-            {/* FTP Browser Tab */}
-            {isAdmin && (
               <TabsContent value="ftp-browser">
-                <div className="grid grid-cols-1 gap-6">
-                  {/* FTP Connection Test */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* FTP Connection */}
                   <Card>
                     <CardHeader>
-                      <CardTitle className="flex items-center">
-                        <Server className="h-5 w-5 mr-2" />
-                        FTP Server Browser
-                      </CardTitle>
+                      <CardTitle>FTP Connection</CardTitle>
                       <CardDescription>
-                        Browse and view files on the FTP server (read-only)
+                        Connect to the FTP server to browse files
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-6">
-                        {/* Connection Test */}
-                        <div>
-                          <Button 
-                            onClick={testFtpConnection} 
-                            disabled={ftpConnectionTesting}
-                            className="mb-4"
-                          >
-                            {ftpConnectionTesting ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Testing Connection...
-                              </>
-                            ) : (
-                              <>
-                                <Server className="h-4 w-4 mr-2" />
-                                Test FTP Connection
-                              </>
-                            )}
-                          </Button>
-
-                          {ftpConnected && (
-                            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
-                              Successfully connected to FTP server
-                            </div>
+                      <div className="space-y-4">
+                        <Button 
+                          onClick={testFtpConnection} 
+                          className="w-full"
+                          disabled={ftpConnectionTesting}
+                        >
+                          {ftpConnectionTesting ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Testing Connection...
+                            </>
+                          ) : (
+                            <>
+                              <Server className="h-4 w-4 mr-2" />
+                              Test FTP Connection
+                            </>
                           )}
+                        </Button>
 
-                          {/* Display detailed error information if available */}
-                          {!ftpConnected && (
-                            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
-                              <div className="font-medium mb-2 text-lg">FTP Connection Error Details:</div>
-
-                              {/* Always show the error message at the top */}
-                              <div className="font-medium text-base mb-4 border-l-4 border-red-400 pl-3 py-2 bg-red-50">
-                                {error}
-                              </div>
-
-                              {ftpErrorDetails ? (
-                                <div className="text-sm space-y-1">
-                                  {/* Display friendly message if available */}
-                                  {ftpErrorDetails.friendlyMessage && (
-                                    <div className="font-medium text-base mb-2 border-l-4 border-red-400 pl-3 py-1">
-                                      {ftpErrorDetails.friendlyMessage}
-                                    </div>
-                                  )}
-
-                                  {/* Display connection information if available */}
-                                  {ftpErrorDetails.connectionInfo && (
-                                    <div className="bg-gray-50 p-3 rounded-md mb-3 border border-gray-200">
-                                      <div className="font-medium mb-1">Connection Information:</div>
-                                      <div><span className="font-medium">Host:</span> {ftpErrorDetails.connectionInfo.host}</div>
-                                      <div><span className="font-medium">Port:</span> {ftpErrorDetails.connectionInfo.port}</div>
-                                      <div><span className="font-medium">Secure:</span> {ftpErrorDetails.connectionInfo.secure ? 'Yes' : 'No'}</div>
-                                      <div><span className="font-medium">Base Directory:</span> {ftpErrorDetails.connectionInfo.baseDirectory}</div>
-                                      <div><span className="font-medium">Timestamp:</span> {new Date(ftpErrorDetails.connectionInfo.timestamp).toLocaleString()}</div>
-                                    </div>
-                                  )}
-
-                                  {/* Display common error properties first */}
-                                  <div className="bg-red-50 p-3 rounded-md mb-3 border border-red-200">
-                                    <div className="font-medium mb-1">Error Details:</div>
-                                    {ftpErrorDetails.code && (
-                                      <div><span className="font-medium">Error Code:</span> {ftpErrorDetails.code}</div>
-                                    )}
-                                    {ftpErrorDetails.name && (
-                                      <div><span className="font-medium">Error Type:</span> {ftpErrorDetails.name}</div>
-                                    )}
-                                    {ftpErrorDetails.message && (
-                                      <div><span className="font-medium">Message:</span> {ftpErrorDetails.message}</div>
-                                    )}
-                                    {ftpErrorDetails.syscall && (
-                                      <div><span className="font-medium">System Call:</span> {ftpErrorDetails.syscall}</div>
-                                    )}
-                                    {ftpErrorDetails.errno && (
-                                      <div><span className="font-medium">Error Number:</span> {ftpErrorDetails.errno}</div>
-                                    )}
-                                  </div>
-
-                                  {/* Display FTP-specific info */}
-                                  {ftpErrorDetails.info && (
-                                    <div className="bg-blue-50 p-3 rounded-md mb-3 border border-blue-200">
-                                      <div className="font-medium mb-1">FTP-Specific Information:</div>
-                                      <div><span className="font-medium">Additional Info:</span> {JSON.stringify(ftpErrorDetails.info)}</div>
-                                    </div>
-                                  )}
-
-                                  {/* Display any other properties that might be present */}
-                                  {Object.entries(ftpErrorDetails)
-                                    .filter(([key]) => !['code', 'name', 'message', 'syscall', 'errno', 'info', 'stack', 'friendlyMessage', 'connectionInfo'].includes(key))
-                                    .map(([key, value]) => (
-                                      <div key={key}>
-                                        <span className="font-medium">{key.charAt(0).toUpperCase() + key.slice(1)}:</span> 
-                                        {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                                      </div>
-                                    ))
-                                  }
-                                </div>
-                              ) : (
-                                <div className="text-sm mb-3">
-                                  <p>No detailed error information available. This could be due to:</p>
-                                  <ul className="list-disc pl-5 mt-1 mb-2">
-                                    <li>Error details not being properly captured</li>
-                                    <li>Error details not being properly serialized</li>
-                                    <li>Network issues preventing error details from being transmitted</li>
-                                  </ul>
-                                  <p>Check the browser console for more information.</p>
-                                </div>
-                              )}
-
-                              <div className="mt-4 text-sm">
-                                <div className="bg-yellow-50 p-3 rounded-md border border-yellow-200">
-                                  <p className="font-medium text-yellow-800 mb-2">Troubleshooting Tips:</p>
-                                  <ul className="list-disc pl-5 space-y-1 text-yellow-700">
-                                    {/* Display custom troubleshooting tips if available */}
-                                    {ftpTroubleshootingTips.length > 0 ? (
-                                      ftpTroubleshootingTips.map((tip, index) => (
-                                        <li key={index}>{tip}</li>
-                                      ))
-                                    ) : (
-                                      <>
-                                        <li>Check your network connection</li>
-                                        <li>Verify FTP server is online</li>
-                                        <li>Ensure firewall is not blocking FTP traffic</li>
-                                        <li>Try again in a few minutes</li>
-                                      </>
-                                    )}
-                                  </ul>
-
-                                  {/* Add additional help information */}
-                                  <div className="mt-3 pt-3 border-t border-yellow-200">
-                                    <p className="font-medium text-yellow-800 mb-1">Need more help?</p>
-                                    <p className="text-yellow-700">
-                                      If you continue to experience issues, please contact your network administrator 
-                                      with the error details shown above. For ECONNRESET errors specifically, 
-                                      this is often related to network configuration or firewall settings.
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* File Browser - Only show if connected */}
                         {ftpConnected && (
-                          <div className="space-y-4">
-                            {/* Current Directory */}
-                            <div className="bg-gray-50 p-3 rounded-lg flex items-center">
-                              <span className="font-medium mr-2">Current Directory:</span>
-                              <span className="text-gray-600">
-                                {ftpCurrentDirectory || 'Root'}
-                              </span>
-                            </div>
+                          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+                            Connected to FTP server
+                          </div>
+                        )}
 
-                            {/* Directory Navigation */}
-                            <div className="flex flex-wrap gap-2 mb-4">
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => fetchFtpFiles('')}
-                                disabled={ftpLoading}
-                              >
-                                Root
-                              </Button>
-
-                              {ftpCurrentDirectory && (
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={() => navigateToDirectory('..')}
-                                  disabled={ftpLoading}
-                                >
-                                  Parent Directory
-                                </Button>
-                              )}
-                            </div>
-
-                            {/* File List */}
-                            <div className="border rounded-lg overflow-hidden">
-                              <div className="bg-gray-100 px-4 py-2 font-medium border-b">
-                                Files and Directories
-                              </div>
-
-                              {ftpLoading ? (
-                                <div className="p-8 flex justify-center">
-                                  <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                                </div>
-                              ) : ftpFileList.length === 0 ? (
-                                <div className="p-6 text-center text-gray-500">
-                                  No files found in this directory
-                                </div>
-                              ) : (
-                                <div className="divide-y">
-                                  {ftpFileList.map((file, index) => (
-                                    <div 
-                                      key={index} 
-                                      className="px-4 py-3 hover:bg-gray-50 flex items-center justify-between cursor-pointer"
-                                      onClick={() => {
-                                        if (file.type === 2) { // Directory
-                                          navigateToDirectory(file.name)
-                                        } else if (file.type === 1) { // File
-                                          getFileContent(file.name)
-                                        }
-                                      }}
-                                    >
-                                      <div className="flex items-center">
-                                        {file.type === 2 ? (
-                                          // Directory
-                                          <div className="text-blue-600 flex items-center">
-                                            <Server className="h-4 w-4 mr-2" />
-                                            <span>{file.name}</span>
-                                          </div>
-                                        ) : (
-                                          // File
-                                          <div className="flex items-center">
-                                            <FileText className="h-4 w-4 mr-2 text-gray-500" />
-                                            <span>{file.name}</span>
-                                          </div>
-                                        )}
-                                      </div>
-                                      <div className="text-sm text-gray-500">
-                                        {file.type === 1 && (
-                                          <span>{Math.round(file.size / 1024)} KB</span>
-                                        )}
-                                      </div>
+                        {ftpErrorDetails && (
+                          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">
+                            <h4 className="font-semibold mb-2">Connection Error Details:</h4>
+                            <div className="text-sm space-y-1">
+                              {Object.entries(ftpErrorDetails).map(([key, value]) => {
+                                // Skip complex objects or arrays
+                                if (typeof value === 'object' && value !== null) {
+                                  return (
+                                    <div key={key}>
+                                      <span className="font-medium">{key}:</span> [Complex Object]
                                     </div>
-                                  ))}
-                                </div>
-                              )}
+                                  );
+                                }
+                                return (
+                                  <div key={key}>
+                                    <span className="font-medium">{key}:</span> {value?.toString()}
+                                  </div>
+                                );
+                              })}
                             </div>
 
-                            {/* File Content Viewer */}
-                            {ftpSelectedFile && (
-                              <Card>
-                                <CardHeader className="py-3">
-                                  <CardTitle className="text-base flex items-center">
-                                    <FileText className="h-4 w-4 mr-2" />
-                                    {ftpSelectedFile}
-                                  </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                  <div className="bg-gray-50 p-4 rounded-lg border overflow-x-auto">
-                                    <pre className="text-sm whitespace-pre-wrap">
-                                      {ftpFileContent || 'No content available'}
-                                    </pre>
-                                  </div>
-                                </CardContent>
-                              </Card>
+                            {ftpTroubleshootingTips.length > 0 && (
+                              <div className="mt-3">
+                                <h4 className="font-semibold mb-1">Troubleshooting Tips:</h4>
+                                <ul className="text-sm list-disc pl-5">
+                                  {ftpTroubleshootingTips.map((tip, index) => (
+                                    <li key={index}>{tip}</li>
+                                  ))}
+                                </ul>
+                              </div>
                             )}
                           </div>
                         )}
                       </div>
                     </CardContent>
                   </Card>
+
+                  {/* FTP Browser */}
+                  <Card className="md:col-span-2">
+                    <CardHeader>
+                      <CardTitle>FTP Browser</CardTitle>
+                      <CardDescription>
+                        Browse and view files on the FTP server
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {ftpConnected ? (
+                        <div className="space-y-4">
+                          {/* Current directory and navigation */}
+                          <div className="flex items-center justify-between">
+                            <div className="text-sm font-medium bg-gray-100 px-3 py-1 rounded">
+                              Current: {ftpCurrentDirectory || '/'}
+                            </div>
+                            <div className="flex space-x-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => navigateToDirectory('..')}
+                                disabled={!ftpCurrentDirectory}
+                              >
+                                Parent Directory
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => fetchFtpFiles(ftpCurrentDirectory)}
+                                disabled={ftpLoading}
+                              >
+                                Refresh
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* File list */}
+                          {ftpLoading ? (
+                            <div className="flex items-center justify-center py-8">
+                              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                            </div>
+                          ) : (
+                            <div className="border rounded-lg overflow-hidden">
+                              <div className="bg-gray-100 px-4 py-2 font-medium text-sm grid grid-cols-12 gap-2">
+                                <div className="col-span-6">Name</div>
+                                <div className="col-span-2">Type</div>
+                                <div className="col-span-2">Size</div>
+                                <div className="col-span-2">Actions</div>
+                              </div>
+                              <div className="divide-y">
+                                {ftpFileList.length === 0 ? (
+                                  <div className="px-4 py-8 text-center text-gray-500">
+                                    No files found in this directory
+                                  </div>
+                                ) : (
+                                  ftpFileList.map((file, index) => (
+                                    <div key={index} className="px-4 py-2 grid grid-cols-12 gap-2 items-center hover:bg-gray-50">
+                                      <div className="col-span-6 truncate">
+                                        {file.type === 'd' ? (
+                                          <button 
+                                            onClick={() => navigateToDirectory(file.name)}
+                                            className="text-blue-600 hover:underline flex items-center"
+                                          >
+                                            <FileText className="h-4 w-4 mr-1" />
+                                            {file.name}
+                                          </button>
+                                        ) : (
+                                          <span className="flex items-center">
+                                            <FileText className="h-4 w-4 mr-1 text-gray-400" />
+                                            {file.name}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="col-span-2 text-sm">
+                                        {file.type === 'd' ? 'Directory' : 'File'}
+                                      </div>
+                                      <div className="col-span-2 text-sm">
+                                        {file.type === 'd' ? '-' : `${(file.size / 1024).toFixed(2)} KB`}
+                                      </div>
+                                      <div className="col-span-2">
+                                        {file.type !== 'd' && (
+                                          <Button 
+                                            variant="outline" 
+                                            size="sm"
+                                            onClick={() => getFileContent(file.name)}
+                                          >
+                                            View
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* File content viewer */}
+                          {ftpSelectedFile && (
+                            <Card>
+                              <CardHeader className="py-3">
+                                <div className="flex items-center justify-between">
+                                  <CardTitle className="text-base">
+                                    {ftpSelectedFile}
+                                  </CardTitle>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    onClick={() => {
+                                      setFtpSelectedFile(null)
+                                      setFtpFileContent('')
+                                    }}
+                                  >
+                                    Close
+                                  </Button>
+                                </div>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="bg-gray-50 p-4 rounded-lg overflow-auto max-h-96">
+                                  <pre className="text-sm whitespace-pre-wrap">{ftpFileContent}</pre>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <Server className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                          <p>Connect to the FTP server to browse files</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 </div>
               </TabsContent>
-            )}
-          </Tabs>
-        </div>
-      </main>
+            </Tabs>
+          </div>
+        </main>
+      </div>
     </div>
   )
 }

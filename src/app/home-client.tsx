@@ -1,26 +1,7 @@
 'use client'
 
-/**
- * Newsletter Fetching Implementation:
- * 
- * The newsletter is fetched once per session and the state is stored in localStorage.
- * This prevents repeated fetching of the same content across page refreshes.
- * 
- * To force a fresh fetch of the newsletter:
- * 1. Use the reset button (visible in development mode)
- * 2. Add ?force_fetch=true to the URL
- * 3. Clear localStorage manually
- * 
- * Debugging:
- * - To enable detailed debug logging, run this in the browser console:
- *   localStorage.setItem('debug', 'true'); window.location.reload();
- * - To disable debug logging:
- *   localStorage.removeItem('debug'); window.location.reload();
- * - When enabled, look for logs starting with 🔍, 🔄, ✅, 🔒, etc.
- */
-
-import { useSession } from 'next-auth/react'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
+import { useSession, signOut } from 'next-auth/react'
 import { Navigation } from '@/components/navigation'
 import { GlassmorphismContainer } from '@/components/glassmorphism-container'
 import { Button } from '@/components/ui/button'
@@ -69,13 +50,6 @@ const lastFetchAttempt = {
   timestamp: 0,
   minInterval: 5000 // Minimum 5 seconds between fetch attempts
 };
-
-
-// Mazaya offers are now loaded from the database via the MazayaOffers component
-
-// Events and company news are now loaded from the database via their respective components
-
-// Celebrations data will be fetched from the API
 
 function LoginPage() {
   const [error, setError] = useState<string | null>(null)
@@ -196,11 +170,6 @@ function DashboardPage() {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
-
-  // We'll use the global ref instead of a component-level ref
-  // This ensures the state persists even if the component remounts
-
-  // We no longer need a fallback timer ref since we're not using fallback content
 
   // Newsletter loading effect - only runs on client side
   useEffect(() => {
@@ -430,7 +399,7 @@ function DashboardPage() {
   }, [session, isClient]) // Add isClient as a dependency to ensure this only runs on the client
 
   return (
-    <div>
+    <div className="min-h-screen">
       <Navigation />
 
       <main className="pt-28 p-6">
@@ -537,98 +506,6 @@ function DashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column */}
             <div className="lg:col-span-2 space-y-6">
-              {/* CEO Newsletter - Temporarily commented out while troubleshooting Viva Engage */}
-              {false && (
-                <GlassmorphismContainer className="p-6 h-[calc(36rem+1.5rem)]">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                      <Mail className="w-5 h-5 mr-2 text-flyadeal-yellow" />
-                      CEO Newsletter
-                    </h2>
-                    <div className="flex items-center space-x-2">
-                      <div className="flex space-x-2">
-                        <Button
-                          onClick={() => window.location.href = '/newsletter-archive'}
-                          size="sm"
-                          variant="outline"
-                          className={theme === 'dark' 
-                            ? "bg-gray-700/30 border-gray-400 text-gray-200 hover:bg-gray-600/50" 
-                            : "bg-white/10 border-gray-300 text-gray-700 hover:bg-gray-100"
-                          }
-                        >
-                          <Newspaper className={`w-4 h-4 mr-1 ${theme === 'dark' ? 'text-gray-200' : ''}`} />
-                          Archive
-                        </Button>
-                        <Button
-                          onClick={() => setNewsletterModalOpen(true)}
-                          size="sm"
-                          className="bg-flyadeal-yellow text-flyadeal-purple hover:bg-flyadeal-yellow/90"
-                        >
-                          <Maximize2 className="w-4 h-4 mr-1" />
-                          View Full
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Newsletter Content */}
-                  <div className="bg-white rounded-lg overflow-hidden h-[calc(100%-2.5rem)]">
-                    {newsletterError ? (
-                      // Error state - show error message with retry button
-                      <div className="h-full flex items-center justify-center text-gray-500">
-                        <div className="text-center p-6 max-w-md">
-                          <X className="w-12 h-12 mx-auto mb-4 text-red-400" />
-                          <p className="mb-2 text-red-500 font-medium">Error loading newsletter</p>
-
-                          {/* Split error message and troubleshooting into separate elements */}
-                          {newsletterError && (
-                            <>
-                              <div className="mb-4 text-sm text-gray-600 bg-gray-100 p-3 rounded-md text-left">
-                                {newsletterError.split('\n\n').map((part, index) => (
-                                  <div key={index} className={index === 1 ? 'mt-3 pt-3 border-t border-gray-200' : ''}>
-                                    {part}
-                                  </div>
-                                ))}
-                              </div>
-                            </>
-                          )}
-
-                          <div className="flex justify-center space-x-3">
-                            <Button 
-                              onClick={resetNewsletterLoadingState}
-                              size="sm"
-                              className="bg-flyadeal-yellow text-flyadeal-purple hover:bg-flyadeal-yellow/90"
-                            >
-                              Retry
-                            </Button>
-
-                          </div>
-                        </div>
-                      </div>
-                    ) : newsletter ? (
-                      // Success state - show newsletter content with scrollable area
-                      <div className="h-full overflow-y-auto">
-                        <div className="p-6">
-                          <div 
-                            dangerouslySetInnerHTML={{ __html: newsletter.content }}
-                            style={{ color: '#374151' }}
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      // Loading state
-                      <div className="h-full flex items-center justify-center text-gray-500">
-                        <div className="text-center">
-                          <Mail className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                          <p>Loading newsletter...</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </GlassmorphismContainer>
-              )}
-
-
               {/* Company News */}
               <CompanyNews />
 
@@ -693,87 +570,21 @@ function DashboardPage() {
         </div>
       </main>
 
-      {/* Newsletter Modal - Temporarily commented out while troubleshooting Viva Engage */}
-      {false && newsletterModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b bg-flyadeal-purple">
-              <h3 className="text-xl font-bold text-gray-100">
-                {newsletterError ? 'Newsletter Error' : newsletter?.title || 'CEO Newsletter'}
-              </h3>
-              <div className="flex items-center space-x-2">
-                <Button
-                  onClick={() => setNewsletterModalOpen(false)}
-                  size="sm"
-                  variant="ghost"
-                  className="text-gray-100 hover:bg-white/20"
-                >
-                  <X className="w-5 h-5" />
-                </Button>
-              </div>
-            </div>
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
-              {newsletterError ? (
-                // Error state in modal
-                <div className="flex flex-col items-center justify-center py-8">
-                  <X className="w-16 h-16 mb-6 text-red-400" />
-                  <h4 className="text-xl font-medium text-red-500 mb-4">Error loading newsletter</h4>
-
-                  {/* Split error message and troubleshooting into separate elements */}
-                  <div className="w-full max-w-lg mb-6 text-sm text-gray-600 bg-gray-100 p-4 rounded-md text-left">
-                    {newsletterError.split('\n\n').map((part, index) => (
-                      <div key={index} className={index === 1 ? 'mt-4 pt-4 border-t border-gray-200' : ''}>
-                        {part}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex space-x-4">
-                    <Button 
-                      onClick={resetNewsletterLoadingState}
-                      size="default"
-                      className="bg-flyadeal-yellow text-flyadeal-purple hover:bg-flyadeal-yellow/90"
-                    >
-                      Retry
-                    </Button>
-
-                  </div>
-                </div>
-              ) : newsletter ? (
-                // Success state - show newsletter content
-                <>
-                  <div 
-                    className="prose max-w-none"
-                    dangerouslySetInnerHTML={{ __html: newsletter.content }}
-                    style={{
-                      color: '#374151',
-                    }}
-                  />
-                  <div className="mt-6 p-4 bg-gray-50 rounded-lg text-sm text-gray-600">
-                    <p><strong>Last updated:</strong> {new Date(newsletter.lastUpdated).toLocaleString()}</p>
-                  </div>
-                </>
-              ) : (
-                // Loading state in modal
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-flyadeal-yellow mb-4"></div>
-                  <p className="text-gray-500">Loading newsletter...</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Chat Button */}
       <ChatButton />
     </div>
   )
 }
 
-export default function HomePage() {
+export function HomeClient() {
   const { theme } = useTheme()
   const { data: session, status, error } = useSession()
+  const [mounted, setMounted] = useState(false)
+
+  // Set mounted to true on client-side
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Handle NextAuth errors
   useEffect(() => {
@@ -782,40 +593,31 @@ export default function HomePage() {
     }
   }, [error])
 
-  // For server-side rendering, we'll render a simple loading state
-  // Then use ClientOnly to render the actual content on the client side only
-  // This completely avoids hydration mismatches by not rendering anything complex during SSR
-  return (
-    <ClientContent 
-      session={session} 
-      status={status} 
-      error={error} 
-    />
-  )
-}
-
-// This component is only rendered on the client side
-import { ClientOnly } from '@/lib/client-only'
-
-function ClientContent({ session, status, error }) {
-  // Determine which content to show based on auth status
-  const isLoading = status === 'loading'
-  const isAuthenticated = status === 'authenticated' && !!session
-  const showLogin = status === 'unauthenticated' || !!error || !session
+  // Determine which content to show, but don't conditionally render different components
+  // This ensures the same DOM structure on both server and client for initial render
+  const isLoading = status === 'loading' || !mounted
+  const isAuthenticated = mounted && status === 'authenticated' && !!session
+  const showLogin = mounted && (status === 'unauthenticated' || !!error || !session)
 
   return (
-    <ClientOnly>
-      {isLoading ? (
-        <div className="flex items-center justify-center h-full">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-flyadeal-yellow"></div>
-        </div>
-      ) : isAuthenticated ? (
+    <div className="min-h-screen">
+      {/* Loading spinner - always rendered but visibility controlled by CSS */}
+      <div className="min-h-screen flex items-center justify-center" data-state={isLoading ? "visible" : "hidden"} 
+           style={{display: isLoading ? "flex" : "none"}}>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-flyadeal-yellow"></div>
+      </div>
+
+      {/* Login page - always rendered but visibility controlled by CSS */}
+      <div className="min-h-screen flex items-center justify-center" data-state={showLogin ? "visible" : "hidden"}
+           style={{display: showLogin ? "flex" : "none"}}>
+        <LoginPage />
+      </div>
+
+      {/* Dashboard - always rendered but visibility controlled by CSS */}
+      <div data-state={isAuthenticated ? "visible" : "hidden"}
+           style={{display: isAuthenticated ? "block" : "none"}}>
         <DashboardPage />
-      ) : (
-        <div className="flex items-center justify-center h-full">
-          <LoginPage />
-        </div>
-      )}
-    </ClientOnly>
+      </div>
+    </div>
   )
 }

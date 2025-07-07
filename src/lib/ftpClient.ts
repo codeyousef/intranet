@@ -87,10 +87,10 @@ async function withFtpClient<T>(
       try {
         await client.close();
       } catch (closeError) {
-        // Ignore errors during close on error path
+        // Ignore errors during a close on error path
       }
 
-      // If we've reached max retries or it's not a retryable error, throw the error
+      // If we've reached max retries, or it's not a retryable error, throw the error
       if (retryCount >= maxRetries || !isRetryableError) {
         console.error('FTP operation failed after', retryCount > 0 ? `${retryCount} retries:` : 'initial attempt:', error.message);
         // Add retry information to the error object

@@ -12,10 +12,14 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // Initialize theme from localStorage if available, otherwise default to 'light'
+  // Always initialize with 'light' theme for consistent server-side rendering
   const [theme, setTheme] = useState<Theme>('light')
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    // Mark as mounted
+    setMounted(true)
+
     // Get saved theme from localStorage on component mount
     const savedTheme = localStorage.getItem('theme') as Theme
     if (savedTheme && (savedTheme === 'light' || savedTheme === 'dark')) {
@@ -52,8 +56,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     })
   }
 
+  // Provide a consistent context value for server-side rendering
+  // and initial client-side rendering to avoid hydration mismatches
+  const contextValue = {
+    // Always use 'light' theme for server-side rendering to ensure consistency
+    theme: mounted ? theme : 'light',
+    toggleTheme
+  }
+
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={contextValue}>
       {children}
     </ThemeContext.Provider>
   )

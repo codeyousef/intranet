@@ -1835,13 +1835,13 @@ User Agent: ${request.headers.get('user-agent') || 'Not available'}
             }
 
             // Check for specific error messages related to chunk loading
-            if (e.message && (
+            if (typeof window !== 'undefined' && e.message && (
               e.message.includes('ChunkLoadError') || 
               e.message.includes('Loading chunk 1278 failed') ||
               e.message.includes('localhost:3001/4-auth-msal.js')
             )) {
               console.log('[VivaEngage] Intercepted specific chunk load error:', e.message);
-              if (typeof window !== 'undefined' && window.__vivaEngageErrorTracking) {
+              if (window.__vivaEngageErrorTracking) {
                 window.__vivaEngageErrorTracking.addError('chunk', 'Specific chunk load error', e.message);
 
                 // Check for the exact error message from the issue description
@@ -1852,9 +1852,13 @@ User Agent: ${request.headers.get('user-agent') || 'Not available'}
                   window.__vivaEngageErrorTracking.addError('chunk', 'Exact error from issue description', e.message);
                 }
               }
-
-              e.preventDefault();
-              return false;
+            } else if (typeof window === 'undefined' && e.message && (
+              e.message.includes('ChunkLoadError') || 
+              e.message.includes('Loading chunk 1278 failed') ||
+              e.message.includes('localhost:3001/4-auth-msal.js')
+            )) {
+              // Server-side handling without accessing window
+              console.log('[VivaEngage] Server-side: Intercepted specific chunk load error:', e.message);
             }
 
             // For any other errors, log them but don't prevent default
@@ -1865,6 +1869,9 @@ User Agent: ${request.headers.get('user-agent') || 'Not available'}
                 column: e.colno
               });
             }
+
+            e.preventDefault();
+            return false;
           }, true);
 
           // Override fetch to handle MSAL script requests
@@ -1877,6 +1884,9 @@ User Agent: ${request.headers.get('user-agent') || 'Not available'}
                 console.log('[VivaEngage] Intercepting MSAL script request:', url);
 
                 // Mark as loaded to prevent duplicate requests
+                if (!window.vivaEngageScriptsLoaded) {
+                  window.vivaEngageScriptsLoaded = {};
+                }
                 window.vivaEngageScriptsLoaded[url] = true;
 
                 // Return a minimal script that provides the MSAL module
