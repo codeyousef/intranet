@@ -557,9 +557,9 @@ function AdminPageContent() {
     }
   }
 
-  // FTP Functions
+  // SharePoint Functions
 
-  // Test FTP connection
+  // Test SharePoint connection
   const testFtpConnection = async () => {
     setError('')
     setSuccess('')
@@ -568,31 +568,31 @@ function AdminPageContent() {
     setFtpTroubleshootingTips([])
 
     try {
-      console.log('Starting FTP connection test...');
-      const response = await fetch('/api/ftp?action=test')
-      console.log('FTP test API response status:', response.status);
+      console.log('Starting SharePoint connection test...');
+      const response = await fetch('/api/sharepoint?action=test')
+      console.log('SharePoint test API response status:', response.status);
 
       const data = await response.json()
 
       // Log the entire response data for debugging
-      console.log('FTP test response data:', data);
-      console.log('FTP test response data.details:', data.details);
-      console.log('FTP test response data.troubleshooting:', data.troubleshooting);
+      console.log('SharePoint test response data:', data);
+      console.log('SharePoint test response data.details:', data.details);
+      console.log('SharePoint test response data.troubleshooting:', data.troubleshooting);
 
       if (!data.success) {
-        console.error('FTP test failed with error:', data.error);
-        throw new Error(data.error || 'Failed to test FTP connection')
+        console.error('SharePoint test failed with error:', data.error);
+        throw new Error(data.error || 'Failed to test SharePoint connection')
       }
 
       setFtpConnected(data.connected)
 
       if (data.connected) {
-        setSuccess('Successfully connected to FTP server')
+        setSuccess('Successfully connected to SharePoint')
         // If connected, fetch the root directory
         fetchFtpFiles('')
       } else {
         // Format detailed error message
-        let errorMessage = 'Could not connect to FTP server';
+        let errorMessage = 'Could not connect to SharePoint';
 
         if (data.error) {
           errorMessage += `: ${data.error}`;
@@ -614,7 +614,7 @@ function AdminPageContent() {
         };
 
         // Store and log detailed error information for debugging
-        console.error('FTP connection error details:', errorDetails);
+        console.error('SharePoint connection error details:', errorDetails);
 
         // Make a deep copy of the details to ensure we don't lose any information
         try {
@@ -637,15 +637,15 @@ function AdminPageContent() {
 
         // Store troubleshooting tips if available
         if (data.troubleshooting && Array.isArray(data.troubleshooting)) {
-          console.log('FTP troubleshooting tips:', data.troubleshooting);
+          console.log('SharePoint troubleshooting tips:', data.troubleshooting);
           setFtpTroubleshootingTips(data.troubleshooting);
         } else {
           console.warn('No troubleshooting tips provided or not in expected format');
           // Set default troubleshooting tips
           setFtpTroubleshootingTips([
             'Check your network connection',
-            'Verify FTP server is online',
-            'Ensure firewall is not blocking FTP traffic',
+            'Verify SharePoint site is accessible',
+            'Ensure Azure AD credentials are correct',
             'Try again in a few minutes'
           ]);
         }
@@ -655,7 +655,7 @@ function AdminPageContent() {
         setError(errorMessage);
       }
     } catch (error) {
-      console.error('Error testing FTP connection:', error);
+      console.error('Error testing SharePoint connection:', error);
 
       // Create detailed error information even for client-side errors
       const clientErrorDetails = {
@@ -678,7 +678,7 @@ function AdminPageContent() {
       ]);
 
       // Set a descriptive error message
-      const errorMessage = `Failed to test FTP connection: ${error.message || 'Unknown error'}`;
+      const errorMessage = `Failed to test SharePoint connection: ${error.message || 'Unknown error'}`;
       console.log('Setting error message:', errorMessage);
       setError(errorMessage);
       setFtpConnected(false);
@@ -687,17 +687,17 @@ function AdminPageContent() {
     }
   }
 
-  // Fetch files from FTP server
+  // Fetch files from SharePoint
   const fetchFtpFiles = async (directory) => {
     setError('')
     setFtpLoading(true)
 
     try {
-      const response = await fetch(`/api/ftp?action=list&directory=${encodeURIComponent(directory)}`)
+      const response = await fetch(`/api/sharepoint?action=list&directory=${encodeURIComponent(directory)}`)
       const data = await response.json()
 
       if (!data.success) {
-        throw new Error(data.error || 'Failed to fetch FTP files')
+        throw new Error(data.error || 'Failed to fetch SharePoint files')
       }
 
       setFtpFileList(data.files)
@@ -708,8 +708,8 @@ function AdminPageContent() {
         setFtpDirectoryHistory([...ftpDirectoryHistory, directory])
       }
     } catch (error) {
-      console.error('Error fetching FTP files:', error)
-      setError(error.message || 'Failed to fetch FTP files')
+      console.error('Error fetching SharePoint files:', error)
+      setError(error.message || 'Failed to fetch SharePoint files')
     } finally {
       setFtpLoading(false)
     }
@@ -733,7 +733,7 @@ function AdminPageContent() {
     }
   }
 
-  // Get file content
+  // Get file content from SharePoint
   const getFileContent = async (filePath) => {
     setError('')
     setFtpLoading(true)
@@ -743,7 +743,7 @@ function AdminPageContent() {
         ? `${ftpCurrentDirectory}/${filePath}` 
         : filePath
 
-      const response = await fetch(`/api/ftp?action=content&filePath=${encodeURIComponent(fullPath)}`)
+      const response = await fetch(`/api/sharepoint?action=content&filePath=${encodeURIComponent(fullPath)}`)
       const data = await response.json()
 
       if (!data.success) {
@@ -753,8 +753,8 @@ function AdminPageContent() {
       setFtpFileContent(data.content)
       setFtpSelectedFile(filePath)
     } catch (error) {
-      console.error('Error getting file content:', error)
-      setError(error.message || 'Failed to get file content')
+      console.error('Error getting file content from SharePoint:', error)
+      setError(error.message || 'Failed to get file content from SharePoint')
     } finally {
       setFtpLoading(false)
     }
@@ -814,7 +814,7 @@ function AdminPageContent() {
                 {isAdmin && (
                   <>
                     <TabsTrigger value="people-admin-users">People Admin Users</TabsTrigger>
-                    <TabsTrigger value="ftp-browser">FTP Browser</TabsTrigger>
+                    <TabsTrigger value="sharepoint-browser">SharePoint Browser</TabsTrigger>
                   </>
                 )}
                 {isPeopleAdmin && (
@@ -1268,14 +1268,14 @@ function AdminPageContent() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="ftp-browser">
+              <TabsContent value="sharepoint-browser">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* FTP Connection */}
+                  {/* SharePoint Connection */}
                   <Card>
                     <CardHeader>
-                      <CardTitle>FTP Connection</CardTitle>
+                      <CardTitle>SharePoint Connection</CardTitle>
                       <CardDescription>
-                        Connect to the FTP server to browse files
+                        Connect to SharePoint to browse files
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -1293,14 +1293,14 @@ function AdminPageContent() {
                           ) : (
                             <>
                               <Server className="h-4 w-4 mr-2" />
-                              Test FTP Connection
+                              Test SharePoint Connection
                             </>
                           )}
                         </Button>
 
                         {ftpConnected && (
                           <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-                            Connected to FTP server
+                            Connected to SharePoint
                           </div>
                         )}
 
@@ -1341,12 +1341,12 @@ function AdminPageContent() {
                     </CardContent>
                   </Card>
 
-                  {/* FTP Browser */}
+                  {/* SharePoint Browser */}
                   <Card className="md:col-span-2">
                     <CardHeader>
-                      <CardTitle>FTP Browser</CardTitle>
+                      <CardTitle>SharePoint Browser</CardTitle>
                       <CardDescription>
-                        Browse and view files on the FTP server
+                        Browse and view files on SharePoint
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -1469,7 +1469,7 @@ function AdminPageContent() {
                       ) : (
                         <div className="text-center py-8 text-gray-500">
                           <Server className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                          <p>Connect to the FTP server to browse files</p>
+                          <p>Connect to SharePoint to browse files</p>
                         </div>
                       )}
                     </CardContent>

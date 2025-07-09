@@ -34,6 +34,7 @@ import { useTheme } from '@/lib/theme-context'
 import { CelebrationsComponent } from '@/components/celebrations'
 import { UpcomingEvents } from '@/components/upcoming-events'
 import { CompanyNews } from '@/components/company-news'
+import { ClientOnly } from '@/lib/client-only'
 import { 
   Calendar, 
   MapPin, 
@@ -786,16 +787,28 @@ export default function HomePage() {
   // Then use ClientOnly to render the actual content on the client side only
   // This completely avoids hydration mismatches by not rendering anything complex during SSR
   return (
-    <ClientContent 
-      session={session} 
-      status={status} 
-      error={error} 
-    />
+    <div className="min-h-screen">
+      {/* Server-side and initial client render just shows a loading spinner */}
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-flyadeal-yellow"></div>
+          <p className="mt-2 text-gray-600">Loading...</p>
+        </div>
+      </div>
+
+      {/* Client-only content - only rendered after hydration */}
+      <ClientOnly>
+        <ClientContent 
+          session={session} 
+          status={status} 
+          error={error} 
+        />
+      </ClientOnly>
+    </div>
   )
 }
 
 // This component is only rendered on the client side
-import { ClientOnly } from '@/lib/client-only'
 
 function ClientContent({ session, status, error }) {
   // Determine which content to show based on auth status
@@ -804,7 +817,7 @@ function ClientContent({ session, status, error }) {
   const showLogin = status === 'unauthenticated' || !!error || !session
 
   return (
-    <ClientOnly>
+    <>
       {isLoading ? (
         <div className="flex items-center justify-center h-full">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-flyadeal-yellow"></div>
@@ -816,6 +829,6 @@ function ClientContent({ session, status, error }) {
           <LoginPage />
         </div>
       )}
-    </ClientOnly>
+    </>
   )
 }

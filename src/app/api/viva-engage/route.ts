@@ -60,6 +60,81 @@ export async function GET(request: NextRequest) {
   // Only log essential information to help troubleshoot the issue
   terminalLog('INFO', 'Viva Engage API route called');
 
+  // Check if we're in a browser environment
+  const isBrowser = typeof window !== 'undefined';
+  terminalLog('INFO', `Execution environment: ${isBrowser ? 'Browser' : 'Server'}`);
+
+  // If we're in a server environment and window is referenced in this file,
+  // return a simplified response to avoid "window is not defined" errors
+  if (!isBrowser) {
+    terminalLog('INFO', 'Server environment detected, returning simplified response');
+
+    // Return a JSON response with a message indicating server-side rendering
+    return NextResponse.json({
+      success: true,
+      data: {
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Viva Engage</title>
+            <style>
+              body, html {
+                margin: 0;
+                padding: 0;
+                height: 100%;
+                width: 100%;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+              }
+              .content-container {
+                padding: 16px;
+                text-align: center;
+              }
+              .loading-message {
+                margin: 20px 0;
+                color: #333;
+              }
+              .spinner {
+                border: 4px solid rgba(0, 120, 212, 0.1);
+                border-radius: 50%;
+                border-top: 4px solid #0078d4;
+                width: 40px;
+                height: 40px;
+                margin: 20px auto;
+                animation: spin 1s linear infinite;
+              }
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="content-container">
+              <div class="spinner"></div>
+              <div class="loading-message">
+                <p>Loading Viva Engage content...</p>
+                <p>Content will be displayed when fully loaded.</p>
+              </div>
+            </div>
+            <script>
+              // This script will run on the client side
+              document.addEventListener('DOMContentLoaded', function() {
+                // The parent component will handle loading the actual content
+                if (window.parent) {
+                  window.parent.postMessage({ type: 'vivaEngageLoaded' }, '*');
+                }
+              });
+            </script>
+          </body>
+          </html>
+        `
+      }
+    });
+  }
+
   // Parse query parameters
   const url = new URL(request.url);
   const format = url.searchParams.get('format');
@@ -1103,7 +1178,8 @@ User Agent: ${request.headers.get('user-agent') || 'Not available'}
         <!-- Preload a local version of the MSAL library to handle the specific chunk error -->
         <script>
           // Create a more robust MSAL module implementation with improved error handling
-          window.msalModule = {
+          // Only define window properties if we're in a browser environment
+          typeof window !== 'undefined' && (window.msalModule = {
             loaded: true,
             exports: {},
             // Mock the specific functions that are used in the chunk
