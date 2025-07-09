@@ -27,7 +27,9 @@ import {
   Users,
   Server,
   FileText,
-  Download
+  Download,
+  MessageSquareWarning,
+  Lightbulb
 } from 'lucide-react'
 
 import { ClientOnly } from '@/lib/client-only'
@@ -38,16 +40,17 @@ export default function AdminPage() {
   // This completely avoids hydration mismatches by not rendering anything complex during SSR
   return (
     <div className="min-h-screen">
-      {/* Server-side and initial client render just shows a loading spinner */}
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="flex flex-col items-center">
-          <Loader2 className="h-8 w-8 animate-spin text-flyadeal-yellow" />
-          <p className="mt-2 text-gray-600">Loading admin panel...</p>
-        </div>
-      </div>
-
       {/* Client-only content - only rendered after hydration */}
-      <ClientOnly>
+      <ClientOnly
+        fallback={
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="flex flex-col items-center">
+              <Loader2 className="h-8 w-8 animate-spin text-flyadeal-yellow" />
+              <p className="mt-2 text-gray-600">Loading admin panel...</p>
+            </div>
+          </div>
+        }
+      >
         <AdminPageContent />
       </ClientOnly>
     </div>
@@ -62,24 +65,15 @@ function AdminPageContent() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [isPeopleAdmin, setIsPeopleAdmin] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
 
   const [platformLinks, setPlatformLinks] = useState([])
   const [adminUsers, setAdminUsers] = useState([])
   const [peopleAdminUsers, setPeopleAdminUsers] = useState([])
   const [events, setEvents] = useState([])
   const [companyNews, setCompanyNews] = useState([])
-
-  // FTP state variables
-  const [ftpConnected, setFtpConnected] = useState(false)
-  const [ftpConnectionTesting, setFtpConnectionTesting] = useState(false)
-  const [ftpCurrentDirectory, setFtpCurrentDirectory] = useState('')
-  const [ftpFileList, setFtpFileList] = useState([])
-  const [ftpSelectedFile, setFtpSelectedFile] = useState(null)
-  const [ftpFileContent, setFtpFileContent] = useState('')
-  const [ftpLoading, setFtpLoading] = useState(false)
-  const [ftpDirectoryHistory, setFtpDirectoryHistory] = useState([''])
-  const [ftpErrorDetails, setFtpErrorDetails] = useState(null)
-  const [ftpTroubleshootingTips, setFtpTroubleshootingTips] = useState([])
+  const [complaints, setComplaints] = useState([])
+  const [suggestions, setSuggestions] = useState([])
 
   const [newLink, setNewLink] = useState({
     title: '',
@@ -115,6 +109,11 @@ function AdminPageContent() {
     'MessageSquare', 'Phone', 'PieChart', 'Search', 'Server', 'ShoppingCart',
     'Star', 'Tool', 'Video', 'Zap'
   ]
+
+  // Set mounted to true on client-side
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Check if user is admin and people admin
   useEffect(() => {
@@ -156,10 +155,12 @@ function AdminPageContent() {
             fetchPeopleAdminUsers()
           }
 
-          // If user is a people admin, load events and company news
+          // If user is a people admin, load events, company news, complaints and suggestions
           if (peopleAdminData.isPeopleAdmin) {
             fetchEvents()
             fetchCompanyNews()
+            fetchComplaints()
+            fetchSuggestions()
           }
         }
 
@@ -176,9 +177,11 @@ function AdminPageContent() {
       checkAdminStatus()
     } else if (status === 'unauthenticated') {
       console.log('User not authenticated, redirecting to homepage');
+      setIsLoading(false)
       router.push('/')
     } else {
       console.log('Auth status:', status);
+      // If status is still loading, keep isLoading true
     }
   }, [status, router, session])
 
@@ -557,206 +560,81 @@ function AdminPageContent() {
     }
   }
 
-  // SharePoint Functions
-
-  // Test SharePoint connection
-  const testFtpConnection = async () => {
-    setError('')
-    setSuccess('')
-    setFtpConnectionTesting(true)
-    setFtpErrorDetails(null)
-    setFtpTroubleshootingTips([])
-
+  // Fetch complaints
+  const fetchComplaints = async () => {
     try {
-      console.log('Starting SharePoint connection test...');
-      const response = await fetch('/api/sharepoint?action=test')
-      console.log('SharePoint test API response status:', response.status);
-
+      const response = await fetch('/api/complaints')
       const data = await response.json()
-
-      // Log the entire response data for debugging
-      console.log('SharePoint test response data:', data);
-      console.log('SharePoint test response data.details:', data.details);
-      console.log('SharePoint test response data.troubleshooting:', data.troubleshooting);
-
-      if (!data.success) {
-        console.error('SharePoint test failed with error:', data.error);
-        throw new Error(data.error || 'Failed to test SharePoint connection')
-      }
-
-      setFtpConnected(data.connected)
-
-      if (data.connected) {
-        setSuccess('Successfully connected to SharePoint')
-        // If connected, fetch the root directory
-        fetchFtpFiles('')
-      } else {
-        // Format detailed error message
-        let errorMessage = 'Could not connect to SharePoint';
-
-        if (data.error) {
-          errorMessage += `: ${data.error}`;
-        }
-
-        // Add retry attempts information if available
-        if (data.retryAttempts !== undefined) {
-          errorMessage += ` (Retry attempts: ${data.retryAttempts})`;
-        }
-
-        // Create default error details if missing
-        const errorDetails = data.details || {
-          'Error Code': 'UNKNOWN',
-          'Message': data.error || 'Unknown error',
-          'Type': 'Error',
-          'Connection Information': {
-            'Timestamp': new Date().toLocaleString()
-          }
-        };
-
-        // Store and log detailed error information for debugging
-        console.error('SharePoint connection error details:', errorDetails);
-
-        // Make a deep copy of the details to ensure we don't lose any information
-        try {
-          const detailsCopy = JSON.parse(JSON.stringify(errorDetails));
-          console.log('Parsed error details:', detailsCopy);
-          setFtpErrorDetails(detailsCopy);
-        } catch (parseError) {
-          console.error('Error parsing details:', parseError);
-          // If parsing fails, use the original object
-          setFtpErrorDetails(errorDetails);
-        }
-
-        // Add code information if available
-        if (errorDetails['Error Code']) {
-          errorMessage += ` (Error code: ${errorDetails['Error Code']})`;
-        } else if (errorDetails.code) {
-          // Fallback for backward compatibility
-          errorMessage += ` (Error code: ${errorDetails.code})`;
-        }
-
-        // Store troubleshooting tips if available
-        if (data.troubleshooting && Array.isArray(data.troubleshooting)) {
-          console.log('SharePoint troubleshooting tips:', data.troubleshooting);
-          setFtpTroubleshootingTips(data.troubleshooting);
-        } else {
-          console.warn('No troubleshooting tips provided or not in expected format');
-          // Set default troubleshooting tips
-          setFtpTroubleshootingTips([
-            'Check your network connection',
-            'Verify SharePoint site is accessible',
-            'Ensure Azure AD credentials are correct',
-            'Try again in a few minutes'
-          ]);
-        }
-
-        // Log the error message that will be displayed
-        console.log('Setting error message:', errorMessage);
-        setError(errorMessage);
-      }
+      // Ensure data.complaints is an array before setting state
+      setComplaints(Array.isArray(data.complaints) ? data.complaints : [])
     } catch (error) {
-      console.error('Error testing SharePoint connection:', error);
-
-      // Create detailed error information even for client-side errors
-      const clientErrorDetails = {
-        message: error.message || 'Unknown error',
-        name: error.name,
-        stack: error.stack,
-        timestamp: new Date().toISOString(),
-        type: 'client-side-error'
-      };
-
-      console.log('Client-side error details:', clientErrorDetails);
-      setFtpErrorDetails(clientErrorDetails);
-
-      // Set default troubleshooting tips for client-side errors
-      setFtpTroubleshootingTips([
-        'Check your network connection',
-        'Verify that the API server is running',
-        'Try refreshing the page and attempting the operation again',
-        'Check the browser console for more detailed error information'
-      ]);
-
-      // Set a descriptive error message
-      const errorMessage = `Failed to test SharePoint connection: ${error.message || 'Unknown error'}`;
-      console.log('Setting error message:', errorMessage);
-      setError(errorMessage);
-      setFtpConnected(false);
-    } finally {
-      setFtpConnectionTesting(false);
+      console.error('Error fetching complaints:', error)
+      setError('Failed to fetch complaints')
+      // Set empty array on error
+      setComplaints([])
     }
   }
 
-  // Fetch files from SharePoint
-  const fetchFtpFiles = async (directory) => {
-    setError('')
-    setFtpLoading(true)
-
+  // Fetch suggestions
+  const fetchSuggestions = async () => {
     try {
-      const response = await fetch(`/api/sharepoint?action=list&directory=${encodeURIComponent(directory)}`)
+      const response = await fetch('/api/suggestions')
       const data = await response.json()
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to fetch SharePoint files')
-      }
-
-      setFtpFileList(data.files)
-      setFtpCurrentDirectory(directory)
-
-      // Update directory history for navigation
-      if (!ftpDirectoryHistory.includes(directory)) {
-        setFtpDirectoryHistory([...ftpDirectoryHistory, directory])
-      }
+      // Ensure data.suggestions is an array before setting state
+      setSuggestions(Array.isArray(data.suggestions) ? data.suggestions : [])
     } catch (error) {
-      console.error('Error fetching SharePoint files:', error)
-      setError(error.message || 'Failed to fetch SharePoint files')
-    } finally {
-      setFtpLoading(false)
+      console.error('Error fetching suggestions:', error)
+      setError('Failed to fetch suggestions')
+      // Set empty array on error
+      setSuggestions([])
     }
   }
 
-  // Navigate to a directory
-  const navigateToDirectory = (directory) => {
-    // If it's a parent directory (..)
-    if (directory === '..') {
-      // Split the current path and remove the last segment
-      const pathParts = ftpCurrentDirectory.split('/')
-      pathParts.pop()
-      const parentDirectory = pathParts.join('/')
-      fetchFtpFiles(parentDirectory)
-    } else {
-      // Construct the new path
-      const newPath = ftpCurrentDirectory 
-        ? `${ftpCurrentDirectory}/${directory}` 
-        : directory
-      fetchFtpFiles(newPath)
+  // Update complaint status
+  const updateComplaintStatus = async (id, status) => {
+    try {
+      const response = await fetch('/api/complaints', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id, status })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update complaint')
+      }
+
+      fetchComplaints()
+      setSuccess('Complaint status updated successfully')
+    } catch (error) {
+      console.error('Error updating complaint:', error)
+      setError(error.message || 'Failed to update complaint')
     }
   }
 
-  // Get file content from SharePoint
-  const getFileContent = async (filePath) => {
-    setError('')
-    setFtpLoading(true)
-
+  // Update suggestion status
+  const updateSuggestionStatus = async (id, status) => {
     try {
-      const fullPath = ftpCurrentDirectory 
-        ? `${ftpCurrentDirectory}/${filePath}` 
-        : filePath
+      const response = await fetch('/api/suggestions', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id, status })
+      })
 
-      const response = await fetch(`/api/sharepoint?action=content&filePath=${encodeURIComponent(fullPath)}`)
-      const data = await response.json()
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to get file content')
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update suggestion')
       }
 
-      setFtpFileContent(data.content)
-      setFtpSelectedFile(filePath)
+      fetchSuggestions()
+      setSuccess('Suggestion status updated successfully')
     } catch (error) {
-      console.error('Error getting file content from SharePoint:', error)
-      setError(error.message || 'Failed to get file content from SharePoint')
-    } finally {
-      setFtpLoading(false)
+      console.error('Error updating suggestion:', error)
+      setError(error.message || 'Failed to update suggestion')
     }
   }
 
@@ -765,8 +643,8 @@ function AdminPageContent() {
   // This approach avoids hydration mismatches by ensuring server and client render the same initial HTML
 
   // Determine visibility states based on component state and mounted status
-  const showLoading = isLoading || !mounted
-  const showAdmin = mounted && isAdmin && !isLoading
+  const showLoading = isLoading || !mounted || status === 'loading'
+  const showAdmin = mounted && isAdmin && !isLoading && status === 'authenticated'
 
   return (
     <div className="min-h-screen">
@@ -814,13 +692,14 @@ function AdminPageContent() {
                 {isAdmin && (
                   <>
                     <TabsTrigger value="people-admin-users">People Admin Users</TabsTrigger>
-                    <TabsTrigger value="sharepoint-browser">SharePoint Browser</TabsTrigger>
                   </>
                 )}
                 {isPeopleAdmin && (
                   <>
                     <TabsTrigger value="events">Events</TabsTrigger>
                     <TabsTrigger value="company-news">Company News</TabsTrigger>
+                    <TabsTrigger value="complaints">Complaints</TabsTrigger>
+                    <TabsTrigger value="suggestions">Suggestions</TabsTrigger>
                   </>
                 )}
               </TabsList>
@@ -1268,213 +1147,153 @@ function AdminPageContent() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="sharepoint-browser">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* SharePoint Connection */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>SharePoint Connection</CardTitle>
-                      <CardDescription>
-                        Connect to SharePoint to browse files
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
+              <TabsContent value="complaints">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <MessageSquareWarning className="h-5 w-5 mr-2 text-red-500" />
+                      Anonymous Complaints
+                    </CardTitle>
+                    <CardDescription>
+                      Review and manage anonymous complaints submitted by employees
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {complaints.length === 0 ? (
+                      <p className="text-gray-500 text-center py-4">No complaints found</p>
+                    ) : (
                       <div className="space-y-4">
-                        <Button 
-                          onClick={testFtpConnection} 
-                          className="w-full"
-                          disabled={ftpConnectionTesting}
-                        >
-                          {ftpConnectionTesting ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Testing Connection...
-                            </>
-                          ) : (
-                            <>
-                              <Server className="h-4 w-4 mr-2" />
-                              Test SharePoint Connection
-                            </>
-                          )}
-                        </Button>
-
-                        {ftpConnected && (
-                          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-                            Connected to SharePoint
-                          </div>
-                        )}
-
-                        {ftpErrorDetails && (
-                          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">
-                            <h4 className="font-semibold mb-2">Connection Error Details:</h4>
-                            <div className="text-sm space-y-1">
-                              {Object.entries(ftpErrorDetails).map(([key, value]) => {
-                                // Skip complex objects or arrays
-                                if (typeof value === 'object' && value !== null) {
-                                  return (
-                                    <div key={key}>
-                                      <span className="font-medium">{key}:</span> [Complex Object]
-                                    </div>
-                                  );
-                                }
-                                return (
-                                  <div key={key}>
-                                    <span className="font-medium">{key}:</span> {value?.toString()}
-                                  </div>
-                                );
-                              })}
+                        {complaints.map((complaint) => (
+                          <div key={complaint.id} className="border rounded-lg p-4 space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  {complaint.category && (
+                                    <span className="text-xs bg-gray-200 px-2 py-1 rounded capitalize">
+                                      {complaint.category.replace('_', ' ')}
+                                    </span>
+                                  )}
+                                  <span className={`text-xs px-2 py-1 rounded ${
+                                    complaint.status === 'new' ? 'bg-red-100 text-red-800' : 
+                                    complaint.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' : 
+                                    'bg-green-100 text-green-800'
+                                  }`}>
+                                    {complaint.status.replace('_', ' ')}
+                                  </span>
+                                </div>
+                                <p className="text-gray-700 whitespace-pre-wrap">{complaint.content}</p>
+                                <p className="text-xs text-gray-500 mt-2">
+                                  Submitted: {new Date(complaint.created_at).toLocaleString()}
+                                </p>
+                                {complaint.resolved_at && (
+                                  <p className="text-xs text-gray-500">
+                                    Resolved: {new Date(complaint.resolved_at).toLocaleString()}
+                                  </p>
+                                )}
+                              </div>
+                              <Select
+                                value={complaint.status}
+                                onValueChange={(value) => updateComplaintStatus(complaint.id, value)}
+                              >
+                                <SelectTrigger className="w-32 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                                  <SelectItem value="new">New</SelectItem>
+                                  <SelectItem value="in_progress">In Progress</SelectItem>
+                                  <SelectItem value="resolved">Resolved</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
-
-                            {ftpTroubleshootingTips.length > 0 && (
-                              <div className="mt-3">
-                                <h4 className="font-semibold mb-1">Troubleshooting Tips:</h4>
-                                <ul className="text-sm list-disc pl-5">
-                                  {ftpTroubleshootingTips.map((tip, index) => (
-                                    <li key={index}>{tip}</li>
-                                  ))}
-                                </ul>
+                            {complaint.admin_notes && (
+                              <div className="bg-gray-50 p-3 rounded-lg">
+                                <p className="text-xs font-medium text-gray-600 mb-1">Admin Notes:</p>
+                                <p className="text-sm text-gray-700">{complaint.admin_notes}</p>
                               </div>
                             )}
                           </div>
-                        )}
+                        ))}
                       </div>
-                    </CardContent>
-                  </Card>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-                  {/* SharePoint Browser */}
-                  <Card className="md:col-span-2">
-                    <CardHeader>
-                      <CardTitle>SharePoint Browser</CardTitle>
-                      <CardDescription>
-                        Browse and view files on SharePoint
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {ftpConnected ? (
-                        <div className="space-y-4">
-                          {/* Current directory and navigation */}
-                          <div className="flex items-center justify-between">
-                            <div className="text-sm font-medium bg-gray-100 px-3 py-1 rounded">
-                              Current: {ftpCurrentDirectory || '/'}
-                            </div>
-                            <div className="flex space-x-2">
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => navigateToDirectory('..')}
-                                disabled={!ftpCurrentDirectory}
-                              >
-                                Parent Directory
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => fetchFtpFiles(ftpCurrentDirectory)}
-                                disabled={ftpLoading}
-                              >
-                                Refresh
-                              </Button>
-                            </div>
-                          </div>
-
-                          {/* File list */}
-                          {ftpLoading ? (
-                            <div className="flex items-center justify-center py-8">
-                              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-                            </div>
-                          ) : (
-                            <div className="border rounded-lg overflow-hidden">
-                              <div className="bg-gray-100 px-4 py-2 font-medium text-sm grid grid-cols-12 gap-2">
-                                <div className="col-span-6">Name</div>
-                                <div className="col-span-2">Type</div>
-                                <div className="col-span-2">Size</div>
-                                <div className="col-span-2">Actions</div>
-                              </div>
-                              <div className="divide-y">
-                                {ftpFileList.length === 0 ? (
-                                  <div className="px-4 py-8 text-center text-gray-500">
-                                    No files found in this directory
-                                  </div>
-                                ) : (
-                                  ftpFileList.map((file, index) => (
-                                    <div key={index} className="px-4 py-2 grid grid-cols-12 gap-2 items-center hover:bg-gray-50">
-                                      <div className="col-span-6 truncate">
-                                        {file.type === 'd' ? (
-                                          <button 
-                                            onClick={() => navigateToDirectory(file.name)}
-                                            className="text-blue-600 hover:underline flex items-center"
-                                          >
-                                            <FileText className="h-4 w-4 mr-1" />
-                                            {file.name}
-                                          </button>
-                                        ) : (
-                                          <span className="flex items-center">
-                                            <FileText className="h-4 w-4 mr-1 text-gray-400" />
-                                            {file.name}
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className="col-span-2 text-sm">
-                                        {file.type === 'd' ? 'Directory' : 'File'}
-                                      </div>
-                                      <div className="col-span-2 text-sm">
-                                        {file.type === 'd' ? '-' : `${(file.size / 1024).toFixed(2)} KB`}
-                                      </div>
-                                      <div className="col-span-2">
-                                        {file.type !== 'd' && (
-                                          <Button 
-                                            variant="outline" 
-                                            size="sm"
-                                            onClick={() => getFileContent(file.name)}
-                                          >
-                                            View
-                                          </Button>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))
+              <TabsContent value="suggestions">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Lightbulb className="h-5 w-5 mr-2 text-yellow-500" />
+                      Employee Suggestions
+                    </CardTitle>
+                    <CardDescription>
+                      Review and manage suggestions submitted by employees
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {suggestions.length === 0 ? (
+                      <p className="text-gray-500 text-center py-4">No suggestions found</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {suggestions.map((suggestion) => (
+                          <div key={suggestion.id} className="border rounded-lg p-4 space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="text-sm font-medium text-gray-700">
+                                    {suggestion.user_name || suggestion.user_email}
+                                  </span>
+                                  {suggestion.category && (
+                                    <span className="text-xs bg-gray-200 px-2 py-1 rounded capitalize">
+                                      {suggestion.category.replace('_', ' ')}
+                                    </span>
+                                  )}
+                                  <span className={`text-xs px-2 py-1 rounded ${
+                                    suggestion.status === 'new' ? 'bg-blue-100 text-blue-800' : 
+                                    suggestion.status === 'under_review' ? 'bg-yellow-100 text-yellow-800' : 
+                                    suggestion.status === 'implemented' ? 'bg-green-100 text-green-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {suggestion.status.replace('_', ' ')}
+                                  </span>
+                                </div>
+                                <p className="text-gray-700 whitespace-pre-wrap">{suggestion.content}</p>
+                                <p className="text-xs text-gray-500 mt-2">
+                                  Submitted: {new Date(suggestion.created_at).toLocaleString()}
+                                </p>
+                                {suggestion.resolved_at && (
+                                  <p className="text-xs text-gray-500">
+                                    Resolved: {new Date(suggestion.resolved_at).toLocaleString()}
+                                  </p>
                                 )}
                               </div>
+                              <Select
+                                value={suggestion.status}
+                                onValueChange={(value) => updateSuggestionStatus(suggestion.id, value)}
+                              >
+                                <SelectTrigger className="w-40 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                                  <SelectItem value="new">New</SelectItem>
+                                  <SelectItem value="under_review">Under Review</SelectItem>
+                                  <SelectItem value="implemented">Implemented</SelectItem>
+                                  <SelectItem value="declined">Declined</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
-                          )}
-
-                          {/* File content viewer */}
-                          {ftpSelectedFile && (
-                            <Card>
-                              <CardHeader className="py-3">
-                                <div className="flex items-center justify-between">
-                                  <CardTitle className="text-base">
-                                    {ftpSelectedFile}
-                                  </CardTitle>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={() => {
-                                      setFtpSelectedFile(null)
-                                      setFtpFileContent('')
-                                    }}
-                                  >
-                                    Close
-                                  </Button>
-                                </div>
-                              </CardHeader>
-                              <CardContent>
-                                <div className="bg-gray-50 p-4 rounded-lg overflow-auto max-h-96">
-                                  <pre className="text-sm whitespace-pre-wrap">{ftpFileContent}</pre>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-gray-500">
-                          <Server className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                          <p>Connect to SharePoint to browse files</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
+                            {suggestion.admin_notes && (
+                              <div className="bg-gray-50 p-3 rounded-lg">
+                                <p className="text-xs font-medium text-gray-600 mb-1">Admin Notes:</p>
+                                <p className="text-sm text-gray-700">{suggestion.admin_notes}</p>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </TabsContent>
             </Tabs>
           </div>

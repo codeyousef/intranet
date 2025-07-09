@@ -5,14 +5,13 @@ import { Cake, Award } from 'lucide-react'
 
 interface Birthday {
   name: string
-  department: string
-  date_of_birth: string
+  date: string
+  years?: number
 }
 
 interface Anniversary {
   name: string
-  department: string
-  joining_date: string
+  date: string
   years: number
 }
 

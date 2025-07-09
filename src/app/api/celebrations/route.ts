@@ -22,35 +22,33 @@ export async function GET() {
 
     // Query for birthdays today
     const birthdays = await db.all(`
-      SELECT name, department, date_of_birth 
-      FROM employees 
-      WHERE substr(date_of_birth, 6, 5) = ?
+      SELECT name, date, years 
+      FROM celebrations 
+      WHERE type = 'birthday' AND date = ?
       ORDER BY name
     `, todayMonthDay);
 
-    // Query for work anniversaries today (same month and day, different year)
+    // Query for work anniversaries today
     const anniversaries = await db.all(`
-      SELECT name, department, joining_date,
-             (strftime('%Y', 'now') - strftime('%Y', joining_date)) as years
-      FROM employees 
-      WHERE substr(joining_date, 6, 5) = ?
+      SELECT name, date, years
+      FROM celebrations 
+      WHERE type = 'anniversary' AND date = ?
       ORDER BY years DESC, name
     `, todayMonthDay);
 
     // Query for birthdays tomorrow
     const tomorrowBirthdays = await db.all(`
-      SELECT name, department, date_of_birth 
-      FROM employees 
-      WHERE substr(date_of_birth, 6, 5) = ?
+      SELECT name, date, years 
+      FROM celebrations 
+      WHERE type = 'birthday' AND date = ?
       ORDER BY name
     `, tomorrowMonthDay);
 
     // Query for work anniversaries tomorrow
     const tomorrowAnniversaries = await db.all(`
-      SELECT name, department, joining_date,
-             (strftime('%Y', 'now') - strftime('%Y', joining_date)) as years
-      FROM employees 
-      WHERE substr(joining_date, 6, 5) = ?
+      SELECT name, date, years
+      FROM celebrations 
+      WHERE type = 'anniversary' AND date = ?
       ORDER BY years DESC, name
     `, tomorrowMonthDay);
 

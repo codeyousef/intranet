@@ -8,8 +8,13 @@ import { NextRequest, NextResponse } from 'next/server';
 // SharePoint configuration
 const SHAREPOINT_CONFIG = {
   siteUrl: 'https://flyadeal.sharepoint.com/sites/Thelounge',
+  hostname: 'flyadeal.sharepoint.com',
+  sitePath: '/sites/Thelounge',
   documentLibrary: 'Shared Documents',
 };
+
+// Cache for site ID to avoid repeated lookups
+let cachedSiteId: string | null = null;
 
 // Enhanced logging system for troubleshooting
 const logger = {
@@ -256,6 +261,65 @@ async function getGraphToken() {
 }
 
 /**
+ * Get SharePoint site ID
+ * @param token Graph API token
+ * @returns Site ID
+ */
+async function getSiteId(token: string): Promise<string> {
+  // Return cached site ID if available
+  if (cachedSiteId) {
+    logger.debug('Using cached site ID', { siteId: cachedSiteId });
+    return cachedSiteId;
+  }
+
+  logger.info('Getting SharePoint site ID');
+  
+  // Construct the URL to get site info
+  const siteInfoUrl = `https://graph.microsoft.com/v1.0/sites/${SHAREPOINT_CONFIG.hostname}:${SHAREPOINT_CONFIG.sitePath}`;
+  
+  const response = await fetchWithRetry(
+    siteInfoUrl,
+    {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
+    }
+  );
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    logger.error(`Failed to get site information`, {
+      status: response.status,
+      statusText: response.statusText,
+      error: errorText
+    });
+    throw new Error(`Failed to get site information: ${errorText}`);
+  }
+  
+  const siteData = await response.json();
+  
+  if (!siteData.id) {
+    logger.error('Site response did not contain an ID', {
+      responseKeys: Object.keys(siteData)
+    });
+    throw new Error('Site response did not contain an ID');
+  }
+  
+  // Cache the site ID
+  cachedSiteId = siteData.id;
+  
+  logger.info('Successfully retrieved site ID', {
+    siteId: siteData.id,
+    siteName: siteData.name,
+    webUrl: siteData.webUrl
+  });
+  
+  return siteData.id;
+}
+
+/**
  * Execute a function with a Graph API token
  * This handles token acquisition and retry logic
  */
@@ -316,11 +380,15 @@ async function withGraphToken<T>(
  */
 export async function getFileContent(fileName: string): Promise<string> {
   return withGraphToken(async (token) => {
+    // First get the site ID
+    const siteId = await getSiteId(token);
+    
     // Encode the file path for the URL
     const encodedFileName = encodeURIComponent(fileName);
     
     // Construct the Graph API URL to get the file
-    const fileUrl = `https://graph.microsoft.com/v1.0/sites/${SHAREPOINT_CONFIG.siteUrl}/drive/root:/${SHAREPOINT_CONFIG.documentLibrary}/${encodedFileName}:/content`;
+    // For files in the default document library, don't include "Shared Documents" in the path
+    const fileUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root:/${encodedFileName}:/content`;
     
     logger.info(`Retrieving file content from SharePoint: ${fileName}`);
     
@@ -363,19 +431,20 @@ export async function getFileContent(fileName: string): Promise<string> {
  */
 export async function listFiles(folderPath: string = ''): Promise<any[]> {
   return withGraphToken(async (token) => {
-    // Construct the base path
-    let path = `${SHAREPOINT_CONFIG.documentLibrary}`;
-    if (folderPath) {
-      path += `/${folderPath}`;
+    // First get the site ID
+    const siteId = await getSiteId(token);
+    
+    let listUrl: string;
+    if (!folderPath || folderPath === '') {
+      // For root folder of the default document library, just use /drive/root/children
+      listUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root/children`;
+    } else {
+      // For subfolders, don't include "Shared Documents" prefix if it's the default library
+      const encodedPath = encodeURIComponent(folderPath);
+      listUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root:/${encodedPath}:/children`;
     }
     
-    // Encode the path for the URL
-    const encodedPath = encodeURIComponent(path);
-    
-    // Construct the Graph API URL to list files
-    const listUrl = `https://graph.microsoft.com/v1.0/sites/${SHAREPOINT_CONFIG.siteUrl}/drive/root:/${encodedPath}:/children`;
-    
-    logger.info(`Listing files in SharePoint folder: ${path}`);
+    logger.info(`Listing files in SharePoint folder: ${folderPath || 'root'}`);
     
     const response = await fetchWithRetry(
       listUrl,
@@ -390,7 +459,7 @@ export async function listFiles(folderPath: string = ''): Promise<any[]> {
     
     if (!response.ok) {
       const errorText = await response.text();
-      logger.error(`Failed to list files in SharePoint folder: ${path}`, {
+      logger.error(`Failed to list files in SharePoint folder: ${folderPath}`, {
         status: response.status,
         statusText: response.statusText,
         error: errorText
@@ -402,13 +471,13 @@ export async function listFiles(folderPath: string = ''): Promise<any[]> {
     const data = await response.json();
     
     if (!data.value || !Array.isArray(data.value)) {
-      logger.error(`Invalid response format when listing files in SharePoint folder: ${path}`, {
+      logger.error(`Invalid response format when listing files in SharePoint folder: ${folderPath}`, {
         responseKeys: Object.keys(data)
       });
       throw new Error('Invalid response format when listing files');
     }
     
-    logger.info(`Successfully listed files in SharePoint folder: ${path}`, {
+    logger.info(`Successfully listed files in SharePoint folder: ${folderPath}`, {
       fileCount: data.value.length
     });
     
@@ -432,7 +501,7 @@ export async function testConnection(maxRetries: number = 3): Promise<{
 
   try {
     // Test connection by listing files in the root folder
-    await listFiles('', maxRetries);
+    await listFiles('');
     
     // If we get here, the connection was successful
     return { connected: true };
