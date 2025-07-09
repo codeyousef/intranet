@@ -1,7 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Set the asset prefix for development environment
-  assetPrefix: process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : undefined,
+  // Experimental flag to fix hydration issues in Next.js 15
+  experimental: {
+    optimizePackageImports: ['lucide-react'],
+  },
+  
+  // Disable React strict mode in development to reduce hydration issues
+  reactStrictMode: false,
 
   // Add rewrites to handle specific files
   async rewrites() {
@@ -115,14 +120,6 @@ const nextConfig = {
         });
       }
 
-      // Add cache busting for development
-      if (dev) {
-        // Add cache busting query parameters to chunk URLs in development
-        const { output } = config;
-        if (output) {
-          output.chunkFilename = output.chunkFilename.replace('[chunkhash]', '[name].[chunkhash]');
-        }
-      }
     }
 
     return config;

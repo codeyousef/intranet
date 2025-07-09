@@ -3,8 +3,8 @@ import AzureADProvider from 'next-auth/providers/azure-ad'
 import { NextAuthOptions } from 'next-auth'
 
 export const authOptions: NextAuthOptions = {
-  // Enable debug mode in development
-  debug: process.env.NODE_ENV !== 'production',
+  // Disable debug mode to prevent warnings
+  debug: false,
   // Set the secret explicitly to ensure it's used for CSRF token generation
   secret: process.env.NEXTAUTH_SECRET,
   providers: [
@@ -120,8 +120,9 @@ export const authOptions: NextAuthOptions = {
       return token
     },
     async session({ session, token }) {
+      // Only include essential data in session to reduce cookie size
+      // Access token is needed for API calls but refresh token should stay in JWT only
       session.accessToken = token.accessToken as string
-      session.refreshToken = token.refreshToken as string
       session.expiresAt = token.expiresAt as number
       return session
     },

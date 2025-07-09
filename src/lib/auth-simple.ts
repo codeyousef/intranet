@@ -3,7 +3,8 @@ import AzureADProvider from 'next-auth/providers/azure-ad'
 import { NextAuthOptions } from 'next-auth'
 
 export const authOptions: NextAuthOptions = {
-  debug: process.env.NODE_ENV !== 'production',
+  // Disable debug mode to prevent warnings
+  debug: false,
   secret: process.env.NEXTAUTH_SECRET,
   providers: [
     AzureADProvider({
@@ -21,6 +22,7 @@ export const authOptions: NextAuthOptions = {
       return token
     },
     async session({ session, token }) {
+      // Only include essential data to reduce cookie size
       session.accessToken = token.accessToken as string
       return session
     },

@@ -95,9 +95,9 @@ function NavigationContent() {
   }, [session])
 
   return (
-    <div className="flex items-center justify-between">
-      {/* Desktop Navigation */}
-      <div className="hidden md:flex items-center space-x-6">
+    <>
+      {/* Desktop Navigation - Centered */}
+      <div className="hidden md:flex items-center space-x-6 mx-auto">
         {navItems.map((item) => {
           const Icon = item.icon
           return (
@@ -112,16 +112,16 @@ function NavigationContent() {
           )
         })}
 
-        {/* Admin Link - Always render with consistent initial state */}
-        <a
-          href="/admin"
-          className="flex items-center space-x-2 text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors"
-          style={{display: "none"}}
-          data-state="hidden"
-        >
-          <Settings size={18} />
-          <span>Admin</span>
-        </a>
+        {/* Admin Link - Show only when user is admin */}
+        {isAdmin && (
+          <a
+            href="/admin"
+            className="flex items-center space-x-2 text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors"
+          >
+            <Settings size={18} />
+            <span>Admin</span>
+          </a>
+        )}
       </div>
 
       {/* User Menu */}
@@ -207,17 +207,17 @@ function NavigationContent() {
               )
             })}
 
-            {/* Admin Link - Always render with consistent initial state */}
-            <a
-              href="/admin"
-              className="flex items-center space-x-2 text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors p-2"
-              onClick={() => setIsMobileMenuOpen(false)}
-              style={{display: "none"}}
-              data-state="hidden"
-            >
-              <Settings size={18} />
-              <span>Admin</span>
-            </a>
+            {/* Admin Link - Show only when user is admin */}
+            {isAdmin && (
+              <a
+                href="/admin"
+                className="flex items-center space-x-2 text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors p-2"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <Settings size={18} />
+                <span>Admin</span>
+              </a>
+            )}
 
             {session?.user ? (
               <div className="pt-3 border-t border-black/20 dark:border-white/20">
@@ -277,6 +277,6 @@ function NavigationContent() {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }

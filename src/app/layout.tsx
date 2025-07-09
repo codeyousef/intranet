@@ -14,8 +14,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className="font-raleway min-h-screen">
+    <html lang="en" suppressHydrationWarning>
+      <body className="font-raleway min-h-screen" suppressHydrationWarning>
         <ErrorBoundary>
           <Providers>
             {children}
