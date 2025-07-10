@@ -105,28 +105,28 @@ if (typeof window !== 'undefined') {
   };
 
   /**
-   * Preload the Viva Engage auth chunk specifically
+   * Preload the Viva Engage auth chunk specifically - COMMENTED OUT
    */
-  const preloadVivaEngageAuthChunk = async (): Promise<void> => {
-    try {
-      // Directly preload the 4-auth-msal.js file from the root path
-      // This bypasses the assetPrefix for this specific file
-      await preloadScript('/4-auth-msal.js');
+  // const preloadVivaEngageAuthChunk = async (): Promise<void> => {
+  //   try {
+  //     // Directly preload the 4-auth-msal.js file from the root path
+  //     // This bypasses the assetPrefix for this specific file
+  //     await preloadScript('/4-auth-msal.js');
 
-      // No need for additional script element since preloadScript now uses script tags
+  //     // No need for additional script element since preloadScript now uses script tags
 
-      console.log('[ChunkPreloader] Preloaded Viva Engage auth chunk');
-    } catch (error) {
-      console.error('[ChunkPreloader] Error preloading Viva Engage auth chunk:', error);
-    }
-  };
+  //     console.log('[ChunkPreloader] Preloaded Viva Engage auth chunk');
+  //   } catch (error) {
+  //     console.error('[ChunkPreloader] Error preloading Viva Engage auth chunk:', error);
+  //   }
+  // };
 
   /**
    * Initialize the chunk preloader
    */
   const initChunkPreloader = (): void => {
-    // Preload Viva Engage auth chunk immediately
-    preloadVivaEngageAuthChunk();
+    // Preload Viva Engage auth chunk immediately - COMMENTED OUT
+    // preloadVivaEngageAuthChunk();
 
     // Preload all chunks on page load
     window.addEventListener('load', () => {

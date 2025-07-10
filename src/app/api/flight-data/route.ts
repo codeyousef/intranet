@@ -19,6 +19,7 @@ interface FlightRecord {
   cancelled: boolean;
   blockTime: number; // Block time in minutes (BLON - BLOF)
   passengers: number; // Total passengers
+  flightType: string; // FLTYPE field
 }
 
 // Define the structure of calculated metrics
@@ -62,6 +63,9 @@ function parseCSV(csvContent: string): FlightRecord[] {
   headers.forEach((header, index) => {
     columnMap[header] = index;
   });
+  
+  // Debug: Log headers to see what columns we have
+  console.log('[CSV-PARSE] Headers found:', headers.slice(0, 20));
 
   // Parse data rows
   const records: FlightRecord[] = [];
@@ -134,6 +138,7 @@ function parseCSV(csvContent: string): FlightRecord[] {
         cancelled: cancelled,
         blockTime: blockTime,
         passengers: passengers,
+        flightType: values[columnMap['FLTYPE']] || '',
       };
 
       records.push(record);
@@ -147,36 +152,104 @@ function parseCSV(csvContent: string): FlightRecord[] {
 
 // Calculate flight metrics from records
 function calculateMetrics(records: FlightRecord[]): FlightMetrics {
-  // Format today's date to match CSV format (DD/MM/YYYY)
-  const today = new Date();
-  const todayFormatted = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+  // Get yesterday's date in CSV format (MM/DD/YYYY) - corrected format
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayFormatted = `${String(yesterday.getMonth() + 1).padStart(2, '0')}/${String(yesterday.getDate()).padStart(2, '0')}/${yesterday.getFullYear()}`;
   
-  // Filter today's flights
-  const todaysFlights = records.filter(r => r.date === todayFormatted);
+  console.log('[FLIGHT-DATA] Looking for flights on:', yesterdayFormatted);
+  console.log('[FLIGHT-DATA] Total records before filtering:', records.length);
+  
+  // Debug: Check what dates we have in the data
+  const uniqueDates = [...new Set(records.map(r => r.date))].sort();
+  console.log('[FLIGHT-DATA] Available dates in data:', uniqueDates.slice(0, 10));
+  
+  // Debug: Check flight types
+  const flightTypes = [...new Set(records.map(r => r.flightType))];
+  console.log('[FLIGHT-DATA] Available flight types:', flightTypes);
+  
+  // Filter for yesterday's flights with flight type 'J' (trim spaces and case insensitive)
+  // Also filter out flights with blank BLOF (actual departure)
+  const yesterdaysFlights = records.filter(r => 
+    r.date === yesterdayFormatted && 
+    r.flightType.trim().toUpperCase() === 'J' &&
+    r.actualDeparture && r.actualDeparture.trim() !== '' && r.actualDeparture !== '00:00'
+  );
+  
+  // Debug: Check how many flights we're filtering out
+  const yesterdaysAllTypeJ = records.filter(r => 
+    r.date === yesterdayFormatted && 
+    r.flightType.trim().toUpperCase() === 'J'
+  );
+  console.log('[FLIGHT-DATA] Type J flights for yesterday (before BLOF filter):', yesterdaysAllTypeJ.length);
+  console.log('[FLIGHT-DATA] Type J flights with valid BLOF:', yesterdaysFlights.length);
+  
+  // If no data for yesterday, try to find the most recent date with data
+  let filteredFlights = yesterdaysFlights;
+  let targetDate = yesterdayFormatted;
+  
+  if (yesterdaysFlights.length === 0) {
+    console.log('[FLIGHT-DATA] No data for yesterday, looking for most recent date...');
+    
+    // Get all flights with type J (trim spaces and case insensitive)
+    // Also filter out flights with blank BLOF
+    const typeJFlights = records.filter(r => 
+      r.flightType.trim().toUpperCase() === 'J' &&
+      r.actualDeparture && r.actualDeparture.trim() !== '' && r.actualDeparture !== '00:00'
+    );
+    
+    if (typeJFlights.length > 0) {
+      // Find the most recent date (MM/DD/YYYY format)
+      const sortedDates = [...new Set(typeJFlights.map(r => r.date))].sort((a, b) => {
+        const [monthA, dayA, yearA] = a.split('/').map(Number);
+        const [monthB, dayB, yearB] = b.split('/').map(Number);
+        const dateA = new Date(yearA, monthA - 1, dayA);
+        const dateB = new Date(yearB, monthB - 1, dayB);
+        return dateB.getTime() - dateA.getTime();
+      });
+      
+      targetDate = sortedDates[0];
+      filteredFlights = typeJFlights.filter(r => r.date === targetDate);
+      console.log('[FLIGHT-DATA] Using most recent date with data:', targetDate, 'with', filteredFlights.length, 'flights');
+    }
+  }
+  
+  // Get unique flight numbers (to avoid counting the same flight multiple times)
+  const uniqueFlights = new Map<string, FlightRecord>();
+  filteredFlights.forEach(flight => {
+    const key = `${flight.flightNumber}-${flight.origin}-${flight.destination}`;
+    // If we already have this flight, keep the one with the latest scheduled departure
+    if (!uniqueFlights.has(key) || flight.scheduledDeparture > uniqueFlights.get(key)!.scheduledDeparture) {
+      uniqueFlights.set(key, flight);
+    }
+  });
+  
+  // Convert back to array
+  const filteredRecords = Array.from(uniqueFlights.values());
   
   // Calculate basic counts
-  const totalFlights = records.length;
-  const onTimeFlights = records.filter(r => !r.cancelled && Math.max(r.departureDelay, r.arrivalDelay) <= 15).length;
-  const delayedFlights = records.filter(r => !r.cancelled && Math.max(r.departureDelay, r.arrivalDelay) > 15).length;
-  const cancelledFlights = records.filter(r => r.cancelled).length;
+  const totalFlights = filteredRecords.length;
+  const onTimeFlights = filteredRecords.filter(r => !r.cancelled && r.arrivalDelay <= 15).length;
+  const delayedFlights = filteredRecords.filter(r => !r.cancelled && r.arrivalDelay > 15).length;
+  const cancelledFlights = filteredRecords.filter(r => r.cancelled).length;
   
   // Calculate OTP (On-Time Performance)
   const operatedFlights = totalFlights - cancelledFlights;
   const onTimePerformance = operatedFlights > 0 ? (onTimeFlights / operatedFlights) * 100 : 0;
   
-  // Calculate average delay (using departure delays)
-  const delayedFlightsOnly = records.filter(r => !r.cancelled && r.departureDelay > 0);
-  const totalDelayMinutes = delayedFlightsOnly.reduce((sum, r) => sum + Math.abs(r.departureDelay), 0);
+  // Calculate average delay (using arrival delays for delayed flights only)
+  const delayedFlightsOnly = filteredRecords.filter(r => !r.cancelled && r.arrivalDelay > 15);
+  const totalDelayMinutes = delayedFlightsOnly.reduce((sum, r) => sum + Math.abs(r.arrivalDelay), 0);
   const averageDelayMinutes = delayedFlightsOnly.length > 0 ? totalDelayMinutes / delayedFlightsOnly.length : 0;
   
   // Calculate top delayed routes
   const routeDelays = new Map<string, { delays: number; totalDelay: number }>();
-  records.forEach(r => {
-    if (!r.cancelled && Math.max(r.departureDelay, r.arrivalDelay) > 15) {
+  filteredRecords.forEach(r => {
+    if (!r.cancelled && r.arrivalDelay > 15) {
       const route = `${r.origin}-${r.destination}`;
       const current = routeDelays.get(route) || { delays: 0, totalDelay: 0 };
       current.delays++;
-      current.totalDelay += Math.max(Math.abs(r.departureDelay), Math.abs(r.arrivalDelay));
+      current.totalDelay += Math.abs(r.arrivalDelay);
       routeDelays.set(route, current);
     }
   });
@@ -198,31 +271,29 @@ function calculateMetrics(records: FlightRecord[]): FlightMetrics {
     diverted: 0, // Not in the current data structure
   };
   
-  // Calculate business metrics
+  // Calculate business metrics for yesterday only
   
   // 1. Flying Hours - Total block hours
-  const flightsWithBlockTime = records.filter(r => !r.cancelled && r.blockTime > 0);
-  console.log(`[METRICS] Flights with block time: ${flightsWithBlockTime.length}`);
+  const flightsWithBlockTime = filteredRecords.filter(r => !r.cancelled && r.blockTime > 0);
   const totalBlockMinutes = flightsWithBlockTime.reduce((sum, r) => sum + r.blockTime, 0);
   const flyingHours = Math.round(totalBlockMinutes / 60);
-  console.log(`[METRICS] Total block minutes: ${totalBlockMinutes}, Flying hours: ${flyingHours}`);
   
   // 2. Guests Carried - Total passengers
-  const flightsWithPassengers = records.filter(r => !r.cancelled && r.passengers > 0);
-  console.log(`[METRICS] Flights with passengers: ${flightsWithPassengers.length}`);
-  const totalPassengers = records
+  const totalPassengers = filteredRecords
     .filter(r => !r.cancelled)
     .reduce((sum, r) => sum + r.passengers, 0);
   const guestsCarried = Math.round(totalPassengers / 1000); // In thousands
-  console.log(`[METRICS] Total passengers: ${totalPassengers}, Guests carried (K): ${guestsCarried}`);
   
   // 3. Calculate Load Factor
   // A320 has approximately 186 seats
   const seatsPerFlight = 186;
   const totalSeats = operatedFlights * seatsPerFlight;
   const loadFactor = totalSeats > 0 ? Math.round((totalPassengers / totalSeats) * 100) : 0;
-  console.log(`[METRICS] Load Factor: ${loadFactor}% (${totalPassengers} passengers / ${totalSeats} seats)`);
   
+  // Parse the target date for the date range (MM/DD/YYYY format)
+  const [month, day, year] = targetDate.split('/').map(Number);
+  const actualDate = new Date(year, month - 1, day);
+
   return {
     totalFlights,
     onTimeFlights,
@@ -232,53 +303,39 @@ function calculateMetrics(records: FlightRecord[]): FlightMetrics {
     averageDelayMinutes: Math.round(averageDelayMinutes),
     topDelayedRoutes,
     flightsByStatus,
-    todaysFlights: todaysFlights.length,
+    todaysFlights: totalFlights, // For the target date
     lastUpdated: new Date().toISOString(),
     // Business metrics
     flyingHours,
     loadFactor,
     guestsCarried,
+    // Date range - the actual date used
+    dateRange: {
+      from: actualDate.toISOString(),
+      to: actualDate.toISOString(),
+      days: 1,
+      actualDate: targetDate
+    }
   };
 }
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('[FLIGHT-DATA] API endpoint called');
-    
     // Check authentication
     const session = await getAuthSession();
-    console.log('[FLIGHT-DATA] Session check:', session ? 'authenticated' : 'not authenticated');
     
     if (!session || !session.user) {
-      console.log('[FLIGHT-DATA] Unauthorized access attempt');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    console.log('[FLIGHT-DATA] Fetching flight data from SharePoint...');
 
     // Fetch CSV content from SharePoint
     const csvContent = await getFileContent('Exp1004.csv');
     
-    console.log('[FLIGHT-DATA] CSV content fetched, parsing data...');
-    
     // Parse CSV data
     const flightRecords = parseCSV(csvContent);
     
-    console.log(`[FLIGHT-DATA] Parsed ${flightRecords.length} flight records`);
-    
-    // Debug: Check sample records
-    const sampleRecords = flightRecords.slice(0, 5);
-    console.log('[FLIGHT-DATA] Sample records:', sampleRecords.map(r => ({
-      flight: r.flightNumber,
-      passengers: r.passengers,
-      blockTime: r.blockTime,
-      cancelled: r.cancelled
-    })));
-    
     // Calculate metrics
     const metrics = calculateMetrics(flightRecords);
-    
-    console.log('[FLIGHT-DATA] Metrics calculated successfully');
     
     // Return the calculated metrics
     return NextResponse.json({

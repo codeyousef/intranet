@@ -7,12 +7,14 @@ interface Birthday {
   name: string
   date: string
   years?: number
+  department?: string
 }
 
 interface Anniversary {
   name: string
   date: string
   years: number
+  department?: string
 }
 
 interface CelebrationsData {
@@ -76,7 +78,7 @@ export function CelebrationsComponent() {
             data.birthdays.map((birthday, index) => (
               <div key={index} className="p-2 bg-white/5 border border-white/10 rounded text-sm">
                 <div className="text-gray-800 dark:text-white">{birthday.name}</div>
-                <div className="text-gray-600 dark:text-white/60 text-xs">{birthday.department} • Today</div>
+                <div className="text-gray-600 dark:text-white/60 text-xs">Today</div>
               </div>
             ))
           ) : (
@@ -85,14 +87,14 @@ export function CelebrationsComponent() {
             </div>
           )}
 
-          {/* Tomorrow's Birthdays */}
-          {data?.tomorrowBirthdays && (
+          {/* Tomorrow's Birthdays - Only show if no birthdays today */}
+          {(!data?.birthdays || data.birthdays.length === 0) && data?.tomorrowBirthdays && data.tomorrowBirthdays.length > 0 && (
             <>
               <div className="mt-2 text-xs font-medium text-gray-700 dark:text-white/70">Tomorrow:</div>
               {data.tomorrowBirthdays.map((birthday, index) => (
                 <div key={`tomorrow-${index}`} className="p-2 bg-white/5 border border-white/10 rounded text-sm">
                   <div className="text-gray-800 dark:text-white">{birthday.name}</div>
-                  <div className="text-gray-600 dark:text-white/60 text-xs">{birthday.department} • Tomorrow</div>
+                  <div className="text-gray-600 dark:text-white/60 text-xs">Tomorrow</div>
                 </div>
               ))}
             </>
@@ -112,7 +114,7 @@ export function CelebrationsComponent() {
               <div key={index} className="p-2 bg-white/5 border border-white/10 rounded text-sm">
                 <div className="text-gray-800 dark:text-white">{anniversary.name}</div>
                 <div className="text-gray-600 dark:text-white/60 text-xs">
-                  {anniversary.years} years • {anniversary.department} • Today
+                  {anniversary.years} years • Today
                 </div>
               </div>
             ))
@@ -122,15 +124,15 @@ export function CelebrationsComponent() {
             </div>
           )}
 
-          {/* Tomorrow's Anniversaries */}
-          {data?.tomorrowAnniversaries && (
+          {/* Tomorrow's Anniversaries - Only show if no anniversaries today */}
+          {(!data?.anniversaries || data.anniversaries.length === 0) && data?.tomorrowAnniversaries && data.tomorrowAnniversaries.length > 0 && (
             <>
               <div className="mt-2 text-xs font-medium text-gray-700 dark:text-white/70">Tomorrow:</div>
               {data.tomorrowAnniversaries.map((anniversary, index) => (
                 <div key={`tomorrow-${index}`} className="p-2 bg-white/5 border border-white/10 rounded text-sm">
                   <div className="text-gray-800 dark:text-white">{anniversary.name}</div>
                   <div className="text-gray-600 dark:text-white/60 text-xs">
-                    {anniversary.years} years • {anniversary.department} • Tomorrow
+                    {anniversary.years} years • Tomorrow
                   </div>
                 </div>
               ))}

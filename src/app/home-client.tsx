@@ -10,7 +10,7 @@ import MazayaOffers from '@/components/mazaya-offers'
 import NewOffersGrid from '@/components/new-offers-grid'
 import { ChatButton } from '@/components/chat-button'
 import PlatformLinks from '@/components/platform-links'
-import { VivaEngage } from '@/components/viva-engage'
+// import { VivaEngage } from '@/components/viva-engage' // COMMENTED OUT
 import { useTheme } from '@/lib/theme-context'
 import { CelebrationsComponent } from '@/components/celebrations'
 import { UpcomingEvents } from '@/components/upcoming-events'
@@ -258,11 +258,11 @@ function DashboardPage() {
         cookiesEnabled: navigator.cookieEnabled,
         windowDimensions: `${window.innerWidth}x${window.innerHeight}`,
         timestamp: new Date().toISOString(),
-        endpoint: '/api/sharepoint/newsletter-iframe'
+        endpoint: '/api/sharepoint/newsletter-list'
       });
 
       // Fetch the newsletter
-      fetch('/api/sharepoint/newsletter-iframe')
+      fetch('/api/sharepoint/newsletter-list')
         .then(response => {
           criticalLog(`Newsletter API response received - Status: ${response.status} ${response.statusText}`);
           infoLog('Response headers', {
@@ -509,8 +509,8 @@ function DashboardPage() {
               {/* Company News */}
               <CompanyNews />
 
-              {/* Viva Engage */}
-              <GlassmorphismContainer className="p-6 mt-6 h-[calc(24rem+1.5rem)]">
+              {/* Viva Engage - COMMENTED OUT */}
+              {/* <GlassmorphismContainer className="p-6 mt-6 h-[calc(24rem+1.5rem)]">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold text-gray-800 flex items-center">
                     <MessageSquare className="w-5 h-5 mr-2 text-flyadeal-yellow" />
@@ -533,7 +533,7 @@ function DashboardPage() {
                   feedType="home"
                   theme={theme}
                 />
-              </GlassmorphismContainer>
+              </GlassmorphismContainer> */}
             </div>
 
             {/* Right Column */}

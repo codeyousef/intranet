@@ -16,43 +16,7 @@ const SHAREPOINT_CONFIG = {
 // Cache for site ID to avoid repeated lookups
 let cachedSiteId: string | null = null;
 
-// Enhanced logging system for troubleshooting
-const logger = {
-  // Always log important information
-  info: (message: string, data?: any) => {
-    console.log(`[SHAREPOINT-INFO] ${message}`, data ? data : '');
-  },
-
-  // Log critical information that should always be visible
-  critical: (message: string, data?: any) => {
-    console.log(`[SHAREPOINT-CRITICAL] ${message}`, data ? data : '');
-  },
-
-  // Log warnings that might indicate potential issues
-  warn: (message: string, data?: any) => {
-    console.warn(`[SHAREPOINT-WARN] ${message}`, data ? data : '');
-  },
-
-  // Log errors with detailed information
-  error: (message: string, data?: any) => {
-    console.error(`[SHAREPOINT-ERROR] ${message}`, data ? data : '');
-  },
-
-  // Log detailed debug information
-  debug: (message: string, data?: any) => {
-    console.log(`[SHAREPOINT-DEBUG] ${message}`, data ? data : '');
-  },
-
-  // Log API request details
-  request: (method: string, url: string, headers?: any, body?: any) => {
-    console.log(`[SHAREPOINT-REQUEST] ${method} ${url}`, { headers, body });
-  },
-
-  // Log API response details
-  response: (url: string, status: number, headers?: any, body?: any) => {
-    console.log(`[SHAREPOINT-RESPONSE] ${url} - Status: ${status}`, { headers, body });
-  }
-};
+// No logging
 
 /**
  * Utility function to retry a fetch operation up to a specified number of times
@@ -74,74 +38,32 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries: num
     (sanitizedOptions.headers as any)['Authorization'] = 'Bearer [TOKEN REDACTED]';
   }
 
-  // Log the request details
-  logger.request(
-    sanitizedOptions.method, 
-    url, 
-    sanitizedOptions.headers,
-    sanitizedOptions.hasBody ? 'Request body present but not logged' : undefined
-  );
-
   const startTime = Date.now();
-  logger.debug(`Starting fetch with retry (max attempts: ${maxRetries})`, { url });
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      logger.debug(`Fetch attempt ${attempt}/${maxRetries} for ${url}`);
-      const attemptStartTime = Date.now();
       const response = await fetch(url, options);
-      const attemptDuration = Date.now() - attemptStartTime;
-
-      // Log response details
-      logger.response(
-        url, 
-        response.status, 
-        {
-          contentType: response.headers.get('content-type'),
-          contentLength: response.headers.get('content-length'),
-          cacheControl: response.headers.get('cache-control')
-        },
-        `Response received in ${attemptDuration}ms`
-      );
 
       // Check if response is successful or if it's a 404 (which we don't want to retry)
       if (response.ok || response.status === 404) {
-        if (response.ok) {
-          logger.debug(`Fetch successful for ${url}`, { status: response.status, attempt });
-        } else {
-          logger.warn(`Received 404 for ${url} - not retrying`, { attempt });
-        }
         return response;
       }
 
       // For other error status codes (500, 429, etc.), we'll retry
       lastResponse = response;
-      logger.warn(`Fetch attempt ${attempt}/${maxRetries} failed for ${url}`, { 
-        status: response.status, 
-        statusText: response.statusText,
-        duration: attemptDuration
-      });
 
       // Only wait if we're going to retry
       if (attempt < maxRetries) {
         const backoffTime = 1000 * attempt;
-        logger.debug(`Backing off for ${backoffTime}ms before retry ${attempt + 1}`);
         // Exponential backoff: wait longer between each retry
         await new Promise(resolve => setTimeout(resolve, backoffTime));
       }
     } catch (error: any) {
       lastError = error;
-      logger.error(`Fetch attempt ${attempt}/${maxRetries} failed with network error`, { 
-        url, 
-        errorName: error.name,
-        errorMessage: error.message,
-        stack: error.stack
-      });
 
       // Only wait if we're going to retry
       if (attempt < maxRetries) {
         const backoffTime = 1000 * attempt;
-        logger.debug(`Backing off for ${backoffTime}ms before retry ${attempt + 1}`);
         // Exponential backoff: wait longer between each retry
         await new Promise(resolve => setTimeout(resolve, backoffTime));
       }
@@ -152,20 +74,8 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries: num
 
   // If we get here, all retries failed
   if (lastResponse) {
-    logger.error(`All ${maxRetries} fetch attempts failed for ${url}`, { 
-      finalStatus: lastResponse.status,
-      totalDuration
-    });
     return lastResponse; // Return the last error response
   }
-
-  logger.error(`All ${maxRetries} fetch attempts failed with network errors for ${url}`, {
-    totalDuration,
-    finalError: lastError ? {
-      name: lastError.name,
-      message: lastError.message
-    } : 'Unknown error'
-  });
 
   throw lastError || new Error(`All fetch attempts failed for ${url}`);
 }
@@ -174,30 +84,21 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries: num
  * Get Graph API token
  */
 async function getGraphToken() {
-  logger.info('Starting Graph API token acquisition process');
 
   // Check if environment variables are set
   if (!process.env.AZURE_AD_TENANT_ID) {
-    logger.error('AZURE_AD_TENANT_ID environment variable is not set');
     throw new Error('AZURE_AD_TENANT_ID environment variable is not set');
   }
 
   if (!process.env.AZURE_AD_CLIENT_ID) {
-    logger.error('AZURE_AD_CLIENT_ID environment variable is not set');
     throw new Error('AZURE_AD_CLIENT_ID environment variable is not set');
   }
 
   if (!process.env.AZURE_AD_CLIENT_SECRET) {
-    logger.error('AZURE_AD_CLIENT_SECRET environment variable is not set');
     throw new Error('AZURE_AD_CLIENT_SECRET environment variable is not set');
   }
 
   const tokenUrl = `https://login.microsoftonline.com/${process.env.AZURE_AD_TENANT_ID}/oauth2/v2.0/token`;
-  logger.debug('Preparing to request Graph API token', { 
-    tokenUrl,
-    tenantId: process.env.AZURE_AD_TENANT_ID,
-    clientId: process.env.AZURE_AD_CLIENT_ID?.substring(0, 5) + '...' // Log only first few chars for security
-  });
 
   const startTime = Date.now();
 
@@ -218,12 +119,6 @@ async function getGraphToken() {
 
     if (!response.ok) {
       const error = await response.text();
-      logger.error('Graph token acquisition failed', { 
-        status: response.status, 
-        statusText: response.statusText,
-        error,
-        duration: Date.now() - startTime
-      });
       throw new Error(`Graph token acquisition failed: ${error}`);
     }
 
@@ -231,31 +126,11 @@ async function getGraphToken() {
 
     // Check if we got an access token
     if (!data.access_token) {
-      logger.error('Graph token response did not contain an access token', { 
-        responseKeys: Object.keys(data),
-        duration: Date.now() - startTime
-      });
       throw new Error('Graph token response did not contain an access token');
     }
 
-    const tokenLength = data.access_token.length;
-    const expiresIn = data.expires_in;
-
-    logger.info('Successfully acquired Graph API token', { 
-      tokenLength,
-      expiresIn,
-      tokenType: data.token_type,
-      duration: Date.now() - startTime
-    });
-
     return data.access_token;
   } catch (error: any) {
-    // This catch block handles any errors not caught in the try block
-    logger.error('Unexpected error during Graph token acquisition', {
-      errorMessage: error.message,
-      stack: error.stack,
-      duration: Date.now() - startTime
-    });
     throw error;
   }
 }
@@ -268,11 +143,9 @@ async function getGraphToken() {
 async function getSiteId(token: string): Promise<string> {
   // Return cached site ID if available
   if (cachedSiteId) {
-    logger.debug('Using cached site ID', { siteId: cachedSiteId });
     return cachedSiteId;
   }
 
-  logger.info('Getting SharePoint site ID');
   
   // Construct the URL to get site info
   const siteInfoUrl = `https://graph.microsoft.com/v1.0/sites/${SHAREPOINT_CONFIG.hostname}:${SHAREPOINT_CONFIG.sitePath}`;
@@ -290,31 +163,17 @@ async function getSiteId(token: string): Promise<string> {
   
   if (!response.ok) {
     const errorText = await response.text();
-    logger.error(`Failed to get site information`, {
-      status: response.status,
-      statusText: response.statusText,
-      error: errorText
-    });
     throw new Error(`Failed to get site information: ${errorText}`);
   }
   
   const siteData = await response.json();
   
   if (!siteData.id) {
-    logger.error('Site response did not contain an ID', {
-      responseKeys: Object.keys(siteData)
-    });
     throw new Error('Site response did not contain an ID');
   }
   
   // Cache the site ID
   cachedSiteId = siteData.id;
-  
-  logger.info('Successfully retrieved site ID', {
-    siteId: siteData.id,
-    siteName: siteData.name,
-    webUrl: siteData.webUrl
-  });
   
   return siteData.id;
 }
@@ -333,7 +192,6 @@ async function withGraphToken<T>(
   while (retryCount <= maxRetries) {
     try {
       if (retryCount > 0) {
-        logger.info(`SharePoint operation retry attempt ${retryCount} of ${maxRetries}...`);
         // Add exponential backoff delay between retries
         await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount - 1)));
       }
@@ -358,13 +216,11 @@ async function withGraphToken<T>(
       
       // If we've reached max retries, or it's not a retryable error, throw the error
       if (retryCount >= maxRetries || !isRetryableError) {
-        logger.error('SharePoint operation failed after', retryCount > 0 ? `${retryCount} retries:` : 'initial attempt:', error.message);
         // Add retry information to the error object
         error.retryAttempts = retryCount;
         throw error;
       }
       
-      logger.warn(`SharePoint operation error (attempt ${retryCount + 1}/${maxRetries + 1}):`, error.message);
       retryCount++;
     }
   }
@@ -390,7 +246,6 @@ export async function getFileContent(fileName: string): Promise<string> {
     // For files in the default document library, don't include "Shared Documents" in the path
     const fileUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root:/${encodedFileName}:/content`;
     
-    logger.info(`Retrieving file content from SharePoint: ${fileName}`);
     
     const response = await fetchWithRetry(
       fileUrl,
@@ -405,21 +260,11 @@ export async function getFileContent(fileName: string): Promise<string> {
     
     if (!response.ok) {
       const errorText = await response.text();
-      logger.error(`Failed to retrieve file from SharePoint: ${fileName}`, {
-        status: response.status,
-        statusText: response.statusText,
-        error: errorText
-      });
-      
       throw new Error(`Failed to retrieve file from SharePoint: ${errorText}`);
     }
     
     // Get the content as text
     const content = await response.text();
-    logger.info(`Successfully retrieved file from SharePoint: ${fileName}`, {
-      contentLength: content.length
-    });
-    
     return content;
   });
 }
@@ -444,7 +289,6 @@ export async function listFiles(folderPath: string = ''): Promise<any[]> {
       listUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root:/${encodedPath}:/children`;
     }
     
-    logger.info(`Listing files in SharePoint folder: ${folderPath || 'root'}`);
     
     const response = await fetchWithRetry(
       listUrl,
@@ -459,27 +303,14 @@ export async function listFiles(folderPath: string = ''): Promise<any[]> {
     
     if (!response.ok) {
       const errorText = await response.text();
-      logger.error(`Failed to list files in SharePoint folder: ${folderPath}`, {
-        status: response.status,
-        statusText: response.statusText,
-        error: errorText
-      });
-      
       throw new Error(`Failed to list files in SharePoint folder: ${errorText}`);
     }
     
     const data = await response.json();
     
     if (!data.value || !Array.isArray(data.value)) {
-      logger.error(`Invalid response format when listing files in SharePoint folder: ${folderPath}`, {
-        responseKeys: Object.keys(data)
-      });
       throw new Error('Invalid response format when listing files');
     }
-    
-    logger.info(`Successfully listed files in SharePoint folder: ${folderPath}`, {
-      fileCount: data.value.length
-    });
     
     return data.value;
   });

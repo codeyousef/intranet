@@ -10,7 +10,7 @@ import MazayaOffers from '@/components/mazaya-offers'
 import NewOffersGrid from '@/components/new-offers-grid'
 import { ChatButton } from '@/components/chat-button'
 import PlatformLinks from '@/components/platform-links'
-import { VivaEngage } from '@/components/viva-engage'
+// import { VivaEngage } from '@/components/viva-engage' // COMMENTED OUT
 import { useTheme } from '@/lib/theme-context'
 import { CelebrationsComponent } from '@/components/celebrations'
 import { UpcomingEvents } from '@/components/upcoming-events'
@@ -48,10 +48,10 @@ const globalNewsletterLoaded = {
 };
 
 // Debounce mechanism to prevent rapid successive fetches
-const lastFetchAttempt = { 
-  timestamp: 0,
-  minInterval: 5000 // Minimum 5 seconds between fetch attempts
+const lastFetchAttemptRef = { 
+  current: 0
 };
+const MIN_FETCH_INTERVAL = 5000; // Minimum 5 seconds between fetch attempts
 
 function LoginPage() {
   const [error, setError] = useState<string | null>(null)
@@ -115,23 +115,37 @@ function LoginPage() {
 function DashboardPage() {
   const { theme } = useTheme()
   const { data: session } = useSession()
-  const [currentTime, setCurrentTime] = useState(null)
+  const [currentTime, setCurrentTime] = useState<Date | null>(null)
   const [weather] = useState({ temp: 32, condition: 'Sunny', location: 'Riyadh' })
   const [newsletterModalOpen, setNewsletterModalOpen] = useState(false)
   const [newsletter, setNewsletter] = useState<any>(null)
   const [newsletterError, setNewsletterError] = useState<string | null>(null)
-  const [isClient, setIsClient] = useState(false)
   const [flightMetrics, setFlightMetrics] = useState<any>(null)
 
-  // Set isClient to true on mount to track if we're on the client
-  useEffect(() => {
-    setIsClient(true)
-  }, [])
+  // Format date range for display
+  const getDateRangeText = () => {
+    if (!flightMetrics?.dateRange?.actualDate) {
+      return 'Loading...';
+    }
+    
+    // Parse the actual date used (MM/DD/YYYY format)
+    const [month, day, year] = flightMetrics.dateRange.actualDate.split('/').map(Number);
+    const actualDate = new Date(year, month - 1, day);
+    
+    // Check if it's yesterday
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const isYesterday = actualDate.toDateString() === yesterday.toDateString();
+    
+    if (isYesterday) {
+      return `Yesterday (${actualDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`;
+    } else {
+      return actualDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+  }
   
   // Fetch flight metrics when component mounts
   useEffect(() => {
-    if (!isClient) return;
-    
     fetch('/api/flight-data')
       .then(response => {
         if (!response.ok) {
@@ -149,7 +163,7 @@ function DashboardPage() {
       .catch(error => {
         console.error('Error fetching flight data:', error)
       })
-  }, [isClient])
+  }, [])
 
 
   // Function to reset newsletter loading state and force a fresh fetch
@@ -159,7 +173,7 @@ function DashboardPage() {
     // Only run this on the client side
     if (typeof window !== 'undefined') {
       globalNewsletterLoaded.current = false
-      lastFetchAttempt.timestamp = 0 // Reset the debounce timestamp
+      lastFetchAttemptRef.current = 0 // Reset the debounce timestamp
       setNewsletterError(null) // Clear any error state
 
       localStorage.removeItem('newsletterLoaded')
@@ -175,113 +189,61 @@ function DashboardPage() {
   }
 
   useEffect(() => {
-    // Set initial time
-    setCurrentTime(new Date())
-    // Update time every second
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000)
-    return () => clearInterval(timer)
+    // Only set time on client side
+    if (typeof window !== 'undefined') {
+      // Set initial time
+      setCurrentTime(new Date())
+      // Update time every second
+      const timer = setInterval(() => setCurrentTime(new Date()), 1000)
+      return () => clearInterval(timer)
+    }
   }, [])
 
   // Newsletter loading effect - only runs on client side
   useEffect(() => {
+    console.log('[NEWSLETTER] useEffect triggered');
+    
     // Skip this effect during server-side rendering
     if (typeof window === 'undefined') {
+      console.log('[NEWSLETTER] Skipped - server-side rendering');
       return;
     }
+    
+    // Also skip if no session
+    if (!session) {
+      console.log('[NEWSLETTER] Skipped - no session');
+      return;
+    }
+    
+    console.log('[NEWSLETTER] Effect running with session:', session?.user?.email);
 
-    // Create enhanced logging functions - all info logs removed as requested
-    const debugLog = (message, ...args) => {
-      // No-op function - debug logs removed
-    };
-
-    // Critical logs removed as requested
-    const criticalLog = (message, ...args) => {
-      // No-op function - critical logs removed
-    };
-
-    // Info logs removed as requested
-    const infoLog = (message, ...args) => {
-      // No-op function - info logs removed
-    };
-
-    // Error logs are always shown
+    // Newsletter logging
     const errorLog = (message, ...args) => {
       console.error(`[NEWSLETTER-ERROR] ${message}`, ...args);
     };
 
-    // Check if newsletter has already been loaded in this session
-    const newsletterLoaded = localStorage.getItem('newsletterLoaded') === 'true';
-    globalNewsletterLoaded.current = newsletterLoaded;
-    infoLog(`Newsletter loading state check: ${newsletterLoaded ? 'Already loaded' : 'Not loaded yet'}`);
-
-    if (newsletterLoaded) {
-      debugLog('🔍 Newsletter already loaded in this session, checking localStorage for data');
-      infoLog('Attempting to load newsletter from localStorage');
-
-      // Try to get newsletter data from localStorage
-      const storedNewsletter = localStorage.getItem('newsletterData');
-      if (storedNewsletter) {
-        try {
-          const parsedNewsletter = JSON.parse(storedNewsletter);
-          setNewsletter(parsedNewsletter);
-          debugLog('✅ Loaded newsletter data from localStorage', parsedNewsletter);
-          infoLog('Successfully loaded newsletter from localStorage', {
-            title: parsedNewsletter.title,
-            contentLength: parsedNewsletter.content?.length || 0,
-            lastUpdated: parsedNewsletter.lastUpdated,
-            source: parsedNewsletter.source
-          });
-        } catch (error) {
-          debugLog('❌ Error parsing newsletter data from localStorage', error);
-          errorLog('Failed to parse newsletter data from localStorage', error);
-          setNewsletterError('Error loading saved newsletter data. Please try refreshing the page.');
-        }
-      } else {
-        infoLog('No newsletter data found in localStorage despite loaded flag being set');
-      }
-
-      return;
-    }
-
-    // Check URL parameters for force_fetch flag
-    const forceFetch = new URLSearchParams(window.location.search).get('force_fetch') === 'true';
-
-    infoLog(`Force fetch parameter check: ${forceFetch ? 'Force fetch requested' : 'Normal fetch flow'}`);
-
-    // If newsletter hasn't been loaded or force_fetch is true, fetch it
-    if (!globalNewsletterLoaded.current || forceFetch) {
+    // Function to fetch newsletter
+    const fetchNewsletter = () => {
       // Implement debounce to prevent rapid successive fetches
       const now = Date.now();
-      if (now - lastFetchAttempt.timestamp < lastFetchAttempt.minInterval) {
-        debugLog('🔒 Fetch attempt too soon after previous attempt, skipping');
-        infoLog(`Debounce protection triggered - last attempt was ${now - lastFetchAttempt.timestamp}ms ago (minimum interval: ${lastFetchAttempt.minInterval}ms)`);
+      if (lastFetchAttemptRef.current > 0 && now - lastFetchAttemptRef.current < MIN_FETCH_INTERVAL) {
+        console.log('[NEWSLETTER] Debounce protection - skipping fetch');
         return;
       }
 
-      lastFetchAttempt.timestamp = now;
-      debugLog('🔄 Fetching newsletter from API');
-      criticalLog(`Initiating newsletter fetch from API at ${new Date().toISOString()}`);
-
-      // Log browser and environment information for troubleshooting
-      infoLog('Environment information', {
-        userAgent: navigator.userAgent,
-        language: navigator.language,
-        cookiesEnabled: navigator.cookieEnabled,
-        windowDimensions: `${window.innerWidth}x${window.innerHeight}`,
-        timestamp: new Date().toISOString(),
-        endpoint: '/api/sharepoint/newsletter-iframe'
-      });
+      lastFetchAttemptRef.current = now;
+      console.log('[NEWSLETTER] Starting fetch from API...');
 
       // Fetch the newsletter
-      fetch('/api/sharepoint/newsletter-iframe')
+      console.log('[NEWSLETTER] Fetching from /api/sharepoint/newsletter-list');
+      fetch('/api/sharepoint/newsletter-list', {
+        credentials: 'same-origin', // Include cookies for authentication
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
         .then(response => {
-          criticalLog(`Newsletter API response received - Status: ${response.status} ${response.statusText}`);
-          infoLog('Response headers', {
-            contentType: response.headers.get('content-type'),
-            contentLength: response.headers.get('content-length'),
-            cacheControl: response.headers.get('cache-control'),
-            etag: response.headers.get('etag')
-          });
+          console.log('[NEWSLETTER] Response received:', response.status, response.statusText);
 
           if (!response.ok) {
             errorLog(`API returned error status: ${response.status} ${response.statusText}`);
@@ -312,22 +274,16 @@ function DashboardPage() {
           return response.json();
         })
         .then(data => {
-          infoLog('Newsletter API response data', {
+          console.log('[NEWSLETTER] Data received:', {
             success: data.success,
             hasNewsletter: !!data.newsletter,
-            error: data.error || 'none',
-            details: data.details || 'none'
+            error: data.error || 'none'
           });
 
           if (data.success && data.newsletter) {
-            debugLog('✅ Newsletter fetched successfully', data.newsletter);
-            criticalLog(`Newsletter fetch successful - Content length: ${data.newsletter.content?.length || 0} characters`);
-            infoLog('Newsletter metadata', {
+            console.log('[NEWSLETTER] Fetch successful:', {
               title: data.newsletter.title,
-              lastUpdated: data.newsletter.lastUpdated,
-              source: data.newsletter.source,
-              type: data.newsletter.type,
-              sharePointUrl: data.newsletter.sharePointUrl || 'none'
+              contentLength: data.newsletter.content?.length || 0
             });
 
             setNewsletter(data.newsletter);
@@ -336,7 +292,7 @@ function DashboardPage() {
             localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
             localStorage.setItem('newsletterLoaded', 'true');
             globalNewsletterLoaded.current = true;
-            infoLog('Newsletter data saved to localStorage');
+            console.log('[NEWSLETTER] Data saved to localStorage');
           } else {
             errorLog('API returned success:false or missing newsletter data', {
               success: data.success,
@@ -346,32 +302,24 @@ function DashboardPage() {
 
             // If there's a newsletter object in the error response, log its details
             if (data.newsletter) {
-              infoLog('Error response included newsletter fallback content', {
-                title: data.newsletter.title,
-                contentLength: data.newsletter.content?.length || 0,
-                source: data.newsletter.source
-              });
+              console.log('[NEWSLETTER] Error response included fallback content');
             }
 
             throw new Error(data.error || 'Unknown error fetching newsletter');
           }
         })
         .catch(error => {
-          debugLog('❌ Error fetching newsletter', error);
-          errorLog(`Newsletter fetch failed: ${error.message}`, {
-            stack: error.stack,
-            timestamp: new Date().toISOString()
-          });
+          errorLog(`Newsletter fetch failed: ${error.message}`);
 
           // Check if it's a network error
           if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-            criticalLog('Network error detected - possible connectivity issue or CORS problem');
+            console.log('[NEWSLETTER] Network error detected');
 
             // Provide a fallback for network errors too
             setNewsletter({
               title: "Newsletter Temporarily Unavailable",
               content: "<div style='text-align: center; padding: 20px;'><p>Unable to connect to the newsletter service.</p><p>This could be due to network connectivity issues.</p><p>Please check your connection and try again later.</p></div>",
-              lastUpdated: new Date().toISOString(),
+              lastUpdated: typeof window !== 'undefined' ? new Date().toISOString() : 'unknown',
               source: "system"
             });
 
@@ -392,7 +340,7 @@ function DashboardPage() {
               <p>Please try again later or contact IT support if the issue persists.</p>
               <p><small>Error details: ${error.message}</small></p>
             </div>`,
-            lastUpdated: new Date().toISOString(),
+            lastUpdated: typeof window !== 'undefined' ? new Date().toISOString() : 'unknown',
             source: "system"
           });
 
@@ -403,11 +351,64 @@ function DashboardPage() {
           localStorage.setItem('newsletterLoaded', 'true');
           globalNewsletterLoaded.current = true;
         });
-    } else {
-      debugLog('🔍 Newsletter already loaded in this session, skipping fetch');
-      infoLog('Newsletter fetch skipped - already loaded in this session');
+    };
+
+    // Check if newsletter has already been loaded in this session
+    const newsletterLoaded = localStorage.getItem('newsletterLoaded') === 'true';
+    globalNewsletterLoaded.current = newsletterLoaded;
+    console.log('[NEWSLETTER] Loading state check:', newsletterLoaded ? 'Already loaded' : 'Not loaded yet');
+
+    if (newsletterLoaded) {
+      console.log('[NEWSLETTER] Already loaded in localStorage, checking for cached data...');
+
+      // Try to get newsletter data from localStorage
+      const storedNewsletter = localStorage.getItem('newsletterData');
+      if (storedNewsletter) {
+        try {
+          const parsedNewsletter = JSON.parse(storedNewsletter);
+          setNewsletter(parsedNewsletter);
+          console.log('[NEWSLETTER] Loaded from localStorage:', {
+            title: parsedNewsletter.title,
+            contentLength: parsedNewsletter.content?.length || 0
+          });
+        } catch (error) {
+          errorLog('Failed to parse newsletter data from localStorage', error);
+          setNewsletterError('Error loading saved newsletter data. Please try refreshing the page.');
+        }
+      } else {
+        console.log('[NEWSLETTER] No data found in localStorage despite loaded flag being set - clearing flag');
+        // Clear the flag since we don't have the actual data
+        localStorage.removeItem('newsletterLoaded');
+        globalNewsletterLoaded.current = false;
+        
+        // Trigger a fetch since we don't have the data
+        console.log('[NEWSLETTER] Triggering fetch due to missing data');
+        fetchNewsletter();
+      }
+
+      return;
     }
-  }, [session, isClient]) // Add isClient as a dependency to ensure this only runs on the client
+
+    // Check URL parameters for force_fetch flag
+    const forceFetch = new URLSearchParams(window.location.search).get('force_fetch') === 'true';
+    const clearCache = new URLSearchParams(window.location.search).get('clear_cache') === 'true';
+    
+    if (clearCache) {
+      console.log('Clear cache requested - removing newsletter data from localStorage');
+      localStorage.removeItem('newsletterLoaded');
+      localStorage.removeItem('newsletterData');
+      globalNewsletterLoaded.current = false;
+    }
+
+    console.log('[NEWSLETTER] Force fetch:', forceFetch, 'Clear cache:', clearCache);
+
+    // If newsletter hasn't been loaded or force_fetch is true, fetch it
+    if (!globalNewsletterLoaded.current || forceFetch) {
+      fetchNewsletter();
+    } else {
+      console.log('[NEWSLETTER] Already loaded in this session - skipping fetch');
+    }
+  }, [session]) // Session dependency to re-run when auth changes
 
   return (
     <div>
@@ -437,14 +438,14 @@ function DashboardPage() {
                   </div>
                   <div>
                     <div className="text-gray-800 text-lg font-semibold">
-                      {isClient && currentTime ? currentTime.toLocaleTimeString('en-US', { 
+                      {currentTime ? currentTime.toLocaleTimeString('en-US', { 
                         hour: '2-digit', 
                         minute: '2-digit',
                         hour12: true 
                       }) : '--:--'}
                     </div>
                     <div className="text-gray-600 text-sm">
-                      {isClient && currentTime ? currentTime.toLocaleDateString('en-US', { 
+                      {currentTime ? currentTime.toLocaleDateString('en-US', { 
                         weekday: 'long',
                         year: 'numeric',
                         month: 'long',
@@ -467,6 +468,7 @@ function DashboardPage() {
                 <div>
                   <p className="text-gray-600 text-sm">On-Time Performance</p>
                   <p className="text-2xl font-bold text-flyadeal-bright-green">{flightMetrics ? `${flightMetrics.onTimePerformance}%` : '...'}</p>
+                  <p className="text-xs text-gray-500 mt-1">{getDateRangeText()}</p>
                 </div>
                 <TrendingUp className="w-8 h-8 text-flyadeal-bright-green/60" />
               </div>
@@ -477,6 +479,7 @@ function DashboardPage() {
                 <div>
                   <p className="text-gray-600 text-sm">Flying Hours</p>
                   <p className="text-2xl font-bold text-flyadeal-yellow">{flightMetrics ? flightMetrics.flyingHours.toLocaleString() : '...'}</p>
+                  <p className="text-xs text-gray-500 mt-1">{getDateRangeText()}</p>
                 </div>
                 <Clock className="w-8 h-8 text-flyadeal-yellow/60" />
               </div>
@@ -487,6 +490,7 @@ function DashboardPage() {
                 <div>
                   <p className="text-gray-600 text-sm">Avg Load Factor</p>
                   <p className="text-2xl font-bold text-flyadeal-bright-green">{flightMetrics ? `${flightMetrics.loadFactor}%` : '...'}</p>
+                  <p className="text-xs text-gray-500 mt-1">{getDateRangeText()}</p>
                 </div>
                 <BarChart3 className="w-8 h-8 text-flyadeal-bright-green/60" />
               </div>
@@ -497,6 +501,7 @@ function DashboardPage() {
                 <div>
                   <p className="text-gray-600 text-sm">Guests Carried</p>
                   <p className="text-2xl font-bold text-flyadeal-yellow">{flightMetrics ? `${flightMetrics.guestsCarried}K` : '...'}</p>
+                  <p className="text-xs text-gray-500 mt-1">{getDateRangeText()}</p>
                 </div>
                 <Users className="w-8 h-8 text-flyadeal-yellow/60" />
               </div>
@@ -507,6 +512,7 @@ function DashboardPage() {
                 <div>
                   <p className="text-gray-600 text-sm">Total Flights</p>
                   <p className="text-2xl font-bold text-flyadeal-yellow">{flightMetrics ? flightMetrics.totalFlights.toLocaleString() : '...'}</p>
+                  <p className="text-xs text-gray-500 mt-1">{getDateRangeText()}</p>
                 </div>
                 <Plane className="w-8 h-8 text-flyadeal-yellow/60" />
               </div>
@@ -517,96 +523,208 @@ function DashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column */}
             <div className="lg:col-span-2 space-y-6">
-              {/* CEO Newsletter - Temporarily commented out while troubleshooting Viva Engage */}
-              {false && (
-                <GlassmorphismContainer className="p-6 h-[calc(36rem+1.5rem)]">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                      <Mail className="w-5 h-5 mr-2 text-flyadeal-yellow" />
-                      CEO Newsletter
-                    </h2>
-                    <div className="flex items-center space-x-2">
-                      <div className="flex space-x-2">
-                        <Button
-                          onClick={() => window.location.href = '/newsletter-archive'}
-                          size="sm"
-                          variant="outline"
-                          className={theme === 'dark' 
-                            ? "bg-gray-700/30 border-gray-400 text-gray-200 hover:bg-gray-600/50" 
-                            : "bg-white/10 border-gray-300 text-gray-700 hover:bg-gray-100"
-                          }
-                        >
-                          <Newspaper className={`w-4 h-4 mr-1 ${theme === 'dark' ? 'text-gray-200' : ''}`} />
-                          Archive
-                        </Button>
-                        <Button
-                          onClick={() => setNewsletterModalOpen(true)}
-                          size="sm"
-                          className="bg-flyadeal-yellow text-flyadeal-purple hover:bg-flyadeal-yellow/90"
-                        >
-                          <Maximize2 className="w-4 h-4 mr-1" />
-                          View Full
-                        </Button>
-                      </div>
+              {/* CEO Newsletter */}
+              <GlassmorphismContainer className="p-4 sm:p-6 h-[calc(32rem+1.5rem)] sm:h-[calc(36rem+1.5rem)]">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-800 flex items-center">
+                    <Mail className="w-5 h-5 mr-2 text-flyadeal-yellow" />
+                    <span className="hidden sm:inline">CEO Newsletter</span>
+                    <span className="sm:hidden">Newsletter</span>
+                  </h2>
+                  <div className="flex items-center space-x-1 sm:space-x-2">
+                    <div className="flex space-x-1 sm:space-x-2">
+                      <Button
+                        onClick={() => window.location.href = '/newsletter-archive'}
+                        size="sm"
+                        variant="outline"
+                        className={`${theme === 'dark' 
+                          ? "bg-gray-700/30 border-gray-400 text-gray-200 hover:bg-gray-600/50" 
+                          : "bg-white/10 border-gray-300 text-gray-700 hover:bg-gray-100"
+                        } px-2 sm:px-3`}
+                      >
+                        <Newspaper className={`w-4 h-4 sm:mr-1 ${theme === 'dark' ? 'text-gray-200' : ''}`} />
+                        <span className="hidden sm:inline">Archive</span>
+                      </Button>
+                      <Button
+                        onClick={() => setNewsletterModalOpen(true)}
+                        size="sm"
+                        className="bg-flyadeal-yellow text-flyadeal-purple hover:bg-flyadeal-yellow/90 px-2 sm:px-3"
+                      >
+                        <Maximize2 className="w-4 h-4 sm:mr-1" />
+                        <span className="hidden sm:inline">View Full</span>
+                      </Button>
                     </div>
                   </div>
+                </div>
 
-                  {/* Newsletter Content */}
-                  <div className="bg-white rounded-lg overflow-hidden h-[calc(100%-2.5rem)]">
-                    {newsletterError ? (
-                      // Error state - show error message with retry button
-                      <div className="h-full flex items-center justify-center text-gray-500">
-                        <div className="text-center p-6 max-w-md">
-                          <X className="w-12 h-12 mx-auto mb-4 text-red-400" />
-                          <p className="mb-2 text-red-500 font-medium">Error loading newsletter</p>
+                {/* Newsletter Content */}
+                <div className="bg-white rounded-lg overflow-hidden h-[calc(100%-2.5rem)] w-full">
+                  {newsletterError ? (
+                    // Error state - show error message with retry button
+                    <div className="h-full flex items-center justify-center text-gray-500">
+                      <div className="text-center p-6 max-w-md">
+                        <X className="w-12 h-12 mx-auto mb-4 text-red-400" />
+                        <p className="mb-2 text-red-500 font-medium">Error loading newsletter</p>
 
-                          {/* Split error message and troubleshooting into separate elements */}
-                          {newsletterError && (
-                            <>
-                              <div className="mb-4 text-sm text-gray-600 bg-gray-100 p-3 rounded-md text-left">
-                                {newsletterError.split('\n\n').map((part, index) => (
-                                  <div key={index} className={index === 1 ? 'mt-3 pt-3 border-t border-gray-200' : ''}>
-                                    {part}
-                                  </div>
-                                ))}
-                              </div>
-                            </>
-                          )}
+                        {/* Split error message and troubleshooting into separate elements */}
+                        {newsletterError && (
+                          <>
+                            <div className="mb-4 text-sm text-gray-600 bg-gray-100 p-3 rounded-md text-left">
+                              {newsletterError.split('\n\n').map((part, index) => (
+                                <div key={index} className={index === 1 ? 'mt-3 pt-3 border-t border-gray-200' : ''}>
+                                  {part}
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
 
-                          <div className="flex justify-center space-x-3">
-                            <Button 
-                              onClick={resetNewsletterLoadingState}
-                              size="sm"
-                              className="bg-flyadeal-yellow text-flyadeal-purple hover:bg-flyadeal-yellow/90"
-                            >
-                              Retry
-                            </Button>
+                        <div className="flex justify-center space-x-3">
+                          <Button 
+                            onClick={resetNewsletterLoadingState}
+                            size="sm"
+                            className="bg-flyadeal-yellow text-flyadeal-purple hover:bg-flyadeal-yellow/90"
+                          >
+                            Retry
+                          </Button>
 
-                          </div>
                         </div>
                       </div>
-                    ) : newsletter ? (
-                      // Success state - show newsletter content with scrollable area
-                      <div className="h-full overflow-y-auto">
-                        <div className="p-6">
-                          <div 
-                            dangerouslySetInnerHTML={{ __html: newsletter.content }}
-                            style={{ color: '#374151' }}
-                          />
-                        </div>
+                    </div>
+                  ) : newsletter ? (
+                    // Success state - show newsletter content with scrollable area
+                    <div className="h-full overflow-y-auto overflow-x-hidden">
+                      <div className="px-3 pb-3 pt-0 sm:px-6 sm:pb-6 sm:pt-0 newsletter-content-wrapper" style={{ paddingTop: 0 }}>
+                        <style jsx global>{`
+                          .newsletter-content > *:first-child {
+                            margin-top: 0 !important;
+                            padding-top: 0 !important;
+                          }
+                          
+                          /* Remove margins from nested first elements */
+                          .newsletter-content > * > *:first-child {
+                            margin-top: 0 !important;
+                            padding-top: 0 !important;
+                          }
+                          
+                          @media (max-width: 640px) {
+                            /* Remove padding from wrapper on mobile */
+                            .newsletter-content-wrapper {
+                              padding-top: 0 !important;
+                            }
+                            
+                            /* Reset to normal positioning */
+                            .newsletter-content {
+                              margin-top: 0 !important;
+                              padding-top: 0 !important;
+                            }
+                            
+                            /* Target all possible first elements with more specificity */
+                            .newsletter-content > :first-child,
+                            .newsletter-content > * > :first-child,
+                            .newsletter-content p:first-of-type,
+                            .newsletter-content div:first-of-type,
+                            .newsletter-content table:first-of-type,
+                            .newsletter-content *[style*="margin-top"],
+                            .newsletter-content *[style*="padding-top"] {
+                              margin-top: 0 !important;
+                              padding-top: 0 !important;
+                            }
+                            
+                            /* Hide empty paragraphs and divs at the start */
+                            .newsletter-content > p:empty,
+                            .newsletter-content > div:empty,
+                            .newsletter-content > br:first-child,
+                            .newsletter-content > p:first-child:empty,
+                            .newsletter-content > div:first-child:empty {
+                              display: none !important;
+                            }
+                            
+                            .newsletter-content * {
+                              max-width: 100% !important;
+                            }
+                            .newsletter-content img {
+                              height: auto !important;
+                            }
+                            .newsletter-content table {
+                              width: 100% !important;
+                              table-layout: fixed !important;
+                            }
+                            .newsletter-content [style*="width"] {
+                              width: 100% !important;
+                              max-width: 100% !important;
+                            }
+                          }
+                        `}</style>
+                        <div 
+                          className="newsletter-content"
+                          ref={(el) => {
+                            if (el && window.innerWidth <= 640) {
+                              // Wait for content to render
+                              setTimeout(() => {
+                                // More aggressive empty element removal
+                                let modified = true;
+                                while (modified) {
+                                  modified = false;
+                                  const firstChild = el.firstElementChild as HTMLElement;
+                                  
+                                  if (firstChild) {
+                                    const text = firstChild.textContent?.trim() || '';
+                                    const isEmptyOrWhitespace = !text || text === '\u00A0' || text === '&nbsp;';
+                                    const isOnlyBr = firstChild.tagName === 'BR';
+                                    const hasOnlyEmptyChildren = firstChild.children.length > 0 && 
+                                      Array.from(firstChild.children).every(child => 
+                                        !(child as HTMLElement).textContent?.trim()
+                                      );
+                                    
+                                    if (isEmptyOrWhitespace || isOnlyBr || hasOnlyEmptyChildren) {
+                                      firstChild.remove();
+                                      modified = true;
+                                    } else {
+                                      // Found real content, force remove all spacing
+                                      firstChild.style.marginTop = '0';
+                                      firstChild.style.paddingTop = '0';
+                                      firstChild.style.marginBlockStart = '0';
+                                      firstChild.style.paddingBlockStart = '0';
+                                      
+                                      // Also check first child of first child
+                                      const nestedFirst = firstChild.firstElementChild as HTMLElement;
+                                      if (nestedFirst) {
+                                        nestedFirst.style.marginTop = '0';
+                                        nestedFirst.style.paddingTop = '0';
+                                        nestedFirst.style.marginBlockStart = '0';
+                                        nestedFirst.style.paddingBlockStart = '0';
+                                      }
+                                    }
+                                  }
+                                }
+                                
+                                // Also force the wrapper to have no top padding
+                                const wrapper = el.parentElement;
+                                if (wrapper) {
+                                  wrapper.style.paddingTop = '0';
+                                }
+                              }, 50);
+                            }
+                          }}
+                          dangerouslySetInnerHTML={{ __html: newsletter.content }}
+                          style={{ 
+                            color: '#374151'
+                          }}
+                        />
                       </div>
-                    ) : (
-                      // Loading state
-                      <div className="h-full flex items-center justify-center text-gray-500">
-                        <div className="text-center">
-                          <Mail className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                          <p>Loading newsletter...</p>
-                        </div>
+                    </div>
+                  ) : (
+                    // Loading state
+                    <div className="h-full flex items-center justify-center text-gray-500">
+                      <div className="text-center">
+                        <Mail className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                        <p>Loading newsletter...</p>
                       </div>
-                    )}
-                  </div>
-                </GlassmorphismContainer>
-              )}
+                    </div>
+                  )}
+                </div>
+              </GlassmorphismContainer>
 
 
               {/* Company News */}
@@ -618,8 +736,8 @@ function DashboardPage() {
                 <AllIdeasMatter />
               </div>
 
-              {/* Viva Engage */}
-              <GlassmorphismContainer className="p-6 mt-6 h-[calc(24rem+1.5rem)]">
+              {/* Viva Engage - COMMENTED OUT */}
+              {/* <GlassmorphismContainer className="p-6 mt-6 h-[calc(24rem+1.5rem)]">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold text-gray-800 flex items-center">
                     <MessageSquare className="w-5 h-5 mr-2 text-flyadeal-yellow" />
@@ -642,7 +760,7 @@ function DashboardPage() {
                   feedType="home"
                   theme={theme}
                 />
-              </GlassmorphismContainer>
+              </GlassmorphismContainer> */}
             </div>
 
             {/* Right Column */}
@@ -679,8 +797,8 @@ function DashboardPage() {
         </div>
       </main>
 
-      {/* Newsletter Modal - Temporarily commented out while troubleshooting Viva Engage */}
-      {false && newsletterModalOpen && (
+      {/* Newsletter Modal */}
+      {newsletterModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b bg-flyadeal-purple">
@@ -728,11 +846,42 @@ function DashboardPage() {
               ) : newsletter ? (
                 // Success state - show newsletter content
                 <>
+                  <style jsx global>{`
+                    .newsletter-modal-content {
+                      width: 100%;
+                      overflow-x: hidden;
+                    }
+                    
+                    .newsletter-modal-content * {
+                      max-width: 100% !important;
+                      box-sizing: border-box !important;
+                    }
+                    
+                    .newsletter-modal-content img {
+                      height: auto !important;
+                    }
+                    
+                    .newsletter-modal-content table {
+                      width: 100% !important;
+                      table-layout: fixed !important;
+                    }
+                    
+                    .newsletter-modal-content [style*="width"] {
+                      width: 100% !important;
+                      max-width: 100% !important;
+                    }
+                    
+                    @media (max-width: 640px) {
+                      .newsletter-modal-content {
+                        font-size: 14px;
+                      }
+                    }
+                  `}</style>
                   <div 
-                    className="prose max-w-none"
+                    className="newsletter-modal-content"
                     dangerouslySetInnerHTML={{ __html: newsletter.content }}
                     style={{
-                      color: '#374151',
+                      color: '#374151'
                     }}
                   />
                   <div className="mt-6 p-4 bg-gray-50 rounded-lg text-sm text-gray-600">

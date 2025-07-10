@@ -25,39 +25,16 @@ async function openDb() {
 async function isAdmin(email) {
   try {
     if (!email) {
-      console.log('No email provided for admin check');
       return false;
     }
 
-    console.log('Checking admin status for email:', email);
     const db = await openDb();
-
-    // First, log all admin users to see what's in the database
-    const allAdmins = await db.all('SELECT * FROM admin_users');
-    console.log('All admin users in database:', allAdmins);
 
     // Convert email to lowercase for case-insensitive comparison
     const emailLower = email.toLowerCase();
-    console.log('Lowercase email for comparison:', emailLower);
 
     // Try case-insensitive comparison using LOWER function in SQL
     const result = await db.get('SELECT * FROM admin_users WHERE LOWER(email) = ?', [emailLower]);
-    console.log('Admin check result:', result);
-
-    // If no result, also try manual comparison with all admin users
-    if (!result && allAdmins.length > 0) {
-      console.log('No exact match found, trying manual case-insensitive comparison');
-      const matchingAdmin = allAdmins.find(admin => 
-        admin.email.toLowerCase() === emailLower
-      );
-      console.log('Manual comparison result:', matchingAdmin || 'No match found');
-
-      if (matchingAdmin) {
-        console.log('Manual match found! User is admin.');
-        await db.close();
-        return true;
-      }
-    }
 
     await db.close();
     return !!result;
@@ -70,21 +47,13 @@ async function isAdmin(email) {
 export async function GET() {
   try {
     // Check if user is authenticated
-    console.log('GET /api/admin/check - Getting server session');
     const session = await getServerSession(authOptions);
-    console.log('Session:', session ? {
-      user: session.user,
-      expires: session.expires
-    } : 'No session');
 
     if (!session) {
-      console.log('No session, returning unauthenticated response');
       return NextResponse.json({ isAdmin: false, authenticated: false });
     }
 
-    console.log('User authenticated, checking if admin');
     const userIsAdmin = await isAdmin(session.user.email);
-    console.log('Is admin result:', userIsAdmin);
 
     const response = { 
       isAdmin: userIsAdmin, 
@@ -94,7 +63,6 @@ export async function GET() {
         name: session.user.name
       }
     };
-    console.log('Returning response:', response);
 
     return NextResponse.json(response);
   } catch (error) {

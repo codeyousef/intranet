@@ -246,22 +246,317 @@ async function getGraphToken() {
   }
 }
 
-// Newsletter API temporarily disabled while troubleshooting Viva Engage
 export async function GET(request: NextRequest) {
   const requestId = `newsletter-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+  logger.critical(`=== Newsletter API Request Start [${requestId}] ===`);
 
   // Log request details
-  logger.info(`Newsletter API request received but functionality is disabled [${requestId}]`, {
+  logger.info(`Newsletter API request received [${requestId}]`, {
     url: request.url,
-    method: request.method
+    method: request.method,
+    headers: {
+      userAgent: request.headers.get('user-agent'),
+      accept: request.headers.get('accept'),
+      referer: request.headers.get('referer')
+    }
   });
 
-  logger.info(`Newsletter iframe API is temporarily disabled while troubleshooting Viva Engage [${requestId}]`);
+  try {
+    // Check authentication
+    logger.debug(`Checking authentication [${requestId}]`);
+    const session = await getAuthSession();
+    
+    if (!session || !session.accessToken) {
+      logger.warn(`Authentication check failed - no session or access token [${requestId}]`, {
+        hasSession: !!session,
+        hasAccessToken: !!(session?.accessToken)
+      });
+      return NextResponse.json({
+        success: false,
+        error: 'Unauthorized',
+        details: 'No valid session found',
+        requestId: requestId
+      }, { status: 401 });
+    }
 
-  return NextResponse.json({
-    success: false,
-    disabled: true,
-    message: 'Newsletter functionality is temporarily disabled while troubleshooting Viva Engage',
-    requestId: requestId
-  }, { status: 503 }) // 503 Service Unavailable
+    logger.info(`Authentication successful [${requestId}]`, {
+      userEmail: session.user?.email,
+      tokenLength: session.accessToken?.length
+    });
+
+    // Check for force fetch parameter
+    const { searchParams } = new URL(request.url);
+    const forceFetch = searchParams.get('force_fetch') === 'true';
+    
+    if (forceFetch) {
+      logger.info(`Force fetch requested [${requestId}]`);
+    }
+
+    // The newsletter HTML URL - direct link to the newsletter
+    const newsletterUrl = 'https://flyadeal.sharepoint.com/sites/Thelounge/CEO%20Newsletter/last-newsletter.html';
+    logger.info(`Newsletter URL configured [${requestId}]`, { newsletterUrl });
+
+    let htmlContent = '';
+    let fetchMethod = '';
+    let sharePointUrl = newsletterUrl;
+
+    // Method 1: Try SharePoint REST API with delegated token
+    try {
+      logger.debug(`Attempting Method 1: SharePoint REST API with delegated token [${requestId}]`);
+      
+      // Construct the server-relative URL from the full URL
+      const url = new URL(newsletterUrl);
+      const serverRelativeUrl = decodeURIComponent(url.pathname);
+      
+      const restApiUrl = `https://flyadeal.sharepoint.com/_api/web/GetFileByServerRelativeUrl('${serverRelativeUrl}')/$value`;
+      
+      logger.debug(`REST API URL: ${restApiUrl} [${requestId}]`);
+      
+      const restResponse = await fetchWithRetry(restApiUrl, {
+        headers: {
+          'Authorization': `Bearer ${session.accessToken}`,
+          'Accept': 'text/html, */*',
+        },
+      });
+
+      if (restResponse.ok) {
+        htmlContent = await restResponse.text();
+        fetchMethod = 'SharePoint REST API (Delegated)';
+        logger.info(`Successfully fetched newsletter using SharePoint REST API [${requestId}]`, {
+          contentLength: htmlContent.length,
+          method: fetchMethod
+        });
+      } else {
+        const errorText = await restResponse.text();
+        logger.warn(`SharePoint REST API failed [${requestId}]`, {
+          status: restResponse.status,
+          statusText: restResponse.statusText,
+          error: errorText.substring(0, 200) // Log only first 200 chars
+        });
+      }
+    } catch (error: any) {
+      logger.error(`Error with SharePoint REST API [${requestId}]`, {
+        errorName: error.name,
+        errorMessage: error.message,
+        stack: error.stack?.substring(0, 500) // Log only first 500 chars of stack
+      });
+    }
+
+    // Method 2: Try Graph API with application token
+    if (!htmlContent) {
+      try {
+        logger.debug(`Attempting Method 2: Graph API with application token [${requestId}]`);
+        
+        const graphToken = await getGraphToken();
+        logger.debug(`Graph token acquired, length: ${graphToken.length} [${requestId}]`);
+        
+        // List of possible paths to try based on the URL structure
+        const graphPaths = [
+          "/sites/flyadeal.sharepoint.com,flyadeal.sharepoint.com:/sites/Thelounge:/drive/root:/CEO Newsletter/last-newsletter.html:/content",
+          "/sites/flyadeal.sharepoint.com:/sites/Thelounge:/drive/root:/CEO Newsletter/last-newsletter.html:/content",
+          "/sites/Thelounge/drive/root:/CEO Newsletter/last-newsletter.html:/content",
+          "/sites/root/drive/root:/sites/Thelounge/CEO Newsletter/last-newsletter.html:/content"
+        ];
+
+        logger.debug(`Will try ${graphPaths.length} different Graph API paths [${requestId}]`);
+
+        for (const graphPath of graphPaths) {
+          try {
+            const graphUrl = `https://graph.microsoft.com/v1.0${graphPath}`;
+            logger.debug(`Trying Graph API path: ${graphPath} [${requestId}]`);
+            
+            const graphResponse = await fetchWithRetry(graphUrl, {
+              headers: {
+                'Authorization': `Bearer ${graphToken}`,
+                'Accept': 'text/html, */*',
+              },
+            });
+
+            if (graphResponse.ok) {
+              htmlContent = await graphResponse.text();
+              fetchMethod = `Graph API (Path: ${graphPath})`;
+              logger.info(`Successfully fetched newsletter using Graph API [${requestId}]`, {
+                path: graphPath,
+                contentLength: htmlContent.length,
+                method: fetchMethod
+              });
+              break;
+            } else {
+              const errorText = await graphResponse.text();
+              logger.debug(`Graph API path failed: ${graphPath} [${requestId}]`, {
+                status: graphResponse.status,
+                errorPreview: errorText.substring(0, 100) // Preview of error
+              });
+            }
+          } catch (error: any) {
+            logger.debug(`Error trying Graph API path: ${graphPath} [${requestId}]`, {
+              errorMessage: error.message
+            });
+          }
+        }
+
+        if (!htmlContent) {
+          logger.warn(`All Graph API paths failed [${requestId}]`);
+        }
+      } catch (error: any) {
+        logger.error(`Error with Graph API approach [${requestId}]`, {
+          errorName: error.name,
+          errorMessage: error.message,
+          stack: error.stack?.substring(0, 500)
+        });
+      }
+    }
+
+    // Method 3: Try direct HTML fetch as last resort
+    if (!htmlContent) {
+      try {
+        logger.debug(`Attempting Method 3: Direct HTML fetch with delegated token [${requestId}]`);
+        
+        const directResponse = await fetchWithRetry(newsletterUrl, {
+          headers: {
+            'Authorization': `Bearer ${session.accessToken}`,
+            'Accept': 'text/html, */*',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          },
+        });
+
+        if (directResponse.ok) {
+          htmlContent = await directResponse.text();
+          fetchMethod = 'Direct HTML Fetch';
+          logger.info(`Successfully fetched newsletter using direct HTML fetch [${requestId}]`, {
+            contentLength: htmlContent.length,
+            method: fetchMethod
+          });
+        } else {
+          const errorText = await directResponse.text();
+          logger.warn(`Direct HTML fetch failed [${requestId}]`, {
+            status: directResponse.status,
+            statusText: directResponse.statusText,
+            errorPreview: errorText.substring(0, 200)
+          });
+        }
+      } catch (error: any) {
+        logger.error(`Error with direct HTML fetch [${requestId}]`, {
+          errorName: error.name,
+          errorMessage: error.message,
+          stack: error.stack?.substring(0, 500)
+        });
+      }
+    }
+
+    // If we still don't have content, provide a fallback
+    if (!htmlContent) {
+      logger.error(`All methods failed to fetch newsletter content [${requestId}]`);
+      logger.critical(`=== Newsletter API Request Failed [${requestId}] ===`);
+      
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to fetch newsletter',
+        details: 'All methods to fetch the newsletter failed. Please try again later.',
+        requestId: requestId,
+        newsletter: {
+          title: 'Newsletter Temporarily Unavailable',
+          content: `
+            <div style="padding: 20px; text-align: center; color: #666;">
+              <h2 style="color: #333;">Newsletter Temporarily Unavailable</h2>
+              <p>We're having trouble loading the newsletter at the moment.</p>
+              <p>This could be due to:</p>
+              <ul style="text-align: left; display: inline-block; margin: 10px 0;">
+                <li>SharePoint permissions</li>
+                <li>Network connectivity issues</li>
+                <li>The newsletter being updated</li>
+              </ul>
+              <p>Please try again in a few moments, or contact IT support if the issue persists.</p>
+              <p style="margin-top: 20px; font-size: 0.9em; color: #999;">
+                Error ID: ${requestId}
+              </p>
+            </div>
+          `,
+          lastUpdated: new Date().toISOString(),
+          source: 'fallback'
+        }
+      });
+    }
+
+    // Process the HTML content
+    logger.debug(`Processing HTML content [${requestId}]`, {
+      originalLength: htmlContent.length
+    });
+
+    // Extract title from HTML if possible
+    let title = 'CEO Newsletter';
+    const titleMatch = htmlContent.match(/<title[^>]*>([^<]+)<\/title>/i);
+    if (titleMatch) {
+      title = titleMatch[1].trim();
+      logger.debug(`Extracted title from HTML: ${title} [${requestId}]`);
+    }
+
+    // Clean up the HTML content
+    // Remove SharePoint-specific scripts and styles that might interfere
+    htmlContent = htmlContent.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    htmlContent = htmlContent.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+    
+    // Extract body content if it's a full HTML document
+    const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    if (bodyMatch) {
+      htmlContent = bodyMatch[1];
+      logger.debug(`Extracted body content from full HTML document [${requestId}]`);
+    }
+
+    logger.info(`Newsletter content processed successfully [${requestId}]`, {
+      processedLength: htmlContent.length,
+      fetchMethod: fetchMethod,
+      title: title
+    });
+
+    const newsletterData = {
+      success: true,
+      newsletter: {
+        title: title,
+        content: htmlContent,
+        lastUpdated: new Date().toISOString(),
+        source: fetchMethod,
+        sharePointUrl: sharePointUrl
+      },
+      requestId: requestId
+    };
+
+    logger.critical(`=== Newsletter API Request Success [${requestId}] ===`);
+    
+    return NextResponse.json(newsletterData);
+
+  } catch (error: any) {
+    logger.error(`Unexpected error in newsletter API [${requestId}]`, {
+      errorName: error.name,
+      errorMessage: error.message,
+      stack: error.stack
+    });
+    
+    logger.critical(`=== Newsletter API Request Error [${requestId}] ===`);
+    
+    return NextResponse.json({
+      success: false,
+      error: error.message,
+      details: 'An unexpected error occurred while fetching the newsletter.',
+      requestId: requestId,
+      newsletter: {
+        title: 'Error Loading Newsletter',
+        content: `
+          <div style="padding: 20px; text-align: center; color: #666;">
+            <h2 style="color: #d32f2f;">Error Loading Newsletter</h2>
+            <p>An unexpected error occurred while loading the newsletter.</p>
+            <p style="margin: 20px 0; padding: 10px; background: #f5f5f5; border-radius: 4px; font-family: monospace; font-size: 0.9em;">
+              ${error.message}
+            </p>
+            <p>Please try refreshing the page or contact IT support if the issue persists.</p>
+            <p style="margin-top: 20px; font-size: 0.9em; color: #999;">
+              Error ID: ${requestId}
+            </p>
+          </div>
+        `,
+        lastUpdated: new Date().toISOString(),
+        source: 'error'
+      }
+    });
+  }
 }

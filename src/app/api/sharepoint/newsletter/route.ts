@@ -101,13 +101,169 @@ async function getFreshAccessToken() {
   }
 }
 
-// Newsletter API temporarily disabled while troubleshooting Viva Engage
 export async function GET(request: NextRequest) {
-  console.log('Newsletter API is temporarily disabled while troubleshooting Viva Engage')
+  try {
+    // Check authentication
+    const session = await getAuthSession()
+    
+    if (!session) {
+      return NextResponse.json({
+        success: false,
+        error: 'Unauthorized'
+      }, { status: 401 })
+    }
 
-  return NextResponse.json({
-    success: false,
-    disabled: true,
-    message: 'Newsletter functionality is temporarily disabled while troubleshooting Viva Engage',
-  }, { status: 503 }) // 503 Service Unavailable
+    // Check for force fetch parameter
+    const { searchParams } = new URL(request.url)
+    const forceFetch = searchParams.get('force_fetch') === 'true'
+    
+    // Try to get from cache first (unless force fetch is requested)
+    if (!forceFetch) {
+      const cached = getCachedNewsletter()
+      if (cached) {
+        return NextResponse.json({
+          success: true,
+          newsletter: cached,
+          fromCache: true
+        })
+      }
+    }
+
+    // Updated direct HTML URL based on the correct path from the issue
+    const newsletterUrl = 'https://flyadeal.sharepoint.com/sites/Thelounge/CEO%20Newsletter/last-newsletter.html'
+    
+    let htmlContent = ''
+    let fetchMethod = ''
+
+    // Method 1: Try SharePoint REST API with user's token (often works better)
+    try {
+      // Updated server-relative URL to match the correct path
+      const serverRelativeUrl = '/sites/Thelounge/CEO%20Newsletter/last-newsletter.html'
+      const restApiUrl = `https://flyadeal.sharepoint.com/_api/web/GetFileByServerRelativeUrl('${serverRelativeUrl}')/$value`
+      
+      const restResponse = await fetch(restApiUrl, {
+        headers: {
+          'Authorization': `Bearer ${session.accessToken}`,
+          'Accept': 'text/html, */*',
+        },
+      })
+
+      if (restResponse.ok) {
+        htmlContent = await restResponse.text()
+        fetchMethod = 'SharePoint REST API'
+      }
+    } catch (error) {
+      console.error('SharePoint REST API error:', error)
+    }
+
+    // Method 2: Try Graph API with fresh application token
+    if (!htmlContent) {
+      try {
+        const graphToken = await getFreshAccessToken()
+        
+        if (graphToken) {
+          // Try multiple possible Graph API paths based on different URL structures
+          const graphPaths = [
+            "/sites/flyadeal.sharepoint.com,flyadeal.sharepoint.com:/sites/Thelounge:/drive/root:/CEO Newsletter/last-newsletter.html:/content",
+            "/sites/flyadeal.sharepoint.com:/sites/Thelounge:/drive/root:/CEO Newsletter/last-newsletter.html:/content",
+            "/sites/Thelounge/drive/root:/CEO Newsletter/last-newsletter.html:/content",
+            "/sites/root/drive/root:/sites/Thelounge/CEO Newsletter/last-newsletter.html:/content"
+          ]
+
+          for (const path of graphPaths) {
+            try {
+              const graphResponse = await fetch(`https://graph.microsoft.com/v1.0${path}`, {
+                headers: {
+                  'Authorization': `Bearer ${graphToken}`,
+                  'Accept': 'text/html, */*',
+                },
+              })
+
+              if (graphResponse.ok) {
+                htmlContent = await graphResponse.text()
+                fetchMethod = `Graph API (${path})`
+                break
+              }
+            } catch (error) {
+              console.error(`Graph API error for path ${path}:`, error)
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Graph API error:', error)
+      }
+    }
+
+    // Method 3: Try direct fetch with user's token
+    if (!htmlContent) {
+      try {
+        const directResponse = await fetch(newsletterUrl, {
+          headers: {
+            'Authorization': `Bearer ${session.accessToken}`,
+            'Accept': 'text/html, */*',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          },
+        })
+
+        if (directResponse.ok) {
+          htmlContent = await directResponse.text()
+          fetchMethod = 'Direct Fetch'
+        }
+      } catch (error) {
+        console.error('Direct fetch error:', error)
+      }
+    }
+
+    // If we still don't have content, return an error
+    if (!htmlContent) {
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to fetch newsletter',
+        details: 'All methods to fetch the newsletter failed. Please check SharePoint permissions.'
+      })
+    }
+
+    // Process the HTML content
+    // Extract title from HTML if possible
+    let title = 'CEO Newsletter'
+    const titleMatch = htmlContent.match(/<title[^>]*>([^<]+)<\/title>/i)
+    if (titleMatch) {
+      title = titleMatch[1].trim()
+    }
+
+    // Clean up the HTML content
+    // Remove SharePoint-specific scripts and styles that might interfere
+    htmlContent = htmlContent.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    htmlContent = htmlContent.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+    
+    // Extract body content if it's a full HTML document
+    const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
+    if (bodyMatch) {
+      htmlContent = bodyMatch[1]
+    }
+
+    const newsletterData = {
+      title: title,
+      content: htmlContent,
+      lastUpdated: new Date().toISOString(),
+      source: fetchMethod,
+      sharePointUrl: newsletterUrl
+    }
+
+    // Cache the newsletter data
+    cacheNewsletter(newsletterData)
+
+    return NextResponse.json({
+      success: true,
+      newsletter: newsletterData
+    })
+
+  } catch (error: any) {
+    console.error('Newsletter API error:', error)
+    return NextResponse.json({
+      success: false,
+      error: error.message,
+      details: 'An unexpected error occurred'
+    })
+  }
 }

@@ -2,52 +2,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
 
-// Helper function for terminal logging - only log important information
+// Minimal logging function - only for errors
 function terminalLog(level: 'INFO' | 'WARN' | 'ERROR', message: string, data?: any) {
-  // Skip non-essential INFO logs to reduce noise
-  if (level === 'INFO' && 
-      (message.includes('API route called') || 
-       message.includes('Getting auth session') || 
-       message.includes('Auth session retrieved') ||
-       message.includes('Request headers') ||
-       message.includes('Response headers') ||
-       message.includes('Content sample'))) {
-    return;
-  }
-
-  const timestamp = new Date().toISOString();
-  const prefix = `[VIVA-ENGAGE][${timestamp}][${level}]`;
-  let formattedMessage = `${prefix} ${message}`;
-
-  // Add data if provided and it's important
-  if (data !== undefined) {
-    if (typeof data === 'object') {
-      try {
-        // Only include full object data for errors and warnings
-        if (level === 'ERROR' || level === 'WARN') {
-          formattedMessage += `\n${JSON.stringify(data, null, 2)}`;
-        } else {
-          // For INFO, just log a summary if it's an object
-          const summary = typeof data.length === 'number' ? 
-            `[Object with length: ${data.length}]` : 
-            '[Object summary]';
-          formattedMessage += ` ${summary}`;
-        }
-      } catch (e) {
-        formattedMessage += `\n[Object cannot be stringified]`;
-      }
-    } else {
-      formattedMessage += ` ${data}`;
-    }
-  }
-
-  // Log to console
-  if (level === 'INFO') {
-    console.log(formattedMessage);
-  } else if (level === 'WARN') {
-    console.warn(formattedMessage);
-  } else if (level === 'ERROR') {
-    console.error(formattedMessage);
+  if (level === 'ERROR') {
+    console.error(`[VIVA-ENGAGE-ERROR] ${message}`, data || '');
   }
 }
 
