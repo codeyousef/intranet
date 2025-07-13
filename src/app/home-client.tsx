@@ -114,7 +114,8 @@ function DashboardPage() {
   const { theme } = useTheme()
   const { data: session } = useSession()
   const [currentTime, setCurrentTime] = useState(null)
-  const [weather] = useState({ temp: 32, condition: 'Sunny', location: 'Riyadh' })
+  const [weather, setWeather] = useState({ temp: 25, condition: 'Loading...', location: 'Fetching...' })
+  const [weatherLoading, setWeatherLoading] = useState(true)
   const [newsletterModalOpen, setNewsletterModalOpen] = useState(false)
   const [newsletter, setNewsletter] = useState<any>(null)
   const [newsletterError, setNewsletterError] = useState<string | null>(null)
@@ -170,6 +171,109 @@ function DashboardPage() {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
+
+  // Fetch weather data with geolocation
+  useEffect(() => {
+    const fetchWeatherData = async () => {
+      try {
+        console.log('Starting weather fetch...');
+        setWeatherLoading(true);
+        
+        // Try to get user's location
+        if ('geolocation' in navigator) {
+          console.log('Geolocation available, requesting permission...');
+          navigator.geolocation.getCurrentPosition(
+            async (position) => {
+              const { latitude, longitude } = position.coords;
+              console.log('Got location:', latitude, longitude);
+              
+              try {
+                const response = await fetch('/api/weather', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ latitude, longitude }),
+                });
+                
+                console.log('Weather API response status:', response.status);
+                
+                if (response.ok) {
+                  const data = await response.json();
+                  console.log('Weather data received:', data);
+                  
+                  if (data.weatherData) {
+                    const newWeather = {
+                      temp: Math.round(data.weatherData.current.temp_c),
+                      condition: data.weatherData.current.condition.text,
+                      location: data.weatherData.location.name
+                    };
+                    console.log('Setting weather to:', newWeather);
+                    setWeather(newWeather);
+                  }
+                } else {
+                  console.error('Weather API error:', response.status, response.statusText);
+                }
+              } catch (error) {
+                console.error('Error fetching weather:', error);
+              } finally {
+                setWeatherLoading(false);
+              }
+            },
+            async (error) => {
+              // Geolocation failed, use fallback (Jeddah)
+              console.log('Geolocation error:', error, 'using fallback location');
+              
+              try {
+                const response = await fetch('/api/weather', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ latitude: 21.543333, longitude: 39.172778 }),
+                });
+                
+                if (response.ok) {
+                  const data = await response.json();
+                  if (data.weatherData) {
+                    setWeather({
+                      temp: Math.round(data.weatherData.current.temp_c),
+                      condition: data.weatherData.current.condition.text,
+                      location: data.weatherData.location.name
+                    });
+                  }
+                }
+              } catch (error) {
+                console.error('Error fetching fallback weather:', error);
+                // Set default values if all fails
+                setWeather({ temp: 25, condition: 'Clear', location: 'Jeddah' });
+              } finally {
+                setWeatherLoading(false);
+              }
+            },
+            {
+              timeout: 5000,
+              maximumAge: 300000 // Cache location for 5 minutes
+            }
+          );
+        } else {
+          // Geolocation not available, use fallback
+          setWeather({ temp: 25, condition: 'Clear', location: 'Jeddah' });
+          setWeatherLoading(false);
+        }
+      } catch (error) {
+        console.error('Weather fetch error:', error);
+        setWeather({ temp: 25, condition: 'Clear', location: 'Jeddah' });
+        setWeatherLoading(false);
+      }
+    };
+
+    // Only fetch weather after component is mounted and user is authenticated
+    console.log('Weather useEffect triggered. Session:', !!session, 'isClient:', isClient);
+    if (session && isClient) {
+      fetchWeatherData();
+    }
+  }, [session, isClient])
 
   // Newsletter loading effect - only runs on client side
   useEffect(() => {
@@ -420,8 +524,12 @@ function DashboardPage() {
                   <div className="flex items-center space-x-2">
                     <Thermometer className="w-6 h-6 text-orange-400/60" />
                     <div>
-                      <div className="text-gray-800 font-semibold">{weather.temp}°C</div>
-                      <div className="text-gray-600 text-xs">{weather.condition}, {weather.location}</div>
+                      <div className="text-gray-800 font-semibold">
+                        {weatherLoading ? '...' : `${weather.temp}°C`}
+                      </div>
+                      <div className="text-gray-600 text-xs">
+                        {weatherLoading ? 'Loading weather...' : `${weather.condition}, ${weather.location}`}
+                      </div>
                     </div>
                   </div>
                   <div>

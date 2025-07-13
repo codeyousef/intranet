@@ -63,16 +63,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user is a people admin
+    // Check if user is a people admin, audit admin, or regular admin
     const db = await openDb();
     const peopleAdmin = await db.get(
       'SELECT * FROM people_admin_users WHERE email = ?',
       [session.user.email]
     );
+    
+    const auditAdmin = await db.get(
+      'SELECT * FROM audit_admin_users WHERE email = ?',
+      [session.user.email]
+    );
+    
+    const regularAdmin = await db.get(
+      'SELECT * FROM admin_users WHERE email = ?',
+      [session.user.email]
+    );
 
-    if (!peopleAdmin) {
+    if (!peopleAdmin && !auditAdmin && !regularAdmin) {
       await db.close();
-      return NextResponse.json({ error: 'Forbidden - People Admin access required' }, { status: 403 });
+      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
     }
 
     // Get query parameters
@@ -131,10 +141,20 @@ export async function PATCH(request: NextRequest) {
       'SELECT * FROM people_admin_users WHERE email = ?',
       [session.user.email]
     );
+    
+    const auditAdmin = await db.get(
+      'SELECT * FROM audit_admin_users WHERE email = ?',
+      [session.user.email]
+    );
+    
+    const regularAdmin = await db.get(
+      'SELECT * FROM admin_users WHERE email = ?',
+      [session.user.email]
+    );
 
-    if (!peopleAdmin) {
+    if (!peopleAdmin && !auditAdmin && !regularAdmin) {
       await db.close();
-      return NextResponse.json({ error: 'Forbidden - People Admin access required' }, { status: 403 });
+      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
     }
 
     const { id, status, admin_notes } = await request.json();

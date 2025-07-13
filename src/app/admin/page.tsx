@@ -64,12 +64,14 @@ function AdminPageContent() {
 
   const [isAdmin, setIsAdmin] = useState(false)
   const [isPeopleAdmin, setIsPeopleAdmin] = useState(false)
+  const [isAuditAdmin, setIsAuditAdmin] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
 
   const [platformLinks, setPlatformLinks] = useState([])
   const [adminUsers, setAdminUsers] = useState([])
   const [peopleAdminUsers, setPeopleAdminUsers] = useState([])
+  const [auditAdminUsers, setAuditAdminUsers] = useState([])
   const [events, setEvents] = useState([])
   const [companyNews, setCompanyNews] = useState([])
   const [complaints, setComplaints] = useState([])
@@ -85,6 +87,7 @@ function AdminPageContent() {
 
   const [newAdminEmail, setNewAdminEmail] = useState('')
   const [newPeopleAdminEmail, setNewPeopleAdminEmail] = useState('')
+  const [newAuditAdminEmail, setNewAuditAdminEmail] = useState('')
 
   const [newEvent, setNewEvent] = useState({
     title: '',
@@ -141,6 +144,14 @@ function AdminPageContent() {
         setIsPeopleAdmin(peopleAdminData.isPeopleAdmin)
         console.log('Setting isPeopleAdmin to:', peopleAdminData.isPeopleAdmin);
 
+        // Also check if user is an audit admin
+        const auditAdminResponse = await fetch('/api/audit-admin/check')
+        const auditAdminData = await auditAdminResponse.json()
+        console.log('Audit admin check response:', auditAdminData);
+        
+        setIsAuditAdmin(auditAdminData.isAuditAdmin)
+        console.log('Setting isAuditAdmin to:', auditAdminData.isAuditAdmin);
+
         if (!adminData.isAdmin) {
           console.log('User not admin, redirecting to homepage');
           router.push('/')
@@ -153,12 +164,17 @@ function AdminPageContent() {
           // If user is a people admin or regular admin, load people admin data
           if (adminData.isAdmin) {
             fetchPeopleAdminUsers()
+            fetchAuditAdminUsers()
           }
 
-          // If user is a people admin, load events, company news, complaints and suggestions
+          // If user is a people admin, load events and company news
           if (peopleAdminData.isPeopleAdmin) {
             fetchEvents()
             fetchCompanyNews()
+          }
+          
+          // If user is an audit admin or regular admin, load complaints and suggestions
+          if (auditAdminData.isAuditAdmin || adminData.isAdmin) {
             fetchComplaints()
             fetchSuggestions()
           }
@@ -227,6 +243,21 @@ function AdminPageContent() {
       setError('Failed to fetch people admin users')
       // Set empty array on error
       setPeopleAdminUsers([])
+    }
+  }
+
+  // Fetch audit admin users
+  const fetchAuditAdminUsers = async () => {
+    try {
+      const response = await fetch('/api/audit-admin/users')
+      const data = await response.json()
+      // Ensure data is an array before setting state
+      setAuditAdminUsers(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('Error fetching audit admin users:', error)
+      setError('Failed to fetch audit admin users')
+      // Set empty array on error
+      setAuditAdminUsers([])
     }
   }
 
@@ -433,6 +464,64 @@ function AdminPageContent() {
     } catch (error) {
       console.error('Error removing people admin user:', error)
       setError(error.message || 'Failed to remove people admin user')
+    }
+  }
+
+  // Add new audit admin user
+  const addAuditAdminUser = async (e) => {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+
+    if (!newAuditAdminEmail) {
+      setError('Email is required')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/audit-admin/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email: newAuditAdminEmail })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to add audit admin user')
+      }
+
+      // Reset form and refresh audit admin users
+      setNewAuditAdminEmail('')
+      fetchAuditAdminUsers()
+      setSuccess('Audit admin user added successfully')
+    } catch (error) {
+      console.error('Error adding audit admin user:', error)
+      setError(error.message || 'Failed to add audit admin user')
+    }
+  }
+
+  // Remove audit admin user
+  const removeAuditAdminUser = async (email) => {
+    setError('')
+    setSuccess('')
+
+    try {
+      const response = await fetch(`/api/audit-admin/users/${encodeURIComponent(email)}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to remove audit admin user')
+      }
+
+      fetchAuditAdminUsers()
+      setSuccess('Audit admin user removed successfully')
+    } catch (error) {
+      console.error('Error removing audit admin user:', error)
+      setError(error.message || 'Failed to remove audit admin user')
     }
   }
 
@@ -692,12 +781,17 @@ function AdminPageContent() {
                 {isAdmin && (
                   <>
                     <TabsTrigger value="people-admin-users">People Admin Users</TabsTrigger>
+                    <TabsTrigger value="audit-admin-users">Audit Admin Users</TabsTrigger>
                   </>
                 )}
                 {isPeopleAdmin && (
                   <>
                     <TabsTrigger value="events">Events</TabsTrigger>
                     <TabsTrigger value="company-news">Company News</TabsTrigger>
+                  </>
+                )}
+                {(isAuditAdmin || isAdmin) && (
+                  <>
                     <TabsTrigger value="complaints">Complaints</TabsTrigger>
                     <TabsTrigger value="suggestions">Suggestions</TabsTrigger>
                   </>
@@ -953,6 +1047,73 @@ function AdminPageContent() {
                                 variant="destructive" 
                                 size="sm" 
                                 onClick={() => removePeopleAdminUser(user.email)}
+                              >
+                                <UserMinus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="audit-admin-users">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Add new audit admin user */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Add New Audit Admin</CardTitle>
+                      <CardDescription>
+                        Grant audit admin access to view anonymous reports
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <form onSubmit={addAuditAdminUser} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="audit-admin-email">Email</Label>
+                          <Input 
+                            id="audit-admin-email" 
+                            value={newAuditAdminEmail} 
+                            onChange={(e) => setNewAuditAdminEmail(e.target.value)}
+                            placeholder="e.g. user@flyadeal.com"
+                            type="email"
+                            required
+                          />
+                        </div>
+
+                        <Button type="submit" className="w-full">
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Add Audit Admin
+                        </Button>
+                      </form>
+                    </CardContent>
+                  </Card>
+
+                  {/* Existing audit admin users */}
+                  <Card className="md:col-span-2">
+                    <CardHeader>
+                      <CardTitle>Existing Audit Admins</CardTitle>
+                      <CardDescription>
+                        Manage users with access to anonymous reports
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {auditAdminUsers.length === 0 ? (
+                        <p className="text-gray-500 text-center py-4">No audit admin users found</p>
+                      ) : (
+                        <div className="space-y-4">
+                          {auditAdminUsers.map((user) => (
+                            <div key={user.email} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                              <div>
+                                <p className="font-medium">{user.email}</p>
+                                <p className="text-xs text-gray-500">Added: {new Date(user.created_at).toLocaleDateString()}</p>
+                              </div>
+                              <Button 
+                                variant="destructive" 
+                                size="sm" 
+                                onClick={() => removeAuditAdminUser(user.email)}
                               >
                                 <UserMinus className="h-4 w-4" />
                               </Button>
