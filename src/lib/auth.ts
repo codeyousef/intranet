@@ -25,34 +25,35 @@ export const authOptions: NextAuthOptions = {
       name: `next-auth.session-token`,
       options: {
         httpOnly: true,
-        sameSite: 'lax',
+        sameSite: 'strict', // Changed to strict for better security
         path: '/',
-        secure: process.env.NODE_ENV === 'production',
+        secure: true, // Always use secure cookies
       },
     },
     callbackUrl: {
       name: `next-auth.callback-url`,
       options: {
         httpOnly: true,
-        sameSite: 'lax',
+        sameSite: 'strict', // Changed to strict for better security
         path: '/',
-        secure: process.env.NODE_ENV === 'production',
+        secure: true, // Always use secure cookies
       },
     },
     csrfToken: {
       name: `next-auth.csrf-token`,
       options: {
         httpOnly: true,
-        sameSite: 'lax',
+        sameSite: 'strict', // Changed to strict for better security
         path: '/',
-        secure: process.env.NODE_ENV === 'production',
+        secure: true, // Always use secure cookies
       },
     },
   },
-  // Add session configuration
+  // Add session configuration with shorter expiration
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 8 * 60 * 60, // 8 hours (reduced from 30 days)
+    updateAge: 60 * 60, // Update session every hour
   },
   callbacks: {
     async jwt({ token, account }) {

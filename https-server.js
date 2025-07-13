@@ -21,8 +21,14 @@ const httpsOptions = {
 app.prepare().then(() => {
   createServer(httpsOptions, async (req, res) => {
     try {
-      // Add CORS headers
-      res.setHeader('Access-Control-Allow-Origin', '*');
+      // Add CORS headers - restrict to specific origin
+      const origin = req.headers.origin;
+      const allowedOrigins = ['https://172.22.58.184:8443', 'http://localhost:3001'];
+      
+      if (origin && allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+      }
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 

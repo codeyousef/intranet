@@ -39,20 +39,59 @@ const nextConfig = {
             value: 'nosniff',
           },
           {
-            key: 'Referrer-Policy',
-            value: 'origin-when-cross-origin',
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
           },
           {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(self)',
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=31536000; includeSubDomains',
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://copilotstudio.microsoft.com https://*.microsoftonline.com",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: https: blob:",
+              "font-src 'self' data:",
+              "connect-src 'self' https://api.weatherapi.com https://graph.microsoft.com https://*.sharepoint.com https://*.microsoftonline.com wss://localhost:* ws://localhost:*",
+              "frame-src 'self' https://copilotstudio.microsoft.com https://*.sharepoint.com https://*.office.com",
+              "object-src 'none'",
+              "base-uri 'self'",
+              "form-action 'self'",
+              "frame-ancestors 'self'",
+              "upgrade-insecure-requests"
+            ].join('; '),
+          },
+        ],
+      },
+      // CORS headers only for API routes
+      {
+        source: '/api/:path*',
+        headers: [
+          {
             key: 'Access-Control-Allow-Origin',
-            value: '*',
+            value: process.env.NEXTAUTH_URL || 'https://172.22.58.184:8443',
           },
           {
             key: 'Access-Control-Allow-Methods',
-            value: 'GET, POST, OPTIONS',
+            value: 'GET, POST, PUT, DELETE, OPTIONS',
           },
           {
             key: 'Access-Control-Allow-Headers',
             value: 'Content-Type, Authorization',
+          },
+          {
+            key: 'Access-Control-Allow-Credentials',
+            value: 'true',
           },
         ],
       },

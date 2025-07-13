@@ -3,7 +3,11 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 
 // Store API key securely in environment variable
-const WEATHER_API_KEY = process.env.WEATHER_API_KEY || '7b780a57ff2c4e11afa104921250402';
+const WEATHER_API_KEY = process.env.WEATHER_API_KEY;
+
+if (!WEATHER_API_KEY) {
+  console.error('Weather API key not found in environment variables');
+}
 
 export interface WeatherData {
     location: {
@@ -26,6 +30,13 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check if API key is available
+    if (!WEATHER_API_KEY) {
+      return NextResponse.json({ 
+        error: 'Weather service is not configured. Please contact administrator.' 
+      }, { status: 503 });
     }
 
     const { latitude, longitude } = await request.json();

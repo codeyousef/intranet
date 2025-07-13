@@ -56,7 +56,7 @@ export function ChatButton() {
         className="fixed bottom-6 right-6 w-16 h-16 rounded-full bg-white shadow-lg flex items-center justify-center z-40 hover:shadow-xl transition-shadow"
       >
         <Image
-          src="/images/agent.jpg"
+          src="/images/chatbot.png"
           alt="Chat Agent"
           width={60}
           height={60}
@@ -70,7 +70,7 @@ export function ChatButton() {
           <div className="bg-flyadeal-purple p-3 text-white flex items-center justify-between">
             <div className="flex items-center">
               <Image
-                src="/images/agent.jpg"
+                src="/images/chatbot.png"
                 alt="Chat Agent"
                 width={30}
                 height={30}

@@ -11,7 +11,6 @@
     "dev:https": "next dev -p 3443",
     "dev:https-alt": "NODE_TLS_REJECT_UNAUTHORIZED=0 node server.js",
     "dev:tunnel": "next dev -p 3001 & npx ngrok http 3001",
-    "tunnel": "npx localtunnel --port 3001",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -40,11 +39,14 @@
     "date-fns": "^3.6.0",
     "eslint": "^9.29.0",
     "eslint-config-next": "^15.3.3",
+    "express-rate-limit": "^7.5.1",
+    "isomorphic-dompurify": "^2.26.0",
     "lucide-react": "^0.515.0",
     "next": "^15.3.3",
     "next-auth": "^4.24.11",
     "node-fetch": "^3.3.2",
     "postcss": "^8.5.5",
+    "rate-limiter-flexible": "^7.1.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "sass": "^1.89.2",
@@ -52,13 +54,11 @@
     "sqlite3": "^5.1.6",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.8.3",
-    "xlsx": "^0.18.5"
+    "typescript": "^5.8.3"
   },
   "devDependencies": {
     "https-localhost": "^4.7.1",
     "local-ssl-proxy": "^2.0.5",
-    "localtunnel": "^2.0.2",
     "mkcert": "^3.2.0",
     "ngrok": "^5.0.0-beta.2"
   }

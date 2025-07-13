@@ -40,6 +40,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
+import { createSanitizedMarkup } from '@/lib/sanitize'
 
 // Global variables to track newsletter loading state across renders and component instances
 // We'll initialize it as false and check localStorage in the useEffect hook
@@ -815,7 +816,7 @@ function DashboardPage() {
                               }, 50);
                             }
                           }}
-                          dangerouslySetInnerHTML={{ __html: newsletter.content }}
+                          dangerouslySetInnerHTML={createSanitizedMarkup(newsletter.content)}
                           style={{ 
                             color: '#374151'
                           }}

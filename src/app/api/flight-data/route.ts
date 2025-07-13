@@ -66,6 +66,10 @@ function parseCSV(csvContent: string): FlightRecord[] {
   
   // Debug: Log headers to see what columns we have
   console.log('[CSV-PARSE] Headers found:', headers.slice(0, 20));
+  
+  // Also log PASON columns specifically
+  const pasonHeaders = headers.slice(51, 57).map((h, i) => `${i + 51}: ${h}`);
+  console.log('[CSV-PARSE] PASON columns:', pasonHeaders);
 
   // Parse data rows
   const records: FlightRecord[] = [];
@@ -92,8 +96,23 @@ function parseCSV(csvContent: string): FlightRecord[] {
       // Parse times
       const std = values[columnMap['STD']] || '';
       const sta = values[columnMap['STA']] || '';
-      const blof = values[columnMap['BLOF']] || std; // Block off time (actual departure)
-      const blon = values[columnMap['BLON']] || sta; // Block on time (actual arrival)
+      
+      // IMPORTANT: Only use actual block times, not scheduled times as fallback
+      // This was causing double counting if BLOF/BLON were empty and fell back to STD/STA
+      const blofRaw = values[columnMap['BLOF']] || '';
+      const blonRaw = values[columnMap['BLON']] || '';
+      
+      // Only use block times if they are actually provided
+      const blof = blofRaw; // Don't fall back to STD
+      const blon = blonRaw; // Don't fall back to STA
+      
+      // Debug: Log raw time values for first few records
+      if (records.length < 3) {
+        console.log(`[TIME-DEBUG] Flight ${values[columnMap['CARRIER']]}${values[columnMap['FLT']]} raw times:`);
+        console.log(`  - STD: "${std}", STA: "${sta}"`);
+        console.log(`  - BLOF: "${blof}" (raw: "${blofRaw}"), BLON: "${blon}" (raw: "${blonRaw}")`);
+        console.log(`  - Using fallback: BLOF=${blof !== blofRaw}, BLON=${blon !== blonRaw}`);
+      }
       
       // Calculate block time (flying hours)
       let blockTime = 0;
@@ -104,22 +123,76 @@ function parseCSV(csvContent: string): FlightRecord[] {
         let blofTotalMinutes = blofHours * 60 + blofMinutes;
         let blonTotalMinutes = blonHours * 60 + blonMinutes;
         
-        // Handle overnight flights
-        if (blonTotalMinutes < blofTotalMinutes) {
-          blonTotalMinutes += 24 * 60;
+        // Log first few flights to debug block time calculation
+        if (records.length < 5) {
+          console.log(`[BLOCK-TIME] Flight ${values[columnMap['CARRIER']]}${values[columnMap['FLT']]}`);
+          console.log(`  - BLOF (departure): ${blof} = ${blofTotalMinutes} minutes`);
+          console.log(`  - BLON (arrival): ${blon} = ${blonTotalMinutes} minutes`);
         }
         
-        blockTime = blonTotalMinutes - blofTotalMinutes;
+        // Handle overnight flights
+        let overnightApplied = false;
+        let originalBlonMinutes = blonTotalMinutes;
+        
+        // Only apply overnight logic if arrival is before departure
+        // AND the difference would be negative (indicating a day boundary crossing)
+        if (blonTotalMinutes < blofTotalMinutes) {
+          // Check if this is likely an overnight flight or a data issue
+          // Most flights shouldn't be longer than 12 hours
+          const potentialBlockTime = (blonTotalMinutes + 24 * 60) - blofTotalMinutes;
+          
+          if (potentialBlockTime > 720) { // More than 12 hours
+            console.warn(`[BLOCK-TIME] Suspicious overnight calculation for ${values[columnMap['CARRIER']]}${values[columnMap['FLT']]}`);
+            console.warn(`  - Would result in ${potentialBlockTime} minutes (${(potentialBlockTime / 60).toFixed(2)} hours)`);
+            // Don't apply overnight logic - likely a data issue
+            blockTime = 0; // Mark as invalid
+          } else {
+            blonTotalMinutes += 24 * 60;
+            overnightApplied = true;
+            blockTime = blonTotalMinutes - blofTotalMinutes;
+          }
+        } else {
+          blockTime = blonTotalMinutes - blofTotalMinutes;
+        }
+        
+        // Log calculation details for first few flights
+        if (records.length < 5) {
+          console.log(`  - Overnight logic applied: ${overnightApplied}`);
+          console.log(`  - Block time: ${blockTime} minutes (${(blockTime / 60).toFixed(2)} hours)`);
+        }
+        
+        // Validate block time - domestic flights shouldn't exceed 6 hours typically
+        if (blockTime > 360) { // 6 hours
+          console.warn(`[BLOCK-TIME] WARNING: Unusually long block time for ${values[columnMap['CARRIER']]}${values[columnMap['FLT']]}: ${blockTime} minutes (${(blockTime / 60).toFixed(2)} hours)`);
+          console.warn(`  - Route: ${values[columnMap['DEP']]} -> ${values[columnMap['ARR']]}`);
+          console.warn(`  - BLOF: ${blof}, BLON: ${blon}`);
+        }
       }
       
       // Parse passenger count from PASON fields
-      // The CSV has 6 PASON columns at indices 51-56, we'll sum them up
+      // The CSV has 6 PASON columns at indices 51-56
+      // Based on the data pattern, it appears columns 52 and 53 might be duplicating passenger counts
+      // We'll use only column 52 (main passengers) + column 54 (likely children/infants)
       let passengers = 0;
       const pasonStartIndex = 51;
       const pasonEndIndex = 56;
+      const pasonValues = [];
+      
       for (let i = pasonStartIndex; i <= pasonEndIndex && i < values.length; i++) {
         const pax = parseInt(values[i]) || 0;
-        passengers += pax;
+        pasonValues.push(pax);
+      }
+      
+      // Only sum specific columns to avoid double counting
+      // Column 52 (index 1 in pasonValues): Main passenger count
+      // Column 54 (index 3 in pasonValues): Additional passengers (children/infants)
+      passengers = (pasonValues[1] || 0) + (pasonValues[3] || 0);
+      
+      // Log detailed passenger data for first 5 records to debug
+      if (records.length < 5) {
+        console.log(`[CSV-PARSE] Flight ${values[columnMap['CARRIER']]}${values[columnMap['FLT']]} PASON columns:`, pasonValues);
+        console.log(`  - Using columns 52 (${pasonValues[1]}) + 54 (${pasonValues[3]}) = ${passengers} passengers`);
+        console.log(`  - Previous total (all columns): ${pasonValues.reduce((a, b) => a + b, 0)}`);
       }
       
       const record: FlightRecord = {
@@ -216,16 +289,27 @@ function calculateMetrics(records: FlightRecord[]): FlightMetrics {
   
   // Get unique flight numbers (to avoid counting the same flight multiple times)
   const uniqueFlights = new Map<string, FlightRecord>();
+  let duplicatesFound = 0;
+  
   filteredFlights.forEach(flight => {
-    const key = `${flight.flightNumber}-${flight.origin}-${flight.destination}`;
-    // If we already have this flight, keep the one with the latest scheduled departure
-    if (!uniqueFlights.has(key) || flight.scheduledDeparture > uniqueFlights.get(key)!.scheduledDeparture) {
+    // Include date and scheduled departure time in the key to ensure uniqueness
+    const key = `${flight.flightNumber}-${flight.origin}-${flight.destination}-${flight.date}-${flight.scheduledDeparture}`;
+    
+    if (uniqueFlights.has(key)) {
+      duplicatesFound++;
+      console.log(`[FLIGHT-DATA] Duplicate flight found: ${flight.flightNumber} on ${flight.date} at ${flight.scheduledDeparture}`);
+    } else {
       uniqueFlights.set(key, flight);
     }
   });
   
+  if (duplicatesFound > 0) {
+    console.log(`[FLIGHT-DATA] Found and removed ${duplicatesFound} duplicate flights`);
+  }
+  
   // Convert back to array
   const filteredRecords = Array.from(uniqueFlights.values());
+  console.log(`[FLIGHT-DATA] Unique flights after deduplication: ${filteredRecords.length}`);
   
   // Calculate basic counts
   const totalFlights = filteredRecords.length;
@@ -278,17 +362,77 @@ function calculateMetrics(records: FlightRecord[]): FlightMetrics {
   const totalBlockMinutes = flightsWithBlockTime.reduce((sum, r) => sum + r.blockTime, 0);
   const flyingHours = Math.round(totalBlockMinutes / 60);
   
+  // Calculate average block time to detect anomalies
+  const avgBlockTime = flightsWithBlockTime.length > 0 ? totalBlockMinutes / flightsWithBlockTime.length : 0;
+  
+  console.log(`[FLIGHT-DATA] Flying Hours Calculation:`);
+  console.log(`  - Flights with block time: ${flightsWithBlockTime.length}`);
+  console.log(`  - Total block minutes: ${totalBlockMinutes}`);
+  console.log(`  - Flying hours: ${flyingHours}`);
+  console.log(`  - Average block time per flight: ${avgBlockTime.toFixed(2)} minutes (${(avgBlockTime / 60).toFixed(2)} hours)`);
+  
+  // Log sample of flights with their block times to verify
+  console.log(`[FLIGHT-DATA] Sample flights with block times:`);
+  flightsWithBlockTime.slice(0, 5).forEach(flight => {
+    console.log(`  - ${flight.flightNumber}: ${flight.blockTime} min (${(flight.blockTime / 60).toFixed(2)} hrs) ${flight.origin}->${flight.destination}`);
+  });
+  
+  // Check for potential double counting
+  const blockTimeDistribution = new Map<number, number>();
+  flightsWithBlockTime.forEach(flight => {
+    const hours = Math.floor(flight.blockTime / 60);
+    blockTimeDistribution.set(hours, (blockTimeDistribution.get(hours) || 0) + 1);
+  });
+  
+  console.log(`[FLIGHT-DATA] Block time distribution (hours):`);
+  Array.from(blockTimeDistribution.entries())
+    .sort((a, b) => a[0] - b[0])
+    .forEach(([hours, count]) => {
+      console.log(`  - ${hours}h: ${count} flights`);
+    });
+  
   // 2. Guests Carried - Total passengers
-  const totalPassengers = filteredRecords
-    .filter(r => !r.cancelled)
-    .reduce((sum, r) => sum + r.passengers, 0);
+  const flightsWithPassengers = filteredRecords.filter(r => !r.cancelled);
+  const totalPassengers = flightsWithPassengers.reduce((sum, r) => sum + r.passengers, 0);
   const guestsCarried = Math.round(totalPassengers / 1000); // In thousands
+  
+  console.log(`[FLIGHT-DATA] Guests Carried Calculation:`);
+  console.log(`  - Operated flights: ${flightsWithPassengers.length}`);
+  console.log(`  - Total passengers: ${totalPassengers}`);
+  console.log(`  - Guests carried (thousands): ${guestsCarried}`);
+  
+  // Log sample of passenger counts to check for anomalies
+  const passengerSample = flightsWithPassengers.slice(0, 5).map(f => ({
+    flight: f.flightNumber,
+    passengers: f.passengers
+  }));
+  console.log(`[FLIGHT-DATA] Sample passenger counts:`, passengerSample);
   
   // 3. Calculate Load Factor
   // A320 has approximately 186 seats
   const seatsPerFlight = 186;
   const totalSeats = operatedFlights * seatsPerFlight;
   const loadFactor = totalSeats > 0 ? Math.round((totalPassengers / totalSeats) * 100) : 0;
+  
+  console.log(`[FLIGHT-DATA] Load Factor Calculation:`);
+  console.log(`  - Operated flights: ${operatedFlights}`);
+  console.log(`  - Seats per flight: ${seatsPerFlight}`);
+  console.log(`  - Total seats: ${totalSeats}`);
+  console.log(`  - Load factor: ${loadFactor}%`);
+  
+  // Data validation checks
+  const avgPassengersPerFlight = operatedFlights > 0 ? Math.round(totalPassengers / operatedFlights) : 0;
+  console.log(`[FLIGHT-DATA] Data Validation:`);
+  console.log(`  - Average passengers per flight: ${avgPassengersPerFlight}`);
+  
+  if (avgPassengersPerFlight > seatsPerFlight) {
+    console.warn(`[FLIGHT-DATA] WARNING: Average passengers per flight (${avgPassengersPerFlight}) exceeds seat capacity (${seatsPerFlight})`);
+    console.warn(`[FLIGHT-DATA] This suggests possible double counting in passenger data`);
+  }
+  
+  if (flyingHours > operatedFlights * 24) {
+    console.warn(`[FLIGHT-DATA] WARNING: Flying hours (${flyingHours}) seems too high for ${operatedFlights} flights`);
+  }
   
   // Parse the target date for the date range (MM/DD/YYYY format)
   const [month, day, year] = targetDate.split('/').map(Number);
