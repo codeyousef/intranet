@@ -12,13 +12,21 @@ import { VivaEngageEmbed } from '@/components/viva-engage-embed'
  * adding features like fullscreen mode and an external link button.
  */
 
+interface VivaEngageProps {
+  feedType?: string;
+  communityId?: string;
+  height?: string;
+  width?: string;
+  theme?: string;
+}
+
 export function VivaEngage({ 
   feedType = 'home',
   communityId,
   height = '100%',
   width = '100%',
   theme = 'light' 
-}) {
+}: VivaEngageProps) {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [postType, setPostType] = useState('latest') // 'latest' or 'top'
   const [mounted, setMounted] = useState(false)

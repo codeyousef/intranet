@@ -6,9 +6,9 @@ import { ExternalLink } from 'lucide-react'
 import * as Icons from 'lucide-react'
 
 export default function PlatformLinks() {
-  const [links, setLinks] = useState([])
+  const [links, setLinks] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchLinks = async () => {
@@ -21,9 +21,9 @@ export default function PlatformLinks() {
 
         const data = await response.json()
         // Filter out inactive links
-        const activeLinks = data.filter(link => link.is_active)
+        const activeLinks = data.filter((link: any) => link.is_active)
         // Sort by display_order
-        activeLinks.sort((a, b) => a.display_order - b.display_order)
+        activeLinks.sort((a: any, b: any) => a.display_order - b.display_order)
 
         setLinks(activeLinks)
         setIsLoading(false)
@@ -43,8 +43,8 @@ export default function PlatformLinks() {
   }
 
   // Dynamic icon component
-  const DynamicIcon = ({ name }) => {
-    const IconComponent = Icons[name] || Icons.Link
+  const DynamicIcon = ({ name }: { name: string }) => {
+    const IconComponent = (Icons as any)[name] || Icons.Link
     return <IconComponent className="h-5 w-5" />
   }
 

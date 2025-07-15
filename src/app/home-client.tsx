@@ -113,7 +113,7 @@ function LoginPage() {
 function DashboardPage() {
   const { theme } = useTheme()
   const { data: session } = useSession()
-  const [currentTime, setCurrentTime] = useState(null)
+  const [currentTime, setCurrentTime] = useState<Date | null>(null)
   const [weather, setWeather] = useState({ temp: 25, condition: 'Loading...', location: 'Fetching...' })
   const [weatherLoading, setWeatherLoading] = useState(true)
   const [newsletterModalOpen, setNewsletterModalOpen] = useState(false)
@@ -283,22 +283,22 @@ function DashboardPage() {
     }
 
     // Create enhanced logging functions - all info logs removed as requested
-    const debugLog = (message, ...args) => {
+    const debugLog = (message: any, ...args: any[]) => {
       // No-op function - debug logs removed
     };
 
     // Critical logs removed as requested
-    const criticalLog = (message, ...args) => {
+    const criticalLog = (message: any, ...args: any[]) => {
       // No-op function - critical logs removed
     };
 
     // Info logs removed as requested
-    const infoLog = (message, ...args) => {
+    const infoLog = (message: any, ...args: any[]) => {
       // No-op function - info logs removed
     };
 
     // Error logs are always shown
-    const errorLog = (message, ...args) => {
+    const errorLog = (message: any, ...args: any[]) => {
       console.error(`[NEWSLETTER-ERROR] ${message}`, ...args);
     };
 
@@ -686,7 +686,7 @@ function DashboardPage() {
 
 export function HomeClient() {
   const { theme } = useTheme()
-  const { data: session, status, error } = useSession()
+  const { data: session, status } = useSession()
   const [mounted, setMounted] = useState(false)
 
   // Set mounted to true on client-side
@@ -694,18 +694,13 @@ export function HomeClient() {
     setMounted(true)
   }, [])
 
-  // Handle NextAuth errors
-  useEffect(() => {
-    if (error) {
-      console.error('NextAuth session error:', error)
-    }
-  }, [error])
+  // Handle NextAuth errors - removed as error is not available in useSession
 
   // Determine which content to show, but don't conditionally render different components
   // This ensures the same DOM structure on both server and client for initial render
   const isLoading = status === 'loading' || !mounted
   const isAuthenticated = mounted && status === 'authenticated' && !!session
-  const showLogin = mounted && (status === 'unauthenticated' || !!error || !session)
+  const showLogin = mounted && (status === 'unauthenticated' || !session)
 
   return (
     <div className="min-h-screen">

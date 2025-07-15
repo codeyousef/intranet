@@ -44,10 +44,16 @@ interface FlightMetrics {
   todaysFlights: number;
   lastUpdated: string;
   // Business metrics
-  onTimePerformance: number;
   flyingHours: number;
   loadFactor: number;
   guestsCarried: number;
+  // Date range
+  dateRange: {
+    from: string;
+    to: string;
+    days: number;
+    actualDate: string;
+  };
 }
 
 // Parse CSV data
@@ -234,11 +240,11 @@ function calculateMetrics(records: FlightRecord[]): FlightMetrics {
   console.log('[FLIGHT-DATA] Total records before filtering:', records.length);
   
   // Debug: Check what dates we have in the data
-  const uniqueDates = [...new Set(records.map(r => r.date))].sort();
+  const uniqueDates = Array.from(new Set(records.map(r => r.date))).sort();
   console.log('[FLIGHT-DATA] Available dates in data:', uniqueDates.slice(0, 10));
   
   // Debug: Check flight types
-  const flightTypes = [...new Set(records.map(r => r.flightType))];
+  const flightTypes = Array.from(new Set(records.map(r => r.flightType)));
   console.log('[FLIGHT-DATA] Available flight types:', flightTypes);
   
   // Filter for yesterday's flights with flight type 'J' (trim spaces and case insensitive)
@@ -273,7 +279,7 @@ function calculateMetrics(records: FlightRecord[]): FlightMetrics {
     
     if (typeJFlights.length > 0) {
       // Find the most recent date (MM/DD/YYYY format)
-      const sortedDates = [...new Set(typeJFlights.map(r => r.date))].sort((a, b) => {
+      const sortedDates = Array.from(new Set(typeJFlights.map(r => r.date))).sort((a, b) => {
         const [monthA, dayA, yearA] = a.split('/').map(Number);
         const [monthB, dayB, yearB] = b.split('/').map(Number);
         const dateA = new Date(yearA, monthA - 1, dayA);

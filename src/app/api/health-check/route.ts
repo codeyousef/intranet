@@ -24,7 +24,18 @@ export async function GET() {
           missingNextAuthUrlInProduction: process.env.NODE_ENV === 'production' && !process.env.NEXTAUTH_URL,
         },
         sessionAvailable: false,
-        sessionCheckError: null
+        sessionCheckError: null as null | {
+          error: unknown;
+          description: string;
+          timestamp: string;
+        },
+        sessionDetails: undefined as undefined | {
+          hasAccessToken: boolean;
+          hasRefreshToken: boolean;
+          hasError: boolean;
+          errorType: string | null;
+          user: string;
+        }
       },
       server: {
         memory: process.memoryUsage ? {
@@ -45,12 +56,13 @@ export async function GET() {
 
     // Check if session is an error object (returned by getAuthSession when there's an issue)
     if (session && 'error' in session) {
-      console.warn('[Health Check] Auth session returned error object:', session.error);
+      const sessionWithError = session as any;
+      console.warn('[Health Check] Auth session returned error object:', sessionWithError.error);
       healthInfo.diagnostics.auth.sessionAvailable = false;
       healthInfo.diagnostics.auth.sessionCheckError = {
-        error: session.error,
-        description: session.errorDescription || 'No description provided',
-        timestamp: session.errorTime || new Date().toISOString()
+        error: sessionWithError.error,
+        description: sessionWithError.errorDescription || 'No description provided',
+        timestamp: sessionWithError.errorTime || new Date().toISOString()
       };
     } else {
       healthInfo.diagnostics.auth.sessionAvailable = !!session;
@@ -60,8 +72,8 @@ export async function GET() {
         healthInfo.diagnostics.auth.sessionDetails = {
           hasAccessToken: !!session.accessToken,
           hasRefreshToken: !!session.refreshToken,
-          hasError: !!session.error,
-          errorType: session.error || null,
+          hasError: false,
+          errorType: null,
           user: session.user?.email || 'unknown'
         };
       }
@@ -72,8 +84,8 @@ export async function GET() {
     console.error('[Health Check] Error checking auth session:', error);
     healthInfo.diagnostics.auth.sessionAvailable = false;
     healthInfo.diagnostics.auth.sessionCheckError = {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : 'No stack trace',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      description: error instanceof Error ? error.stack || 'No stack trace' : 'No description',
       timestamp: new Date().toISOString()
     };
     // Don't fail the health check due to auth issues

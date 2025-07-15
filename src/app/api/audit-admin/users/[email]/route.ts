@@ -16,15 +16,16 @@ async function openDb() {
 // DELETE: Remove an audit admin user
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { email: string } }
+  { params }: { params: Promise<{ email: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
+    if (!session || !session.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const emailToRemove = decodeURIComponent(params.email);
+    const { email } = await params;
+    const emailToRemove = decodeURIComponent(email);
 
     // Check if user is an admin
     const db = await openDb();

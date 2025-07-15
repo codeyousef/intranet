@@ -12,7 +12,7 @@ async function openDb() {
   
   // Check if database file exists
   if (!fs.existsSync(dbPath)) {
-    return NextResponse.json({ error: 'Database file not found' }, { status: 500 });
+    throw new Error('Database file not found');
   }
   
   return open({
@@ -22,7 +22,7 @@ async function openDb() {
 }
 
 // Helper function to check if user is admin
-async function isAdmin(email) {
+async function isAdmin(email: string): Promise<boolean> {
   try {
     const db = await openDb();
     const result = await db.get('SELECT * FROM admin_users WHERE email = ?', [email]);
@@ -34,11 +34,11 @@ async function isAdmin(email) {
   }
 }
 
-export async function DELETE(request, { params }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ email: string }> }) {
   try {
     // Check if user is authenticated and is an admin
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
@@ -47,7 +47,8 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
     }
     
-    const emailToDelete = decodeURIComponent(params.email);
+    const { email } = await params;
+    const emailToDelete = decodeURIComponent(email);
     
     // Don't allow deleting yourself
     if (emailToDelete === session.user.email) {

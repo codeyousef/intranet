@@ -180,17 +180,17 @@ export async function GET(request: NextRequest) {
 
       // For debugging purposes, count how many would match each method
       if (feedType === 'home') {
-        const byGroupType = data.value.filter(g => g.groupTypes && Array.isArray(g.groupTypes) && g.groupTypes.includes('Yammer')).length;
-        const byMail = data.value.filter(g => g.mail && typeof g.mail === 'string' && g.mail.toLowerCase().includes('yammer')).length;
-        const byName = data.value.filter(g => g.displayName && typeof g.displayName === 'string' && 
+        const byGroupType = data.value.filter((g: any) => g.groupTypes && Array.isArray(g.groupTypes) && g.groupTypes.includes('Yammer')).length;
+        const byMail = data.value.filter((g: any) => g.mail && typeof g.mail === 'string' && g.mail.toLowerCase().includes('yammer')).length;
+        const byName = data.value.filter((g: any) => g.displayName && typeof g.displayName === 'string' && 
                                  (g.displayName.toLowerCase().includes('yammer') || 
                                   g.displayName.toLowerCase().includes('viva') || 
                                   g.displayName.toLowerCase().includes('engage'))).length;
-        const byDescription = data.value.filter(g => g.description && typeof g.description === 'string' && 
+        const byDescription = data.value.filter((g: any) => g.description && typeof g.description === 'string' && 
                                       (g.description.toLowerCase().includes('yammer') || 
                                        g.description.toLowerCase().includes('viva') || 
                                        g.description.toLowerCase().includes('engage'))).length;
-        const byCharacteristics = data.value.filter(g => 
+        const byCharacteristics = data.value.filter((g: any) => 
                                         g.mailEnabled === false && 
                                         g.securityEnabled === false && 
                                         !g.displayName?.toLowerCase().includes('sharepoint')).length;

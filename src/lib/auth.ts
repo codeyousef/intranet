@@ -140,13 +140,6 @@ export const authOptions: NextAuthOptions = {
         tokenExists: !!token,
         sessionExists: !!session
       });
-    },
-    async error(error) {
-      console.error('[NextAuth] Error event triggered', {
-        error: error.message,
-        type: error.type,
-        timestamp: new Date().toISOString()
-      });
     }
   },
   // Add session configuration to ensure it's properly cleared

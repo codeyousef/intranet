@@ -12,7 +12,7 @@ async function openDb() {
 
   // Check if database file exists
   if (!fs.existsSync(dbPath)) {
-    return null;
+    throw new Error('Database file not found');
   }
 
   return open({
@@ -22,12 +22,11 @@ async function openDb() {
 }
 
 // Helper function to check if user is people admin
-async function isPeopleAdmin(email) {
+async function isPeopleAdmin(email: string): Promise<boolean> {
   try {
     if (!email) return false;
 
     const db = await openDb();
-    if (!db) return false;
 
     // Check if user is a regular admin
     const adminResult = await db.get('SELECT * FROM admin_users WHERE LOWER(email) = ?', [email.toLowerCase()]);
@@ -52,9 +51,6 @@ async function isPeopleAdmin(email) {
 export async function GET() {
   try {
     const db = await openDb();
-    if (!db) {
-      return NextResponse.json({ error: 'Database file not found' }, { status: 500 });
-    }
 
     const news = await db.all('SELECT * FROM company_news ORDER BY published_at DESC');
     await db.close();
@@ -67,11 +63,11 @@ export async function GET() {
 }
 
 // POST a new company news item
-export async function POST(request) {
+export async function POST(request: Request) {
   try {
     // Check if user is authenticated and is a people admin
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user?.email) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
@@ -89,9 +85,6 @@ export async function POST(request) {
     }
 
     const db = await openDb();
-    if (!db) {
-      return NextResponse.json({ error: 'Database file not found' }, { status: 500 });
-    }
 
     const now = new Date().toISOString();
     const publishDate = published_at || now;

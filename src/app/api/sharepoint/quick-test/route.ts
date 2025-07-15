@@ -24,7 +24,13 @@ export async function GET(request: NextRequest) {
         status: siteResponse.status,
         success: siteResponse.ok
       },
-      newsletterTests: []
+      newsletterTests: [] as Array<{
+        name: string;
+        status: number;
+        success: boolean;
+        data?: any;
+        error?: string;
+      }>
     };
 
     // If we can access the site, try to find the newsletter
@@ -46,10 +52,12 @@ export async function GET(request: NextRequest) {
 
       if (listResponse.ok) {
         const data = await listResponse.json();
-        results.newsletterTests[0].folders = data.d?.results?.map((item: any) => ({
-          name: item.FileLeafRef,
-          path: item.FileRef
-        }));
+        results.newsletterTests[0].data = {
+          folders: data.d?.results?.map((item: any) => ({
+            name: item.FileLeafRef,
+            path: item.FileRef
+          }))
+        };
       }
 
       // Test 2: Try alternative newsletter locations
@@ -73,11 +81,13 @@ export async function GET(request: NextRequest) {
           results.newsletterTests.push({
             name: `Test path: ${path}`,
             status: response.status,
-            exists: response.ok
+            success: response.ok
           });
         } catch (e) {
           results.newsletterTests.push({
             name: `Test path: ${path}`,
+            status: 0,
+            success: false,
             error: 'Failed to test'
           });
         }

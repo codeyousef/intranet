@@ -229,7 +229,7 @@ export async function GET(request: NextRequest) {
             });
 
             // Add each message to the HTML
-            lastThreeMessages.forEach((message, index) => {
+            lastThreeMessages.forEach((message: any, index: number) => {
               const sender = message.sender_name || 'Unknown User';
               const content = message.body.plain || message.body.rich || 'No content';
               const timestamp = new Date(message.created_at).toLocaleString();
@@ -443,7 +443,7 @@ export async function GET(request: NextRequest) {
     terminalLog('INFO', '====== VIVA ENGAGE RESPONSE RECEIVED ======');
     terminalLog('INFO', `Fetch completed in ${fetchDuration}ms`);
     terminalLog('INFO', 'Response status', `${response.status} ${response.statusText}`);
-    terminalLog('INFO', 'Response headers', Object.fromEntries([...response.headers.entries()]));
+    terminalLog('INFO', 'Response headers', Object.fromEntries(Array.from(response.headers.entries())));
 
     // Log timing information
     const responseTime = new Date();
@@ -920,7 +920,7 @@ export async function GET(request: NextRequest) {
                   <p><strong>Content Length:</strong> ${htmlContent ? htmlContent.length : 0} bytes</p>
                   <p><strong>Content Sample:</strong> ${htmlContent ? htmlContent.substring(0, 50).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '...' : 'Empty'}</p>
                   <p><strong>User Agent:</strong> ${request.headers.get('user-agent') || 'Not available'}</p>
-                  <p><strong>Headers:</strong> ${JSON.stringify(Object.fromEntries([...response.headers.entries()])).substring(0, 100)}...</p>
+                  <p><strong>Headers:</strong> ${JSON.stringify(Object.fromEntries(Array.from(response.headers.entries()))).substring(0, 100)}...</p>
                 </div>
 
                 <button onclick="
@@ -1573,7 +1573,7 @@ User Agent: ${request.headers.get('user-agent') || 'Not available'}
           // Create a minimal MSAL implementation with all required methods
           window.msal = {
             PublicClientApplication: function(config) {
-              this.acquireTokenSilent = function(request) { 
+              this.acquireTokenSilent = function(request: any) { 
                 console.log('[VivaEngage] Mock MSAL: acquireTokenSilent called', request);
                 return Promise.resolve({ 
                   accessToken: 'mock-token',
@@ -1602,11 +1602,11 @@ User Agent: ${request.headers.get('user-agent') || 'Not available'}
                   tenantId: 'mock-tenant-id'
                 }; 
               };
-              this.setActiveAccount = function(account) {
+              this.setActiveAccount = function(account: any) {
                 console.log('[VivaEngage] Mock MSAL: setActiveAccount called', account);
                 return true;
               };
-              this.loginPopup = function(request) { 
+              this.loginPopup = function(request: any) { 
                 console.log('[VivaEngage] Mock MSAL: loginPopup called', request);
                 return Promise.resolve({ 
                   accessToken: 'mock-token',
@@ -1957,13 +1957,13 @@ window.addEventListener('error', function(event) {
 
 // Fix for "Unexpected identifier 're'" error
 // Define common variables that might start with 're'
-window.re = window.re || {};
-window.require = window.require || function() { return window.msal; };
-window.resolve = window.resolve || function() { return Promise.resolve(); };
-window.return = window.return || function() { return arguments[0]; };
+(window as any).re = (window as any).re || {};
+(window as any).require = (window as any).require || function() { return (window as any).msal; };
+(window as any).resolve = (window as any).resolve || function() { return Promise.resolve(); };
+(window as any).return = (window as any).return || function() { return arguments[0]; };
 
 // Create global variables to store our mock chunk
-window.__vivaEngageMockChunk1278 = {
+(window as any).__vivaEngageMockChunk1278 = {
   id: 1278,
   loaded: true,
   exports: {},
@@ -1974,16 +1974,16 @@ window.__vivaEngageMockChunk1278 = {
 };
 
 // Make the chunk directly accessible by its ID
-window[1278] = window.__vivaEngageMockChunk1278;
+(window as any)[1278] = (window as any).__vivaEngageMockChunk1278;
 
 // Also make it accessible by common variable names that might be used
-window.chunk1278 = window.__vivaEngageMockChunk1278;
-window.webpackChunk1278 = window.__vivaEngageMockChunk1278;
+(window as any).chunk1278 = (window as any).__vivaEngageMockChunk1278;
+(window as any).webpackChunk1278 = (window as any).__vivaEngageMockChunk1278;
 
 // Create a minimal MSAL implementation with all required methods
-window.msal = {
-  PublicClientApplication: function(config) {
-    this.acquireTokenSilent = function(request) { 
+(window as any).msal = {
+  PublicClientApplication: function(config: any) {
+    this.acquireTokenSilent = function(request: any) { 
       console.log('[VivaEngage] Mock MSAL: acquireTokenSilent called', request);
       return Promise.resolve({ 
         accessToken: 'mock-token',
@@ -2012,11 +2012,11 @@ window.msal = {
         tenantId: 'mock-tenant-id'
       }; 
     };
-    this.setActiveAccount = function(account) {
+    this.setActiveAccount = function(account: any) {
       console.log('[VivaEngage] Mock MSAL: setActiveAccount called', account);
       return true;
     };
-    this.loginPopup = function(request) { 
+    this.loginPopup = function(request: any) { 
       console.log('[VivaEngage] Mock MSAL: loginPopup called', request);
       return Promise.resolve({ 
         accessToken: 'mock-token',

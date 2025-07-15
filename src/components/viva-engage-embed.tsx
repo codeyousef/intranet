@@ -9,6 +9,15 @@ import { useState, useEffect, useRef } from 'react'
  * Viva Engage content, as the classic JavaScript-based embed will no longer be supported
  * after June 1, 2025.
  */
+interface VivaEngageEmbedProps {
+  feedType?: string;
+  communityId?: string;
+  height?: string;
+  width?: string;
+  theme?: string;
+  postType?: string;
+}
+
 export function VivaEngageEmbed({ 
   feedType = 'home',
   communityId,
@@ -16,7 +25,7 @@ export function VivaEngageEmbed({
   width = '100%',
   theme = 'light',
   postType = 'latest' // 'latest' or 'top' - used for UI only
-}) {
+}: VivaEngageEmbedProps) {
   // Initialize state variables with consistent values for server and client
   const [iframeLoaded, setIframeLoaded] = useState(false)
   const [htmlContent, setHtmlContent] = useState('')
@@ -90,7 +99,7 @@ export function VivaEngageEmbed({
         if (!isMounted) return; // Don't update state if component is unmounted
 
         console.error('Error fetching Viva Engage content:', err)
-        setError(err.message)
+        setError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
         if (isMounted) {
           setIsLoading(false)

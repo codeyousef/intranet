@@ -119,7 +119,7 @@ global.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
             status: response.status,
             statusText: response.statusText,
             contentType,
-            responseHeaders: Object.fromEntries([...response.headers.entries()]),
+            responseHeaders: Object.fromEntries(Array.from(response.headers.entries())),
             responseText: text.substring(0, 500), // Show more of the response text
             timestamp: new Date().toISOString()
           });
@@ -166,7 +166,7 @@ global.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
                 requestHeaders,
                 status: response.status,
                 statusText: response.statusText,
-                responseHeaders: Object.fromEntries([...response.headers.entries()]),
+                responseHeaders: Object.fromEntries(Array.from(response.headers.entries())),
                 errorData,
                 timestamp: new Date().toISOString()
               });
@@ -221,9 +221,9 @@ global.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
                   requestHeaders,
                   status: response.status,
                   statusText: response.statusText,
-                  responseHeaders: Object.fromEntries([...response.headers.entries()]),
+                  responseHeaders: Object.fromEntries(Array.from(response.headers.entries())),
                   responseText: text.substring(0, 500), // Show more of the response text
-                  parseError: jsonError.message,
+                  parseError: jsonError instanceof Error ? jsonError.message : String(jsonError),
                   timestamp: new Date().toISOString()
                 });
               }
@@ -256,8 +256,8 @@ global.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
           console.error('[Fetch Interceptor] ERROR: Exception in fetch interceptor processing:', {
             url,
             method,
-            error: error.message,
-            stack: error.stack,
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
             timestamp: new Date().toISOString()
           });
         }
@@ -292,9 +292,9 @@ global.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       console.error('[Fetch Interceptor] Fetch operation failed', {
         url,
         method,
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         // Only include stack trace in development mode
-        ...(process.env.NODE_ENV === 'development' ? { stack: error.stack } : {}),
+        ...(process.env.NODE_ENV === 'development' ? { stack: error instanceof Error ? error.stack : undefined } : {}),
         timestamp: new Date().toISOString()
       });
     }

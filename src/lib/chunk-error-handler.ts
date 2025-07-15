@@ -98,8 +98,8 @@ if (typeof window !== 'undefined') {
         return;
       }
 
-      scripts.forEach((script: HTMLScriptElement) => {
-        const originalSrc = script.src;
+      scripts.forEach((script) => {
+        const originalSrc = (script as HTMLScriptElement).src;
         if (!originalSrc) {
           loadedScripts++;
           if (loadedScripts === totalScripts) {

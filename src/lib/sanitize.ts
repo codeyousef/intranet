@@ -35,7 +35,7 @@ export function sanitizeHtml(dirty: string, options?: any): string {
   // Additional safety: Add rel="noopener noreferrer" to external links
   if (typeof window !== 'undefined') {
     const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = clean;
+    tempDiv.innerHTML = clean.toString();
     const links = tempDiv.querySelectorAll('a[target="_blank"]');
     links.forEach(link => {
       link.setAttribute('rel', 'noopener noreferrer');
@@ -43,7 +43,7 @@ export function sanitizeHtml(dirty: string, options?: any): string {
     return tempDiv.innerHTML;
   }
 
-  return clean;
+  return clean.toString();
 }
 
 /**

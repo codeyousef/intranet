@@ -7,6 +7,10 @@ async function getGraphToken() {
   const clientSecret = process.env.AZURE_AD_CLIENT_SECRET;
   const tenantId = process.env.AZURE_AD_TENANT_ID;
 
+  if (!clientId || !clientSecret || !tenantId) {
+    throw new Error('Missing required environment variables for Azure AD');
+  }
+
   const tokenEndpoint = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
   const scope = 'https://graph.microsoft.com/.default';
 

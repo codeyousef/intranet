@@ -51,12 +51,12 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries: num
   // Create a sanitized version of the options for logging (to avoid logging sensitive data)
   const sanitizedOptions = {
     method: options.method || 'GET',
-    headers: options.headers ? { ...options.headers } : {},
+    headers: (options.headers ? { ...options.headers } : {}) as Record<string, string>,
     hasBody: !!options.body
   };
 
   // Mask authorization header if present
-  if (sanitizedOptions.headers && sanitizedOptions.headers['Authorization']) {
+  if (sanitizedOptions.headers && 'Authorization' in sanitizedOptions.headers) {
     sanitizedOptions.headers['Authorization'] = 'Bearer [TOKEN REDACTED]';
   }
 

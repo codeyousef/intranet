@@ -21,10 +21,10 @@ async function openDb() {
 // GET handler to retrieve a single offer by ID
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     
     // Check if database file exists and has data
     const fs = require('fs');

@@ -323,7 +323,7 @@ function DashboardPage() {
     console.log('[NEWSLETTER] Effect running with session:', session?.user?.email);
 
     // Newsletter logging
-    const errorLog = (message, ...args) => {
+    const errorLog = (message: any, ...args: any[]) => {
       console.error(`[NEWSLETTER-ERROR] ${message}`, ...args);
     };
 

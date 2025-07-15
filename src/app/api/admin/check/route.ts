@@ -12,7 +12,7 @@ async function openDb() {
 
   // Check if database file exists
   if (!fs.existsSync(dbPath)) {
-    return NextResponse.json({ error: 'Database file not found' }, { status: 500 });
+    throw new Error('Database file not found');
   }
 
   return open({
@@ -22,7 +22,7 @@ async function openDb() {
 }
 
 // Helper function to check if user is admin
-async function isAdmin(email) {
+async function isAdmin(email: string): Promise<boolean> {
   try {
     if (!email) {
       return false;
@@ -49,7 +49,7 @@ export async function GET() {
     // Check if user is authenticated
     const session = await getServerSession(authOptions);
 
-    if (!session) {
+    if (!session || !session.user?.email) {
       return NextResponse.json({ isAdmin: false, authenticated: false });
     }
 
@@ -60,7 +60,7 @@ export async function GET() {
       authenticated: true,
       user: {
         email: session.user.email,
-        name: session.user.name
+        name: session.user.name || ''
       }
     };
 

@@ -13,10 +13,6 @@ import '@/lib/chunk-preloader'
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider 
-      // Add error handling for session fetching
-      onError={(error) => {
-        console.error('NextAuth session error:', error)
-      }}
       refetchInterval={0} // Disable automatic refetching to prevent repeated errors
       refetchOnWindowFocus={false} // Disable refetch on window focus
     >

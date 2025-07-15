@@ -13,18 +13,13 @@ export async function POST(request: NextRequest) {
     // Handle error object returned by getAuthSession
     if ('error' in session) {
       console.error('[Refresh Token] Session error:', session);
+      const sessionWithError = session as any;
       return NextResponse.json({ 
         error: 'auth_error', 
         message: 'Authentication error',
-        details: session.errorDescription || 'Unknown error',
-        code: session.error
+        details: sessionWithError.errorDescription || 'Unknown error',
+        code: sessionWithError.error
       }, { status: 401 })
-    }
-
-    // Check for error in session object
-    if (session.error) {
-      console.warn('[Refresh Token] Session contains error:', session.error);
-      // Continue anyway, as we're trying to refresh the token
     }
 
     console.log('🔄 Attempting to refresh SharePoint token...')

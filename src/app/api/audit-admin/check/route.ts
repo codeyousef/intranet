@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session || !session.user) {
+    if (!session || !session.user?.email) {
       return NextResponse.json({ 
         authenticated: false,
         isAuditAdmin: false 

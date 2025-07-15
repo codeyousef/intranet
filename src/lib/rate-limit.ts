@@ -73,7 +73,7 @@ export async function rateLimit(
     return null; // Request allowed
   } catch (rateLimiterRes) {
     // Calculate retry after time
-    const retryAfter = Math.round(rateLimiterRes.msBeforeNext / 1000) || 60;
+    const retryAfter = Math.round((rateLimiterRes as any).msBeforeNext / 1000) || 60;
     
     return NextResponse.json(
       {
@@ -86,8 +86,8 @@ export async function rateLimit(
         headers: {
           'Retry-After': retryAfter.toString(),
           'X-RateLimit-Limit': rateLimiter.points.toString(),
-          'X-RateLimit-Remaining': rateLimiterRes.remainingPoints?.toString() || '0',
-          'X-RateLimit-Reset': new Date(Date.now() + rateLimiterRes.msBeforeNext).toISOString(),
+          'X-RateLimit-Remaining': (rateLimiterRes as any).remainingPoints?.toString() || '0',
+          'X-RateLimit-Reset': new Date(Date.now() + (rateLimiterRes as any).msBeforeNext).toISOString(),
         },
       }
     );

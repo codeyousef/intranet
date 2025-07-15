@@ -34,6 +34,59 @@ import {
 
 import { ClientOnly } from '@/lib/client-only'
 
+// Type definitions
+interface PlatformLink {
+  id: number
+  title: string
+  url: string
+  icon: string
+  display_order: number
+  is_active: boolean
+}
+
+interface AdminUser {
+  email: string
+  created_at: string
+}
+
+interface Event {
+  id: number
+  title: string
+  description?: string
+  event_date: string
+  created_at: string
+}
+
+interface NewsItem {
+  id: number
+  title: string
+  content?: string
+  published_at: string
+  created_at: string
+}
+
+interface Complaint {
+  id: number
+  content: string
+  category?: string
+  status: string
+  created_at: string
+  resolved_at?: string
+  admin_notes?: string
+}
+
+interface Suggestion {
+  id: number
+  content: string
+  category?: string
+  status: string
+  user_name?: string
+  user_email?: string
+  created_at: string
+  resolved_at?: string
+  admin_notes?: string
+}
+
 export default function AdminPage() {
   // For server-side rendering, we'll render a simple loading state
   // Then use ClientOnly to render the actual content on the client side only
@@ -68,14 +121,14 @@ function AdminPageContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
 
-  const [platformLinks, setPlatformLinks] = useState([])
-  const [adminUsers, setAdminUsers] = useState([])
-  const [peopleAdminUsers, setPeopleAdminUsers] = useState([])
-  const [auditAdminUsers, setAuditAdminUsers] = useState([])
-  const [events, setEvents] = useState([])
-  const [companyNews, setCompanyNews] = useState([])
-  const [complaints, setComplaints] = useState([])
-  const [suggestions, setSuggestions] = useState([])
+  const [platformLinks, setPlatformLinks] = useState<PlatformLink[]>([])
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([])
+  const [peopleAdminUsers, setPeopleAdminUsers] = useState<AdminUser[]>([])
+  const [auditAdminUsers, setAuditAdminUsers] = useState<AdminUser[]>([])
+  const [events, setEvents] = useState<Event[]>([])
+  const [companyNews, setCompanyNews] = useState<NewsItem[]>([])
+  const [complaints, setComplaints] = useState<Complaint[]>([])
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([])
 
   const [newLink, setNewLink] = useState({
     title: '',
@@ -292,7 +345,7 @@ function AdminPageContent() {
   }
 
   // Add new platform link
-  const addPlatformLink = async (e) => {
+  const addPlatformLink = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setSuccess('')
@@ -324,12 +377,12 @@ function AdminPageContent() {
       setSuccess('Platform link added successfully')
     } catch (error) {
       console.error('Error adding platform link:', error)
-      setError(error.message || 'Failed to add platform link')
+      setError(error instanceof Error ? error.message : 'Failed to add platform link')
     }
   }
 
   // Delete platform link
-  const deletePlatformLink = async (id) => {
+  const deletePlatformLink = async (id: number) => {
     setError('')
     setSuccess('')
 
@@ -347,12 +400,12 @@ function AdminPageContent() {
       setSuccess('Platform link deleted successfully')
     } catch (error) {
       console.error('Error deleting platform link:', error)
-      setError(error.message || 'Failed to delete platform link')
+      setError(error instanceof Error ? error.message : 'Failed to delete platform link')
     }
   }
 
   // Add new admin user
-  const addAdminUser = async (e) => {
+  const addAdminUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setSuccess('')
@@ -382,12 +435,12 @@ function AdminPageContent() {
       setSuccess('Admin user added successfully')
     } catch (error) {
       console.error('Error adding admin user:', error)
-      setError(error.message || 'Failed to add admin user')
+      setError(error instanceof Error ? error.message : 'Failed to add admin user')
     }
   }
 
   // Remove admin user
-  const removeAdminUser = async (email) => {
+  const removeAdminUser = async (email: string) => {
     setError('')
     setSuccess('')
 
@@ -405,12 +458,12 @@ function AdminPageContent() {
       setSuccess('Admin user removed successfully')
     } catch (error) {
       console.error('Error removing admin user:', error)
-      setError(error.message || 'Failed to remove admin user')
+      setError(error instanceof Error ? error.message : 'Failed to remove admin user')
     }
   }
 
   // Add new people admin user
-  const addPeopleAdminUser = async (e) => {
+  const addPeopleAdminUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setSuccess('')
@@ -440,12 +493,12 @@ function AdminPageContent() {
       setSuccess('People admin user added successfully')
     } catch (error) {
       console.error('Error adding people admin user:', error)
-      setError(error.message || 'Failed to add people admin user')
+      setError(error instanceof Error ? error.message : 'Failed to add people admin user')
     }
   }
 
   // Remove people admin user
-  const removePeopleAdminUser = async (email) => {
+  const removePeopleAdminUser = async (email: string) => {
     setError('')
     setSuccess('')
 
@@ -463,12 +516,12 @@ function AdminPageContent() {
       setSuccess('People admin user removed successfully')
     } catch (error) {
       console.error('Error removing people admin user:', error)
-      setError(error.message || 'Failed to remove people admin user')
+      setError(error instanceof Error ? error.message : 'Failed to remove people admin user')
     }
   }
 
   // Add new audit admin user
-  const addAuditAdminUser = async (e) => {
+  const addAuditAdminUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setSuccess('')
@@ -498,12 +551,12 @@ function AdminPageContent() {
       setSuccess('Audit admin user added successfully')
     } catch (error) {
       console.error('Error adding audit admin user:', error)
-      setError(error.message || 'Failed to add audit admin user')
+      setError(error instanceof Error ? error.message : 'Failed to add audit admin user')
     }
   }
 
   // Remove audit admin user
-  const removeAuditAdminUser = async (email) => {
+  const removeAuditAdminUser = async (email: string) => {
     setError('')
     setSuccess('')
 
@@ -521,12 +574,12 @@ function AdminPageContent() {
       setSuccess('Audit admin user removed successfully')
     } catch (error) {
       console.error('Error removing audit admin user:', error)
-      setError(error.message || 'Failed to remove audit admin user')
+      setError(error instanceof Error ? error.message : 'Failed to remove audit admin user')
     }
   }
 
   // Add new event
-  const addEvent = async (e) => {
+  const addEvent = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setSuccess('')
@@ -560,12 +613,12 @@ function AdminPageContent() {
       setSuccess('Event added successfully')
     } catch (error) {
       console.error('Error adding event:', error)
-      setError(error.message || 'Failed to add event')
+      setError(error instanceof Error ? error.message : 'Failed to add event')
     }
   }
 
   // Delete event
-  const deleteEvent = async (id) => {
+  const deleteEvent = async (id: number) => {
     setError('')
     setSuccess('')
 
@@ -583,12 +636,12 @@ function AdminPageContent() {
       setSuccess('Event deleted successfully')
     } catch (error) {
       console.error('Error deleting event:', error)
-      setError(error.message || 'Failed to delete event')
+      setError(error instanceof Error ? error.message : 'Failed to delete event')
     }
   }
 
   // Add new company news item
-  const addCompanyNews = async (e) => {
+  const addCompanyNews = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setSuccess('')
@@ -622,12 +675,12 @@ function AdminPageContent() {
       setSuccess('News item added successfully')
     } catch (error) {
       console.error('Error adding news item:', error)
-      setError(error.message || 'Failed to add news item')
+      setError(error instanceof Error ? error.message : 'Failed to add news item')
     }
   }
 
   // Delete company news item
-  const deleteCompanyNews = async (id) => {
+  const deleteCompanyNews = async (id: number) => {
     setError('')
     setSuccess('')
 
@@ -645,7 +698,7 @@ function AdminPageContent() {
       setSuccess('News item deleted successfully')
     } catch (error) {
       console.error('Error deleting news item:', error)
-      setError(error.message || 'Failed to delete news item')
+      setError(error instanceof Error ? error.message : 'Failed to delete news item')
     }
   }
 
@@ -680,7 +733,7 @@ function AdminPageContent() {
   }
 
   // Update complaint status
-  const updateComplaintStatus = async (id, status) => {
+  const updateComplaintStatus = async (id: number, status: string) => {
     try {
       const response = await fetch('/api/complaints', {
         method: 'PATCH',
@@ -699,12 +752,12 @@ function AdminPageContent() {
       setSuccess('Complaint status updated successfully')
     } catch (error) {
       console.error('Error updating complaint:', error)
-      setError(error.message || 'Failed to update complaint')
+      setError(error instanceof Error ? error.message : 'Failed to update complaint')
     }
   }
 
   // Update suggestion status
-  const updateSuggestionStatus = async (id, status) => {
+  const updateSuggestionStatus = async (id: number, status: string) => {
     try {
       const response = await fetch('/api/suggestions', {
         method: 'PATCH',
@@ -723,7 +776,7 @@ function AdminPageContent() {
       setSuccess('Suggestion status updated successfully')
     } catch (error) {
       console.error('Error updating suggestion:', error)
-      setError(error.message || 'Failed to update suggestion')
+      setError(error instanceof Error ? error.message : 'Failed to update suggestion')
     }
   }
 
@@ -1287,7 +1340,7 @@ function AdminPageContent() {
                             <div key={news.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                               <div>
                                 <p className="font-medium">{news.title}</p>
-                                <p className="text-sm text-gray-500">{news.content.length > 100 ? `${news.content.substring(0, 100)}...` : news.content}</p>
+                                <p className="text-sm text-gray-500">{news.content && news.content.length > 100 ? `${news.content.substring(0, 100)}...` : news.content || ''}</p>
                                 <p className="text-xs text-gray-500 mt-1">
                                   Published: {new Date(news.published_at).toLocaleDateString()}
                                 </p>

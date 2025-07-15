@@ -12,7 +12,7 @@ async function openDb() {
 
   // Check if database file exists
   if (!fs.existsSync(dbPath)) {
-    return NextResponse.json({ error: 'Database file not found' }, { status: 500 });
+    throw new Error('Database file not found');
   }
 
   return open({
@@ -22,7 +22,7 @@ async function openDb() {
 }
 
 // Helper function to check if user is people admin
-async function isPeopleAdmin(email) {
+async function isPeopleAdmin(email: string): Promise<boolean> {
   try {
     if (!email) {
       console.log('No email provided for people admin check');
@@ -63,8 +63,8 @@ export async function GET() {
       expires: session.expires
     } : 'No session');
 
-    if (!session) {
-      console.log('No session, returning unauthenticated response');
+    if (!session || !session.user?.email) {
+      console.log('No session or email, returning unauthenticated response');
       return NextResponse.json({ isPeopleAdmin: false, authenticated: false });
     }
 

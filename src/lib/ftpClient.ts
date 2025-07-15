@@ -55,7 +55,6 @@ async function withFtpClient<T>(
         password: FTP_CONFIG.password,
         secure: FTP_CONFIG.secure,
         port: FTP_CONFIG.port,
-        socketTimeout: 30000, // 30 second socket timeout
       });
 
       // Change to the base directory
@@ -132,20 +131,17 @@ export async function getFileContent(filePath: string): Promise<string> {
     const chunks: Buffer[] = [];
     let totalLength = 0;
 
-    const writer = new ftp.DownloadStreamOptions();
-    writer.streamConsumer = (source) => {
-      return new Promise((resolve, reject) => {
-        source.on('data', (chunk) => {
-          chunks.push(Buffer.from(chunk));
-          totalLength += chunk.length;
-        });
-        source.on('end', resolve);
-        source.on('error', reject);
-      });
-    };
+    const { Writable } = require('stream');
+    const writer = new Writable({
+      write(chunk: any, encoding: any, callback: any) {
+        chunks.push(Buffer.from(chunk));
+        totalLength += chunk.length;
+        callback();
+      }
+    });
 
     // Download the file
-    await client.downloadFrom(writer, filePath);
+    await client.downloadTo(writer, filePath);
 
     // Combine chunks and convert to string
     const buffer = Buffer.concat(chunks, totalLength);

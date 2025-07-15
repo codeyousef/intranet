@@ -8,7 +8,36 @@ export async function GET(request: NextRequest) {
     // List root folder
     const rootFiles = await listFiles();
     
-    const result = {
+    const result: {
+      timestamp: string;
+      rootFolder: {
+        itemCount: number;
+        items: Array<{
+          name: string;
+          type: string;
+          id: string;
+          size: number;
+          lastModified: string;
+          webUrl: string;
+        }>;
+      };
+      ceoNewsletterFolder?: {
+        name?: string;
+        itemCount?: number;
+        items?: Array<{
+          name: string;
+          type: string;
+          id: string;
+          size: number;
+          lastModified: string;
+          webUrl: string;
+        }>;
+        error?: string;
+        found?: boolean;
+        hint?: string;
+      };
+      htmlFilesInRoot?: string[];
+    } = {
       timestamp: new Date().toISOString(),
       rootFolder: {
         itemCount: rootFiles.length,
@@ -44,8 +73,10 @@ export async function GET(request: NextRequest) {
           items: newsletterFiles.map((item: any) => ({
             name: item.name,
             type: item.folder ? 'FOLDER' : 'FILE',
+            id: item.id,
             size: item.size,
-            lastModified: item.lastModifiedDateTime
+            lastModified: item.lastModifiedDateTime,
+            webUrl: item.webUrl
           }))
         };
       } catch (error: any) {

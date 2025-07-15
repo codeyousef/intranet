@@ -4,9 +4,21 @@ import { listFiles, getFileContent } from '@/lib/sharepointClient';
 export async function GET(request: NextRequest) {
   const results = {
     timestamp: new Date().toISOString(),
-    search: [],
+    search: [] as Array<{
+      location?: string;
+      foundItems?: Array<{
+        name: string;
+        type: string;
+        path: string;
+      }>;
+      path?: string;
+      status?: string;
+      contentLength?: number;
+      preview?: string;
+      error?: string;
+    }>,
     found: false,
-    workingPath: null
+    workingPath: null as string | null
   };
 
   try {
@@ -98,7 +110,8 @@ export async function GET(request: NextRequest) {
           location: `Contents of folder: ${folder.name}`,
           foundItems: folderContents.map((item: any) => ({
             name: item.name,
-            type: item.folder ? 'FOLDER' : 'FILE'
+            type: item.folder ? 'FOLDER' : 'FILE',
+            path: `${folder.name}/${item.name}`
           }))
         });
       } catch (error: any) {

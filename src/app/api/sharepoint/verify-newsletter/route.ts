@@ -12,13 +12,21 @@ export async function GET(request: NextRequest) {
     // Get app token for Graph API
     let appToken = '';
     try {
-      const tokenUrl = `https://login.microsoftonline.com/${process.env.AZURE_AD_TENANT_ID}/oauth2/v2.0/token`;
+      const clientId = process.env.AZURE_AD_CLIENT_ID;
+      const clientSecret = process.env.AZURE_AD_CLIENT_SECRET;
+      const tenantId = process.env.AZURE_AD_TENANT_ID;
+
+      if (!clientId || !clientSecret || !tenantId) {
+        throw new Error('Missing required environment variables');
+      }
+
+      const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
       const tokenResponse = await fetch(tokenUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
-          client_id: process.env.AZURE_AD_CLIENT_ID!,
-          client_secret: process.env.AZURE_AD_CLIENT_SECRET!,
+          client_id: clientId,
+          client_secret: clientSecret,
           scope: 'https://graph.microsoft.com/.default',
           grant_type: 'client_credentials',
         }),
@@ -32,7 +40,25 @@ export async function GET(request: NextRequest) {
       console.error('Failed to get app token:', e);
     }
 
-    const results = {
+    const results: {
+      timestamp: string;
+      user: string | null | undefined;
+      tests: Array<{
+        name: string;
+        url?: string;
+        status?: number;
+        statusText?: string;
+        success?: boolean;
+        data?: any;
+        error?: string;
+      }>;
+      summary?: {
+        totalTests: number;
+        successful: number;
+        failed: number;
+        recommendations: string[];
+      };
+    } = {
       timestamp: new Date().toISOString(),
       user: session.user?.email,
       tests: []
@@ -59,11 +85,13 @@ export async function GET(request: NextRequest) {
 
         if (searchResponse.ok) {
           const data = await searchResponse.json();
-          results.tests[results.tests.length - 1].filesFound = data.value?.map((f: any) => ({
-            name: f.name,
-            webUrl: f.webUrl,
-            path: f.parentReference?.path
-          }));
+          results.tests[results.tests.length - 1].data = {
+            filesFound: data.value?.map((f: any) => ({
+              name: f.name,
+              webUrl: f.webUrl,
+              path: f.parentReference?.path
+            }))
+          };
         }
       } catch (error: any) {
         results.tests.push({
@@ -94,8 +122,10 @@ export async function GET(request: NextRequest) {
 
       if (folderResponse.ok) {
         const data = await folderResponse.json();
-        results.tests[results.tests.length - 1].folderExists = true;
-        results.tests[results.tests.length - 1].folderPath = data.d?.ServerRelativeUrl;
+        results.tests[results.tests.length - 1].data = {
+          folderExists: true,
+          folderPath: data.d?.ServerRelativeUrl
+        };
       }
     } catch (error: any) {
       results.tests.push({
@@ -133,10 +163,12 @@ export async function GET(request: NextRequest) {
 
         if (fileResponse.ok) {
           const data = await fileResponse.json();
-          results.tests[results.tests.length - 1].fileInfo = {
-            name: data.d?.Name,
-            serverRelativeUrl: data.d?.ServerRelativeUrl,
-            timeLastModified: data.d?.TimeLastModified
+          results.tests[results.tests.length - 1].data = {
+            fileInfo: {
+              name: data.d?.Name,
+              serverRelativeUrl: data.d?.ServerRelativeUrl,
+              timeLastModified: data.d?.TimeLastModified
+            }
           };
           break; // Found the file
         }

@@ -12,7 +12,7 @@ async function openDb() {
 
   // Check if database file exists
   if (!fs.existsSync(dbPath)) {
-    return null;
+    throw new Error('Database file not found');
   }
 
   return open({
@@ -22,12 +22,11 @@ async function openDb() {
 }
 
 // Helper function to check if user is admin
-async function isAdmin(email) {
+async function isAdmin(email: string): Promise<boolean> {
   try {
     if (!email) return false;
 
     const db = await openDb();
-    if (!db) return false;
 
     const result = await db.get('SELECT * FROM admin_users WHERE LOWER(email) = ?', [email.toLowerCase()]);
     
@@ -44,7 +43,7 @@ export async function GET() {
   try {
     // Check if user is authenticated and is an admin
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user?.email) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
@@ -54,9 +53,6 @@ export async function GET() {
     }
 
     const db = await openDb();
-    if (!db) {
-      return NextResponse.json({ error: 'Database file not found' }, { status: 500 });
-    }
 
     const peopleAdminUsers = await db.all('SELECT * FROM people_admin_users ORDER BY email');
     await db.close();
@@ -69,11 +65,11 @@ export async function GET() {
 }
 
 // POST a new people admin user
-export async function POST(request) {
+export async function POST(request: Request) {
   try {
     // Check if user is authenticated and is an admin
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user?.email) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
@@ -91,9 +87,6 @@ export async function POST(request) {
     }
 
     const db = await openDb();
-    if (!db) {
-      return NextResponse.json({ error: 'Database file not found' }, { status: 500 });
-    }
 
     // Check if user already exists
     const existingUser = await db.get('SELECT * FROM people_admin_users WHERE LOWER(email) = ?', [email.toLowerCase()]);

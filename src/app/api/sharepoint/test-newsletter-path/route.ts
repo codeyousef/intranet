@@ -25,7 +25,19 @@ export async function GET(request: NextRequest) {
       'https://flyadeal.sharepoint.com/sites/Thelounge/CEO%20Newsletter/index.html'
     ];
 
-    const results = [];
+    const results: Array<{
+      url: string;
+      status?: number;
+      statusText?: string;
+      contentType?: string | null;
+      contentLength?: string | null;
+      success?: boolean;
+      error?: any;
+      preview?: string;
+      fullLength?: number;
+      api?: string;
+      files?: any;
+    }> = [];
 
     for (const url of urlVariations) {
       try {
@@ -64,8 +76,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Also test SharePoint REST API
+    const restUrl = "https://flyadeal.sharepoint.com/_api/web/GetFolderByServerRelativeUrl('/sites/Thelounge/CEO Newsletter')/Files";
     try {
-      const restUrl = "https://flyadeal.sharepoint.com/_api/web/GetFolderByServerRelativeUrl('/sites/Thelounge/CEO Newsletter')/Files";
       
       const restResponse = await fetch(restUrl, {
         headers: {
@@ -98,6 +110,7 @@ export async function GET(request: NextRequest) {
       }
     } catch (error: any) {
       results.push({
+        url: restUrl,
         api: 'REST API - List Files',
         error: error.message,
         success: false
