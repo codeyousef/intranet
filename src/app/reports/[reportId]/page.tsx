@@ -2,7 +2,6 @@
 
 import { useSession } from 'next-auth/react'
 import { Navigation } from '@/components/navigation'
-import { PowerBIReport } from '@/components/power-bi-report'
 import { GlassmorphismContainer } from '@/components/glassmorphism-container'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, BarChart3 } from 'lucide-react'
@@ -67,10 +66,18 @@ export default function ReportPage() {
           </div>
 
           {/* Full-Width Report */}
-          <PowerBIReport 
-            reportId={reportId}
-            className="w-full"
-          />
+          <GlassmorphismContainer className="w-full p-8">
+            <div className="text-center">
+              <BarChart3 className="mx-auto mb-4 text-flyadeal-yellow" size={64} />
+              <h2 className="text-xl font-semibold text-white mb-2">Report Viewer</h2>
+              <p className="text-white/70">
+                Report functionality is currently being implemented.
+              </p>
+              <p className="text-white/50 text-sm mt-2">
+                Report ID: {reportId}
+              </p>
+            </div>
+          </GlassmorphismContainer>
         </div>
       </main>
     </div>
