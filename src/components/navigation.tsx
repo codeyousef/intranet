@@ -65,7 +65,7 @@ export function Navigation() {
 
 // The actual dynamic content - only rendered on client
 function NavigationContent() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -92,7 +92,7 @@ function NavigationContent() {
     if (session) {
       checkAdminStatus()
     }
-  }, [status, session?.user?.email])
+  }, [status, session?.user?.email, session])
 
   return (
     <>

@@ -28,7 +28,7 @@ export const authOptions: NextAuthOptions = {
       name: `next-auth.session-token`,
       options: {
         httpOnly: true,
-        sameSite: 'strict', // Changed to strict for better security
+        sameSite: 'lax', // Changed to lax to allow redirects
         path: '/',
         secure: true, // Always use secure cookies
       },
@@ -37,7 +37,7 @@ export const authOptions: NextAuthOptions = {
       name: `next-auth.callback-url`,
       options: {
         httpOnly: true,
-        sameSite: 'strict', // Changed to strict for better security
+        sameSite: 'lax', // Changed to lax to allow redirects
         path: '/',
         secure: true, // Always use secure cookies
       },
@@ -46,7 +46,7 @@ export const authOptions: NextAuthOptions = {
       name: `next-auth.csrf-token`,
       options: {
         httpOnly: true,
-        sameSite: 'strict', // Changed to strict for better security
+        sameSite: 'lax', // Changed to lax to allow redirects
         path: '/',
         secure: true, // Always use secure cookies
       },

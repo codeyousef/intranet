@@ -41,62 +41,117 @@ const rateLimiters = {
 
 // Helper to get client identifier
 function getClientIdentifier(request: NextRequest): string {
+  // In production, always log the first few requests to debug IP detection
+  const shouldLog = process.env.NODE_ENV === 'development' || Math.random() < 0.01; // Log 1% of requests in production
+  
   // Try to get real IP from various headers
   const forwardedFor = request.headers.get('x-forwarded-for');
   const realIp = request.headers.get('x-real-ip');
   const cfConnectingIp = request.headers.get('cf-connecting-ip');
   const remoteAddr = request.headers.get('x-remote-addr');
+  const trueClientIp = request.headers.get('true-client-ip');
+  const clientIp = request.headers.get('client-ip');
   
-  // Log all available headers for debugging (only in development)
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[Rate Limiter] IP Detection:', {
+  // Get additional identifiers for better differentiation
+  const userAgent = request.headers.get('user-agent') || 'unknown';
+  const acceptLanguage = request.headers.get('accept-language') || 'unknown';
+  const sessionCookie = request.cookies.get('next-auth.session-token')?.value || 
+                       request.cookies.get('__Secure-next-auth.session-token')?.value || '';
+  
+  // Log all available headers for debugging
+  if (shouldLog) {
+    console.log('[Rate Limiter] IP Detection Debug:', {
       'x-forwarded-for': forwardedFor,
       'x-real-ip': realIp,
       'cf-connecting-ip': cfConnectingIp,
       'x-remote-addr': remoteAddr,
+      'true-client-ip': trueClientIp,
+      'client-ip': clientIp,
       'url': request.url,
-      'method': request.method
+      'method': request.method,
+      'user-agent': userAgent?.substring(0, 50),
+      'has-session': !!sessionCookie
     });
   }
+  
+  let clientIdentifier: string | null = null;
   
   // Priority order for IP detection
   if (forwardedFor) {
     // Take the first IP if there are multiple (client's IP)
-    const firstIp = forwardedFor.split(',')[0].trim();
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[Rate Limiter] Using x-forwarded-for: ${firstIp}`);
+    const ips = forwardedFor.split(',').map(ip => ip.trim());
+    // Filter out local/private IPs
+    const publicIp = ips.find(ip => !isPrivateIP(ip)) || ips[0];
+    if (shouldLog) {
+      console.log(`[Rate Limiter] Using x-forwarded-for: ${publicIp} from ${forwardedFor}`);
     }
-    return firstIp;
-  }
-  
-  if (realIp) {
-    if (process.env.NODE_ENV === 'development') {
+    clientIdentifier = publicIp;
+  } else if (realIp && !isPrivateIP(realIp)) {
+    if (shouldLog) {
       console.log(`[Rate Limiter] Using x-real-ip: ${realIp}`);
     }
-    return realIp;
-  }
-  
-  if (cfConnectingIp) {
-    if (process.env.NODE_ENV === 'development') {
+    clientIdentifier = realIp;
+  } else if (cfConnectingIp) {
+    if (shouldLog) {
       console.log(`[Rate Limiter] Using cf-connecting-ip: ${cfConnectingIp}`);
     }
-    return cfConnectingIp;
-  }
-  
-  if (remoteAddr) {
-    if (process.env.NODE_ENV === 'development') {
+    clientIdentifier = cfConnectingIp;
+  } else if (trueClientIp) {
+    if (shouldLog) {
+      console.log(`[Rate Limiter] Using true-client-ip: ${trueClientIp}`);
+    }
+    clientIdentifier = trueClientIp;
+  } else if (clientIp) {
+    if (shouldLog) {
+      console.log(`[Rate Limiter] Using client-ip: ${clientIp}`);
+    }
+    clientIdentifier = clientIp;
+  } else if (remoteAddr) {
+    if (shouldLog) {
       console.log(`[Rate Limiter] Using x-remote-addr: ${remoteAddr}`);
     }
-    return remoteAddr;
+    clientIdentifier = remoteAddr;
+  }
+  
+  // If we have a valid IP, optionally combine with session for authenticated users
+  if (clientIdentifier) {
+    // For authenticated endpoints, combine IP with session to allow higher limits per user
+    if (request.url.includes('/api/auth/') && sessionCookie) {
+      const sessionHash = sessionCookie.substring(0, 8); // Use first 8 chars of session
+      return `${clientIdentifier}-${sessionHash}`;
+    }
+    return clientIdentifier;
   }
   
   // Generate a more unique fallback identifier
-  const userAgent = request.headers.get('user-agent') || 'unknown';
-  const acceptLanguage = request.headers.get('accept-language') || 'unknown';
-  const fallbackId = `fallback-${userAgent.substring(0, 20)}-${acceptLanguage.substring(0, 10)}-${Date.now()}`;
+  const fallbackId = `fallback-${userAgent.substring(0, 20)}-${acceptLanguage.substring(0, 10)}-${Math.random().toString(36).substring(7)}`;
   
   console.warn(`[Rate Limiter] No IP found, using fallback: ${fallbackId}`);
   return fallbackId;
+}
+
+// Helper to check if an IP is private/local
+function isPrivateIP(ip: string): boolean {
+  return ip === '127.0.0.1' || 
+         ip === '::1' || 
+         ip.startsWith('10.') || 
+         ip.startsWith('172.16.') || 
+         ip.startsWith('172.17.') || 
+         ip.startsWith('172.18.') || 
+         ip.startsWith('172.19.') || 
+         ip.startsWith('172.20.') || 
+         ip.startsWith('172.21.') || 
+         ip.startsWith('172.22.') || 
+         ip.startsWith('172.23.') || 
+         ip.startsWith('172.24.') || 
+         ip.startsWith('172.25.') || 
+         ip.startsWith('172.26.') || 
+         ip.startsWith('172.27.') || 
+         ip.startsWith('172.28.') || 
+         ip.startsWith('172.29.') || 
+         ip.startsWith('172.30.') || 
+         ip.startsWith('172.31.') || 
+         ip.startsWith('192.168.');
 }
 
 // Main rate limiting function
