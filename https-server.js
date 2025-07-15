@@ -21,6 +21,23 @@ const httpsOptions = {
 app.prepare().then(() => {
   createServer(httpsOptions, async (req, res) => {
     try {
+      // Forward the real client IP address
+      const clientIp = req.connection.remoteAddress || req.socket.remoteAddress;
+      const forwardedFor = req.headers['x-forwarded-for'];
+      
+      // Set proper forwarding headers
+      if (!req.headers['x-forwarded-for']) {
+        req.headers['x-forwarded-for'] = clientIp;
+      }
+      if (!req.headers['x-real-ip']) {
+        req.headers['x-real-ip'] = clientIp;
+      }
+      
+      // Log IP detection for debugging (only in development)
+      if (dev) {
+        console.log(`[HTTPS Server] Client IP: ${clientIp}, X-Forwarded-For: ${forwardedFor || 'not set'}`);
+      }
+      
       // Add CORS headers - restrict to specific origin
       const origin = req.headers.origin;
       const allowedOrigins = ['https://172.22.58.184:8443', 'http://localhost:3001'];

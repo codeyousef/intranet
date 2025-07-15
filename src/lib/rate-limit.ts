@@ -45,19 +45,58 @@ function getClientIdentifier(request: NextRequest): string {
   const forwardedFor = request.headers.get('x-forwarded-for');
   const realIp = request.headers.get('x-real-ip');
   const cfConnectingIp = request.headers.get('cf-connecting-ip');
+  const remoteAddr = request.headers.get('x-remote-addr');
   
-  if (forwardedFor) {
-    return forwardedFor.split(',')[0].trim();
+  // Log all available headers for debugging (only in development)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Rate Limiter] IP Detection:', {
+      'x-forwarded-for': forwardedFor,
+      'x-real-ip': realIp,
+      'cf-connecting-ip': cfConnectingIp,
+      'x-remote-addr': remoteAddr,
+      'url': request.url,
+      'method': request.method
+    });
   }
+  
+  // Priority order for IP detection
+  if (forwardedFor) {
+    // Take the first IP if there are multiple (client's IP)
+    const firstIp = forwardedFor.split(',')[0].trim();
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Rate Limiter] Using x-forwarded-for: ${firstIp}`);
+    }
+    return firstIp;
+  }
+  
   if (realIp) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Rate Limiter] Using x-real-ip: ${realIp}`);
+    }
     return realIp;
   }
+  
   if (cfConnectingIp) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Rate Limiter] Using cf-connecting-ip: ${cfConnectingIp}`);
+    }
     return cfConnectingIp;
   }
   
-  // Fallback to a generic identifier if no IP is found
-  return 'anonymous';
+  if (remoteAddr) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Rate Limiter] Using x-remote-addr: ${remoteAddr}`);
+    }
+    return remoteAddr;
+  }
+  
+  // Generate a more unique fallback identifier
+  const userAgent = request.headers.get('user-agent') || 'unknown';
+  const acceptLanguage = request.headers.get('accept-language') || 'unknown';
+  const fallbackId = `fallback-${userAgent.substring(0, 20)}-${acceptLanguage.substring(0, 10)}-${Date.now()}`;
+  
+  console.warn(`[Rate Limiter] No IP found, using fallback: ${fallbackId}`);
+  return fallbackId;
 }
 
 // Main rate limiting function
@@ -68,8 +107,16 @@ export async function rateLimit(
   const identifier = getClientIdentifier(request);
   const rateLimiter = rateLimiters[type];
   
+  // Log rate limit check (only in development)
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[Rate Limiter] Checking rate limit for ${identifier} on ${type} endpoint`);
+  }
+  
   try {
     await rateLimiter.consume(identifier);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Rate Limiter] Request allowed for ${identifier}`);
+    }
     return null; // Request allowed
   } catch (rateLimiterRes) {
     // Calculate retry after time
