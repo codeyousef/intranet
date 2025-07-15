@@ -22,13 +22,21 @@ export function SignInClient() {
   }, [errorParam])
 
   useEffect(() => {
-    // Check if already signed in
+    // Check if already signed in - only run once on mount
+    let mounted = true;
+
     getSession().then((session) => {
-      if (session) {
+      if (mounted && session) {
         router.push(callbackUrl)
       }
+    }).catch((error) => {
+      console.error('Session check error:', error);
     })
-  }, [router, callbackUrl])
+
+    return () => {
+      mounted = false;
+    }
+  }, []) // Empty dependency array - only run once!
 
   const handleSignIn = async () => {
     setLoading(true)
