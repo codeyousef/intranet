@@ -78,7 +78,7 @@ function NavigationContent() {
   // Check if user is admin
   useEffect(() => {
     const checkAdminStatus = async () => {
-      if (!session) return
+      if (status !== 'authenticated' || !session) return
 
       try {
         const response = await fetch('/api/admin/check')
@@ -92,7 +92,7 @@ function NavigationContent() {
     if (session) {
       checkAdminStatus()
     }
-  }, [session])
+  }, [status, session?.user?.email])
 
   return (
     <>

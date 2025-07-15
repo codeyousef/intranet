@@ -270,10 +270,10 @@ function DashboardPage() {
 
     // Only fetch weather after component is mounted and user is authenticated
     console.log('Weather useEffect triggered. Session:', !!session, 'isClient:', isClient);
-    if (session && isClient) {
+    if (status === 'authenticated' && isClient) {
       fetchWeatherData();
     }
-  }, [session, isClient])
+  }, [status, isClient])
 
   // Newsletter loading effect - only runs on client side
   useEffect(() => {
@@ -500,7 +500,7 @@ function DashboardPage() {
       debugLog('🔍 Newsletter already loaded in this session, skipping fetch');
       infoLog('Newsletter fetch skipped - already loaded in this session');
     }
-  }, [session, isClient]) // Add isClient as a dependency to ensure this only runs on the client
+  }, [status, isClient]) // Add isClient as a dependency to ensure this only runs on the client
 
   return (
     <div className="min-h-screen">

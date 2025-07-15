@@ -299,10 +299,10 @@ function DashboardPage() {
 
     // Only fetch weather after component is mounted and user is authenticated
     console.log('Weather useEffect triggered. Session:', !!session);
-    if (session && typeof window !== 'undefined') {
+    if (status === 'authenticated' && typeof window !== 'undefined') {
       fetchWeatherData();
     }
-  }, [session])
+  }, [status])
 
   // Newsletter loading effect - only runs on client side
   useEffect(() => {
@@ -513,7 +513,7 @@ function DashboardPage() {
     } else {
       console.log('[NEWSLETTER] Already loaded in this session - skipping fetch');
     }
-  }, [session]) // Session dependency to re-run when auth changes
+  }, [status]) // Session dependency to re-run when auth changes
 
   return (
     <div>
