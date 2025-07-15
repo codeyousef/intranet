@@ -2,6 +2,9 @@ import { getServerSession } from 'next-auth/next'
 import AzureADProvider from 'next-auth/providers/azure-ad'
 import { NextAuthOptions } from 'next-auth'
 
+// Token refresh tracking
+const tokenRefreshAttempts = new Map<string, { count: number; lastAttempt: number; nextAllowedAttempt: number }>()
+
 export const authOptions: NextAuthOptions = {
   // Disable debug mode to prevent warnings
   debug: false,
@@ -71,7 +74,30 @@ export const authOptions: NextAuthOptions = {
 
       // Token is expired, try to refresh it
       if (token.refreshToken) {
+        const tokenKey = token.sub || 'default'
+        const now = Date.now()
+        const attemptInfo = tokenRefreshAttempts.get(tokenKey) || { count: 0, lastAttempt: 0, nextAllowedAttempt: 0 }
+        
+        // Check if we're still in cooldown period
+        if (now < attemptInfo.nextAllowedAttempt) {
+          console.log(`⏳ Token refresh cooldown for ${tokenKey}, next attempt allowed at ${new Date(attemptInfo.nextAllowedAttempt).toISOString()}`)
+          // Return token with error flag to prevent immediate retries
+          token.error = "RefreshCooldown"
+          return token
+        }
+        
+        // Calculate exponential backoff: 2^attempt seconds, max 5 minutes
+        const backoffSeconds = Math.min(Math.pow(2, attemptInfo.count), 300)
+        const nextAllowedAttempt = now + (backoffSeconds * 1000)
         try {
+          // Update attempt tracking
+          attemptInfo.count++
+          attemptInfo.lastAttempt = now
+          attemptInfo.nextAllowedAttempt = nextAllowedAttempt
+          tokenRefreshAttempts.set(tokenKey, attemptInfo)
+          
+          console.log(`🔄 Attempting token refresh for ${tokenKey} (attempt ${attemptInfo.count})`)
+          
           const response = await fetch(`https://login.microsoftonline.com/${process.env.AZURE_AD_TENANT_ID}/oauth2/v2.0/token`, {
             method: 'POST',
             headers: {
@@ -105,16 +131,27 @@ export const authOptions: NextAuthOptions = {
           token.accessToken = refreshedTokens.access_token
           token.refreshToken = refreshedTokens.refresh_token || token.refreshToken
           token.expiresAt = Math.floor(Date.now() / 1000) + refreshedTokens.expires_in
+          
+          // Reset attempt tracking on success
+          tokenRefreshAttempts.delete(tokenKey)
+          delete token.error
+          
           console.log('✅ Token refreshed successfully')
         } catch (error) {
-          console.error('❌ Error refreshing token:', error instanceof Error ? error.message : error)
+          console.error(`❌ Error refreshing token (attempt ${attemptInfo.count}):`, error instanceof Error ? error.message : error)
+          console.error(`⏱️ Next retry allowed at: ${new Date(attemptInfo.nextAllowedAttempt).toISOString()}`)
 
-          // Clear token data to force re-authentication
-          // This is safer than returning an expired token
-          token.accessToken = undefined
-          token.refreshToken = undefined
-          token.expiresAt = undefined
+          // Don't immediately clear tokens - mark as error state instead
           token.error = "RefreshAccessTokenError"
+          
+          // Clear tokens only after max attempts (5)
+          if (attemptInfo.count >= 5) {
+            console.error('❌ Max refresh attempts reached, clearing tokens')
+            token.accessToken = undefined
+            token.refreshToken = undefined
+            token.expiresAt = undefined
+            tokenRefreshAttempts.delete(tokenKey)
+          }
         }
       }
 

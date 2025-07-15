@@ -80,16 +80,25 @@ global.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
             responseText: text.substring(0, 500) // Show more of the response text
           });
 
-          // Return a valid JSON response with an error message
+          // For 429 (rate limit) errors, preserve the original response
+          if (response.status === 429) {
+            return response;
+          }
+          
+          // For other errors, return the original status code
+          // This prevents NextAuth from retrying on legitimate errors
           return new Response(JSON.stringify({
             error: 'server_error',
             message: 'The server returned an error or non-JSON response',
             status: response.status,
             url
           }), {
-            status: 200, // Use 200 status so NextAuth can handle the error properly
+            status: response.status, // Preserve original status
             headers: {
-              'Content-Type': 'application/json'
+              'Content-Type': 'application/json',
+              ...Object.fromEntries(Array.from(response.headers.entries()).filter(([key]) => 
+                ['retry-after', 'x-ratelimit-limit', 'x-ratelimit-remaining', 'x-ratelimit-reset'].includes(key.toLowerCase())
+              ))
             }
           });
         } catch (error) {
@@ -172,26 +181,21 @@ global.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
               });
             }
 
-            // For 500 errors with JSON responses, we want to convert them to 200 responses
-            // with the error information preserved, so NextAuth can handle them properly
-            if (response.status === 500 && url.includes('/api/auth/session')) {
-              // Only log in development mode to reduce noise in production
+            // For 429 (rate limit) errors, preserve the original response
+            // so NextAuth knows to back off and not retry immediately
+            if (response.status === 429) {
+              console.warn('[Fetch Interceptor] Rate limit error detected, preserving original response');
+              return response;
+            }
+            
+            // For 500 errors with JSON responses on auth endpoints,
+            // preserve the original response to prevent retry loops
+            if (response.status === 500 && url.includes('/api/auth/')) {
+              // Log the error but don't modify the response
               if (process.env.NODE_ENV === 'development') {
-                console.warn('[Fetch Interceptor] Converting 500 error to 200 response for NextAuth session endpoint');
+                console.warn('[Fetch Interceptor] Auth endpoint 500 error, preserving original response');
               }
-
-              // Return a valid JSON response with the error information
-              return new Response(JSON.stringify({
-                error: errorData.error || 'server_error',
-                message: errorData.message || 'The server encountered an error',
-                details: errorData.details || 'No additional details provided',
-                timestamp: errorData.timestamp || new Date().toISOString()
-              }), {
-                status: 200,
-                headers: {
-                  'Content-Type': 'application/json'
-                }
-              });
+              return response;
             }
 
             // For 500 errors with any NextAuth request, log additional information to help debugging
@@ -228,14 +232,19 @@ global.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
                 });
               }
 
-              // Return a valid JSON response with an error message
+              // For 429 (rate limit) errors, preserve the original response
+              if (response.status === 429) {
+                return response;
+              }
+              
+              // Return error with original status code
               return new Response(JSON.stringify({
                 error: 'invalid_json_response',
                 message: 'The server returned an invalid JSON response',
                 status: response.status,
                 url
               }), {
-                status: 200,
+                status: response.status, // Preserve original status
                 headers: {
                   'Content-Type': 'application/json'
                 }

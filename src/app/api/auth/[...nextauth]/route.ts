@@ -1,6 +1,5 @@
 import NextAuth from 'next-auth'
-// Temporarily use simplified auth to diagnose timeout issues
-import { authOptions } from '@/lib/auth-simple'
+import { authOptions } from '@/lib/auth'
 
 const handler = NextAuth(authOptions)
 

@@ -10,11 +10,11 @@ const rateLimiters = {
     blockDuration: 60, // Block for 1 minute
   }),
   
-  // Authentication endpoints - very strict
+  // Authentication endpoints - moderate strictness
   auth: new RateLimiterMemory({
-    points: 5, // Only 5 attempts
+    points: 10, // Increased from 5 to 10 attempts
     duration: 300, // Per 5 minutes
-    blockDuration: 900, // Block for 15 minutes
+    blockDuration: 300, // Reduced from 15 to 5 minutes
   }),
   
   // Weather API - moderate limits

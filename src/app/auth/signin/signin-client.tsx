@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { signIn, getSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { GlassmorphismContainer } from '@/components/glassmorphism-container'
@@ -11,6 +11,8 @@ export function SignInClient() {
   const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const sessionCheckRef = useRef(false)
+  const lastSignInAttempt = useRef(0)
 
   const callbackUrl = searchParams.get('callbackUrl') || '/'
   const errorParam = searchParams.get('error')
@@ -23,15 +25,25 @@ export function SignInClient() {
 
   useEffect(() => {
     // Check if already signed in - only run once on mount
+    if (sessionCheckRef.current) {
+      return; // Prevent duplicate session checks
+    }
+    sessionCheckRef.current = true;
+    
     let mounted = true;
-
-    getSession().then((session) => {
-      if (mounted && session) {
-        router.push(callbackUrl)
+    const checkSession = async () => {
+      try {
+        const session = await getSession();
+        if (mounted && session) {
+          router.push(callbackUrl);
+        }
+      } catch (error) {
+        console.error('Session check error:', error);
+        // Don't retry on error to prevent request spam
       }
-    }).catch((error) => {
-      console.error('Session check error:', error);
-    })
+    };
+    
+    checkSession();
 
     return () => {
       mounted = false;
@@ -39,6 +51,14 @@ export function SignInClient() {
   }, []) // Empty dependency array - only run once!
 
   const handleSignIn = async () => {
+    // Implement debouncing to prevent rapid clicks
+    const now = Date.now();
+    if (now - lastSignInAttempt.current < 2000) {
+      console.log('Sign-in debounced - too rapid');
+      return;
+    }
+    lastSignInAttempt.current = now;
+    
     setLoading(true)
     setError(null)
     
