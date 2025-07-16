@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Debug endpoint disabled' }, { status: 403 });
   }
 
-  const debug = {
+  const debug: any = {
     timestamp: new Date().toISOString(),
     environment: {
       NODE_ENV: process.env.NODE_ENV,
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
           : 'NOT SET'
       }
     },
-    secretAnalysis: {} as any,
+    secretAnalysis: {},
     headers: {
       host: request.headers.get('host'),
       'x-forwarded-proto': request.headers.get('x-forwarded-proto'),

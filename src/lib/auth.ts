@@ -185,13 +185,6 @@ export const authOptions: NextAuthOptions = {
         tokenExists: !!token,
         sessionExists: !!session
       });
-    },
-    async error(error) {
-      console.error('[NextAuth] Authentication error:', {
-        timestamp: new Date().toISOString(),
-        error: error.message,
-        url: error.url
-      });
     }
   },
   // Add session configuration to ensure it's properly cleared
