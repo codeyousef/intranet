@@ -39,6 +39,7 @@ async function getGraphToken() {
 export async function GET(request: NextRequest) {
   try {
     console.log('Newsletter archive API request received');
+    console.log('Request URL:', request.url);
     
     // Get the path parameter from the request
     const { searchParams } = new URL(request.url);
@@ -47,6 +48,7 @@ export async function GET(request: NextRequest) {
     console.log(`Fetching newsletter archive file: ${path || 'none'}`);
     
     if (!path) {
+      console.log('ERROR: No path parameter provided');
       return NextResponse.json({
         success: false,
         message: 'Path parameter is required'
@@ -56,15 +58,19 @@ export async function GET(request: NextRequest) {
     // Get authentication session
     const session = await getAuthSession();
     if (!session) {
-      console.log('No authentication session found');
+      console.log('ERROR: No authentication session found');
       return NextResponse.json({
         success: false,
         message: 'Authentication required'
       }, { status: 401 });
     }
+    
+    console.log('Authentication session found:', !!session);
 
     // Get Graph API token
+    console.log('Getting Graph API token...');
     const accessToken = await getGraphToken();
+    console.log('Graph API token acquired:', !!accessToken);
     
     // SharePoint site details
     const siteUrl = 'https://nasairgroup.sharepoint.com/sites/Flyadeal';
