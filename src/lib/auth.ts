@@ -6,8 +6,8 @@ import { NextAuthOptions } from 'next-auth'
 const tokenRefreshAttempts = new Map<string, { count: number; lastAttempt: number; nextAllowedAttempt: number }>()
 
 export const authOptions: NextAuthOptions = {
-  // Disable debug mode to prevent warnings
-  debug: false,
+  // Enable debug mode temporarily to diagnose issues
+  debug: process.env.NODE_ENV === 'development' || process.env.NEXTAUTH_DEBUG === 'true',
   // Set the secret explicitly to ensure it's used for CSRF token generation
   secret: process.env.NEXTAUTH_SECRET,
   providers: [
@@ -171,11 +171,26 @@ export const authOptions: NextAuthOptions = {
   },
   // Add event handlers for better error tracking
   events: {
+    async signIn({ user, account, profile }) {
+      console.log('[NextAuth] SignIn attempt', {
+        timestamp: new Date().toISOString(),
+        provider: account?.provider,
+        userId: user?.id,
+        hasProfile: !!profile
+      });
+    },
     async signOut({ token, session }) {
       console.log('[NextAuth] SignOut event triggered', {
         timestamp: new Date().toISOString(),
         tokenExists: !!token,
         sessionExists: !!session
+      });
+    },
+    async error(error) {
+      console.error('[NextAuth] Authentication error:', {
+        timestamp: new Date().toISOString(),
+        error: error.message,
+        url: error.url
       });
     }
   },
