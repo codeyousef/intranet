@@ -3,6 +3,7 @@ import AzureADProvider from 'next-auth/providers/azure-ad'
 import { NextAuthOptions } from 'next-auth'
 
 export const authOptions: NextAuthOptions = {
+  secret: process.env.NEXTAUTH_SECRET,
   providers: [
     AzureADProvider({
       clientId: process.env.AZURE_AD_CLIENT_ID!,
@@ -23,22 +24,10 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, account, user }) {
       // Initial sign in
       if (account && user) {
-        return {
-          ...token,
-          accessToken: account.access_token,
-          refreshToken: account.refresh_token,
-          accessTokenExpires: account.expires_at ? account.expires_at * 1000 : 0,
-          user,
-        }
+        token.accessToken = account.access_token
+        token.refreshToken = account.refresh_token
+        token.user = user
       }
-
-      // Return previous token if the access token has not expired yet
-      if (Date.now() < (token.accessTokenExpires as number)) {
-        return token
-      }
-
-      // Access token has expired, return previous token
-      // NextAuth will handle re-authentication
       return token
     },
     async session({ session, token }) {
