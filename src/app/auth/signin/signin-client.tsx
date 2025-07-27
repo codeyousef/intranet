@@ -35,7 +35,8 @@ export function SignInClient() {
       try {
         const session = await getSession();
         if (mounted && session) {
-          router.push(callbackUrl);
+          // Use window.location for redirect to avoid hydration issues
+          window.location.href = callbackUrl;
         }
       } catch (error) {
         console.error('Session check error:', error);
@@ -70,12 +71,13 @@ export function SignInClient() {
       
       if (result?.error) {
         setError(result.error)
+        setLoading(false)
       } else if (result?.url) {
-        router.push(result.url)
+        // Use window.location for redirect to avoid hydration issues
+        window.location.href = result.url
       }
     } catch (err) {
       setError('An unexpected error occurred')
-    } finally {
       setLoading(false)
     }
   }

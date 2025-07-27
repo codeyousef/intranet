@@ -59,9 +59,9 @@ const nextConfig = {
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://copilotstudio.microsoft.com https://*.microsoftonline.com",
-              "style-src 'self' 'unsafe-inline'",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' data: https: blob:",
-              "font-src 'self' data:",
+              "font-src 'self' data: https://fonts.gstatic.com",
               "connect-src 'self' https://api.weatherapi.com https://graph.microsoft.com https://*.sharepoint.com https://*.microsoftonline.com wss://localhost:* ws://localhost:*",
               "frame-src 'self' https://copilotstudio.microsoft.com https://*.sharepoint.com https://*.office.com",
               "object-src 'none'",
