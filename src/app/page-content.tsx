@@ -129,23 +129,23 @@ function DashboardPage() {
     if (!flightMetrics?.dateRange?.actualDate) {
       return 'Loading...';
     }
-    
+
     // Parse the actual date used (MM/DD/YYYY format)
     const [month, day, year] = flightMetrics.dateRange.actualDate.split('/').map(Number);
     const actualDate = new Date(year, month - 1, day);
-    
+
     // Check if it's yesterday
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const isYesterday = actualDate.toDateString() === yesterday.toDateString();
-    
+
     if (isYesterday) {
       return `Yesterday (${actualDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`;
     } else {
       return actualDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
   }
-  
+
   // Fetch flight metrics when component mounts
   useEffect(() => {
     fetch('/api/flight-data')
@@ -207,7 +207,7 @@ function DashboardPage() {
       try {
         console.log('Starting weather fetch...');
         setWeatherLoading(true);
-        
+
         // Try to get user's location
         if ('geolocation' in navigator) {
           console.log('Geolocation available, requesting permission...');
@@ -215,7 +215,7 @@ function DashboardPage() {
             async (position) => {
               const { latitude, longitude } = position.coords;
               console.log('Got location:', latitude, longitude);
-              
+
               try {
                 const response = await fetch('/api/weather', {
                   method: 'POST',
@@ -224,13 +224,13 @@ function DashboardPage() {
                   },
                   body: JSON.stringify({ latitude, longitude }),
                 });
-                
+
                 console.log('Weather API response status:', response.status);
-                
+
                 if (response.ok) {
                   const data = await response.json();
                   console.log('Weather data received:', data);
-                  
+
                   if (data.weatherData) {
                     const newWeather = {
                       temp: Math.round(data.weatherData.current.temp_c),
@@ -252,7 +252,7 @@ function DashboardPage() {
             async (error) => {
               // Geolocation failed, use fallback (Jeddah)
               console.log('Geolocation error:', error, 'using fallback location');
-              
+
               try {
                 const response = await fetch('/api/weather', {
                   method: 'POST',
@@ -261,7 +261,7 @@ function DashboardPage() {
                   },
                   body: JSON.stringify({ latitude: 21.543333, longitude: 39.172778 }),
                 });
-                
+
                 if (response.ok) {
                   const data = await response.json();
                   if (data.weatherData) {
@@ -307,19 +307,19 @@ function DashboardPage() {
   // Newsletter loading effect - only runs on client side
   useEffect(() => {
     console.log('[NEWSLETTER] useEffect triggered');
-    
+
     // Skip this effect during server-side rendering
     if (typeof window === 'undefined') {
       console.log('[NEWSLETTER] Skipped - server-side rendering');
       return;
     }
-    
+
     // Also skip if no session
     if (!session) {
       console.log('[NEWSLETTER] Skipped - no session');
       return;
     }
-    
+
     console.log('[NEWSLETTER] Effect running with session:', session?.user?.email);
 
     // Newsletter logging
@@ -485,7 +485,7 @@ function DashboardPage() {
         // Clear the flag since we don't have the actual data
         localStorage.removeItem('newsletterLoaded');
         globalNewsletterLoaded.current = false;
-        
+
         // Trigger a fetch since we don't have the data
         console.log('[NEWSLETTER] Triggering fetch due to missing data');
         fetchNewsletter();
@@ -497,7 +497,7 @@ function DashboardPage() {
     // Check URL parameters for force_fetch flag
     const forceFetch = new URLSearchParams(window.location.search).get('force_fetch') === 'true';
     const clearCache = new URLSearchParams(window.location.search).get('clear_cache') === 'true';
-    
+
     if (clearCache) {
       console.log('Clear cache requested - removing newsletter data from localStorage');
       localStorage.removeItem('newsletterLoaded');
@@ -709,25 +709,25 @@ function DashboardPage() {
                             margin-top: 0 !important;
                             padding-top: 0 !important;
                           }
-                          
+
                           /* Remove margins from nested first elements */
                           .newsletter-content > * > *:first-child {
                             margin-top: 0 !important;
                             padding-top: 0 !important;
                           }
-                          
+
                           @media (max-width: 640px) {
                             /* Remove padding from wrapper on mobile */
                             .newsletter-content-wrapper {
                               padding-top: 0 !important;
                             }
-                            
+
                             /* Reset to normal positioning */
                             .newsletter-content {
                               margin-top: 0 !important;
                               padding-top: 0 !important;
                             }
-                            
+
                             /* Target all possible first elements with more specificity */
                             .newsletter-content > :first-child,
                             .newsletter-content > * > :first-child,
@@ -739,7 +739,7 @@ function DashboardPage() {
                               margin-top: 0 !important;
                               padding-top: 0 !important;
                             }
-                            
+
                             /* Hide empty paragraphs and divs at the start */
                             .newsletter-content > p:empty,
                             .newsletter-content > div:empty,
@@ -748,7 +748,7 @@ function DashboardPage() {
                             .newsletter-content > div:first-child:empty {
                               display: none !important;
                             }
-                            
+
                             .newsletter-content * {
                               max-width: 100% !important;
                             }
@@ -776,7 +776,7 @@ function DashboardPage() {
                                 while (modified) {
                                   modified = false;
                                   const firstChild = el.firstElementChild as HTMLElement;
-                                  
+
                                   if (firstChild) {
                                     const text = firstChild.textContent?.trim() || '';
                                     const isEmptyOrWhitespace = !text || text === '\u00A0' || text === '&nbsp;';
@@ -785,7 +785,7 @@ function DashboardPage() {
                                       Array.from(firstChild.children).every(child => 
                                         !(child as HTMLElement).textContent?.trim()
                                       );
-                                    
+
                                     if (isEmptyOrWhitespace || isOnlyBr || hasOnlyEmptyChildren) {
                                       firstChild.remove();
                                       modified = true;
@@ -795,7 +795,7 @@ function DashboardPage() {
                                       firstChild.style.paddingTop = '0';
                                       firstChild.style.marginBlockStart = '0';
                                       firstChild.style.paddingBlockStart = '0';
-                                      
+
                                       // Also check first child of first child
                                       const nestedFirst = firstChild.firstElementChild as HTMLElement;
                                       if (nestedFirst) {
@@ -807,7 +807,7 @@ function DashboardPage() {
                                     }
                                   }
                                 }
-                                
+
                                 // Also force the wrapper to have no top padding
                                 const wrapper = el.parentElement;
                                 if (wrapper) {
@@ -960,26 +960,26 @@ function DashboardPage() {
                       width: 100%;
                       overflow-x: hidden;
                     }
-                    
+
                     .newsletter-modal-content * {
                       max-width: 100% !important;
                       box-sizing: border-box !important;
                     }
-                    
+
                     .newsletter-modal-content img {
                       height: auto !important;
                     }
-                    
+
                     .newsletter-modal-content table {
                       width: 100% !important;
                       table-layout: fixed !important;
                     }
-                    
+
                     .newsletter-modal-content [style*="width"] {
                       width: 100% !important;
                       max-width: 100% !important;
                     }
-                    
+
                     @media (max-width: 640px) {
                       .newsletter-modal-content {
                         font-size: 14px;
@@ -988,7 +988,7 @@ function DashboardPage() {
                   `}</style>
                   <div 
                     className="newsletter-modal-content"
-                    dangerouslySetInnerHTML={{ __html: newsletter.content }}
+                    dangerouslySetInnerHTML={createSanitizedMarkup(newsletter.content)}
                     style={{
                       color: '#374151'
                     }}
