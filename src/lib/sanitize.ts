@@ -1,5 +1,14 @@
 import DOMPurify from 'isomorphic-dompurify';
 
+// Initialize DOMPurify hooks once when the module is loaded
+if (typeof window !== 'undefined') {
+  DOMPurify.addHook('afterSanitizeAttributes', function(node) {
+    if (node.tagName === 'A' && node.getAttribute('target') === '_blank') {
+      node.setAttribute('rel', 'noopener noreferrer');
+    }
+  });
+}
+
 /**
  * Sanitize HTML content to prevent XSS attacks
  * @param dirty - The HTML string to sanitize
@@ -32,15 +41,10 @@ export function sanitizeHtml(dirty: string, options?: any): string {
 
   const clean = DOMPurify.sanitize(dirty, config);
 
-  // Additional safety: Add rel="noopener noreferrer" to external links
+  // When on the client side, we've already added the hook at module load time
+  // so we just need to sanitize the HTML
   if (typeof window !== 'undefined') {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = clean.toString();
-    const links = tempDiv.querySelectorAll('a[target="_blank"]');
-    links.forEach(link => {
-      link.setAttribute('rel', 'noopener noreferrer');
-    });
-    return tempDiv.innerHTML;
+    return DOMPurify.sanitize(dirty, config);
   }
 
   return clean.toString();
