@@ -44,7 +44,7 @@ export function sanitizeHtml(dirty: string, options?: any): string {
   // When on the client side, we've already added the hook at module load time
   // so we just need to sanitize the HTML
   if (typeof window !== 'undefined') {
-    return DOMPurify.sanitize(dirty, config);
+    return DOMPurify.sanitize(dirty, config).toString();
   }
 
   return clean.toString();
