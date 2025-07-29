@@ -115,7 +115,7 @@ function LoginPage() {
 
 function DashboardPage() {
   const { theme } = useTheme()
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
   const [weather, setWeather] = useState({ temp: 25, condition: 'Loading...', location: 'Fetching...' })
   const [weatherLoading, setWeatherLoading] = useState(true)
