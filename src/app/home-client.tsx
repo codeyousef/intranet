@@ -380,19 +380,19 @@ function DashboardPage() {
       return;
     }
 
-    // Create enhanced logging functions - all info logs removed as requested
+    // Create enhanced logging functions with actual implementation for debugging
     const debugLog = (message: any, ...args: any[]) => {
-      // No-op function - debug logs removed
+      console.debug(`[NEWSLETTER-DEBUG] ${message}`, ...args);
     };
 
-    // Critical logs removed as requested
+    // Critical logs are always shown regardless of log level
     const criticalLog = (message: any, ...args: any[]) => {
-      // No-op function - critical logs removed
+      console.error(`[NEWSLETTER-CRITICAL] ${message}`, ...args);
     };
 
-    // Info logs removed as requested
+    // Info logs for important information
     const infoLog = (message: any, ...args: any[]) => {
-      // No-op function - info logs removed
+      console.log(`[NEWSLETTER-INFO] ${message}`, ...args);
     };
 
     // Error logs are always shown
@@ -424,6 +424,25 @@ function DashboardPage() {
             parsedNewsletter.title !== "Newsletter Temporarily Unavailable" &&
             parsedNewsletter.title !== "Newsletter Service Temporarily Unavailable" &&
             parsedNewsletter.source !== "system";
+
+          // Log detailed validation information to help debug issues
+          criticalLog('Validating stored newsletter - DETAILED CHECK', {
+            isValid: isValidNewsletter,
+            title: parsedNewsletter?.title || 'unknown',
+            hasContent: !!parsedNewsletter?.content,
+            contentLength: parsedNewsletter?.content?.length || 0,
+            source: parsedNewsletter?.source || 'unknown',
+            lastUpdated: parsedNewsletter?.lastUpdated || 'unknown',
+            failedChecks: {
+              noNewsletter: !parsedNewsletter,
+              noContent: !parsedNewsletter?.content,
+              loadingTitle: parsedNewsletter?.title === "Loading Newsletter",
+              errorTitle: parsedNewsletter?.title === "Newsletter Error",
+              tempUnavailableTitle: parsedNewsletter?.title === "Newsletter Temporarily Unavailable",
+              serviceUnavailableTitle: parsedNewsletter?.title === "Newsletter Service Temporarily Unavailable",
+              systemSource: parsedNewsletter?.source === "system"
+            }
+          });
 
           debugLog('🔍 Validating stored newsletter', {
             isValid: isValidNewsletter,
@@ -511,8 +530,32 @@ function DashboardPage() {
       return;
     }
 
-    // Check URL parameters for force_fetch flag
-    const forceFetch = new URLSearchParams(window.location.search).get('force_fetch') === 'true';
+    // Check URL parameters for force_fetch flag and other parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const forceFetch = urlParams.get('force_fetch') === 'true';
+    const clearCache = urlParams.get('clear_cache') === 'true';
+    const debugMode = urlParams.get('debug_newsletter') === 'true';
+    const fetchTimestamp = parseInt(urlParams.get('fetch_ts') || '0', 10);
+    const currentTimestamp = Date.now();
+    const timeSinceLastFetch = currentTimestamp - lastFetchAttempt.timestamp;
+
+    // Log detailed information about URL parameters and fetch decision
+    criticalLog('URL parameters and fetch decision - DETAILED CHECK', {
+      forceFetch,
+      clearCache,
+      debugMode,
+      fetchTimestamp: fetchTimestamp > 0 ? new Date(fetchTimestamp).toISOString() : 'none',
+      currentTimestamp: new Date(currentTimestamp).toISOString(),
+      lastFetchTimestamp: lastFetchAttempt.timestamp > 0 ? new Date(lastFetchAttempt.timestamp).toISOString() : 'never',
+      timeSinceLastFetch: `${Math.round(timeSinceLastFetch / 1000)} seconds`,
+      newsletterLoaded: globalNewsletterLoaded.current,
+      shouldFetch: !globalNewsletterLoaded.current || forceFetch,
+      localStorage: {
+        newsletterLoaded: localStorage.getItem('newsletterLoaded'),
+        hasNewsletterData: !!localStorage.getItem('newsletterData'),
+        newsletterDataSize: localStorage.getItem('newsletterData')?.length || 0
+      }
+    });
 
     infoLog(`Force fetch parameter check: ${forceFetch ? 'Force fetch requested' : 'Normal fetch flow'}`);
 
@@ -531,19 +574,47 @@ function DashboardPage() {
       criticalLog(`Initiating newsletter fetch from API at ${new Date().toISOString()}`);
 
       // Log browser and environment information for troubleshooting
-      infoLog('Environment information', {
+      criticalLog('Environment information - DETAILED CHECK', {
         userAgent: navigator.userAgent,
         language: navigator.language,
         cookiesEnabled: navigator.cookieEnabled,
         windowDimensions: `${window.innerWidth}x${window.innerHeight}`,
         timestamp: new Date().toISOString(),
-        endpoint: '/api/sharepoint/newsletter-list'
+        endpoint: '/api/sharepoint/newsletter-list',
+        sessionInfo: {
+          hasSession: !!session,
+          userEmail: session?.user?.email || 'unknown'
+        },
+        fetchAttemptInfo: {
+          lastAttemptTimestamp: lastFetchAttempt.timestamp,
+          timeSinceLastAttempt: now - lastFetchAttempt.timestamp,
+          minInterval: lastFetchAttempt.minInterval
+        }
       });
 
       // Fetch the newsletter
       fetch('/api/sharepoint/newsletter-list')
         .then(response => {
           criticalLog(`Newsletter API response received - Status: ${response.status} ${response.statusText}`);
+
+          // Log detailed response information
+          criticalLog('Response details - DETAILED CHECK', {
+            status: response.status,
+            statusText: response.statusText,
+            ok: response.ok,
+            url: response.url,
+            type: response.type,
+            redirected: response.redirected,
+            headers: {
+              contentType: response.headers.get('content-type'),
+              contentLength: response.headers.get('content-length'),
+              cacheControl: response.headers.get('cache-control'),
+              etag: response.headers.get('etag'),
+              server: response.headers.get('server'),
+              date: response.headers.get('date')
+            }
+          });
+
           infoLog('Response headers', {
             contentType: response.headers.get('content-type'),
             contentLength: response.headers.get('content-length'),
@@ -580,6 +651,19 @@ function DashboardPage() {
           return response.json();
         })
         .then(data => {
+          // Log detailed information about the response data
+          criticalLog('Newsletter API response data - DETAILED CHECK', {
+            success: data.success,
+            hasNewsletter: !!data.newsletter,
+            error: data.error || 'none',
+            details: data.details || 'none',
+            dataKeys: Object.keys(data || {}),
+            dataType: typeof data,
+            isDataNull: data === null,
+            isDataUndefined: data === undefined,
+            rawDataSize: JSON.stringify(data || {}).length
+          });
+
           infoLog('Newsletter API response data', {
             success: data.success,
             hasNewsletter: !!data.newsletter,
@@ -590,6 +674,19 @@ function DashboardPage() {
           if (data.success && data.newsletter) {
             debugLog('✅ Newsletter fetched successfully', data.newsletter);
             criticalLog(`Newsletter fetch successful - Content length: ${data.newsletter.content?.length || 0} characters`);
+
+            // Log detailed newsletter metadata
+            criticalLog('Newsletter metadata - DETAILED CHECK', {
+              title: data.newsletter.title,
+              lastUpdated: data.newsletter.lastUpdated,
+              source: data.newsletter.source,
+              type: data.newsletter.type,
+              sharePointUrl: data.newsletter.sharePointUrl || 'none',
+              contentLength: data.newsletter.content?.length || 0,
+              contentPreview: data.newsletter.content?.substring(0, 200) || 'no content',
+              allKeys: Object.keys(data.newsletter || {})
+            });
+
             infoLog('Newsletter metadata', {
               title: data.newsletter.title,
               lastUpdated: data.newsletter.lastUpdated,
@@ -598,14 +695,39 @@ function DashboardPage() {
               sharePointUrl: data.newsletter.sharePointUrl || 'none'
             });
 
+            // Log state change before updating
+            criticalLog('Setting newsletter state - SUCCESS PATH', {
+              previousTitle: newsletter?.title || 'none',
+              newTitle: data.newsletter.title,
+              stateChange: `${newsletter?.title || 'none'} -> ${data.newsletter.title}`
+            });
+
             setNewsletter(data.newsletter);
 
             // Save to localStorage to avoid refetching
             localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
             localStorage.setItem('newsletterLoaded', 'true');
             globalNewsletterLoaded.current = true;
+
+            criticalLog('Newsletter data saved to localStorage - SUCCESS COMPLETE', {
+              title: data.newsletter.title,
+              dataSize: JSON.stringify(data.newsletter).length,
+              globalLoaded: globalNewsletterLoaded.current,
+              localStorageLoaded: localStorage.getItem('newsletterLoaded')
+            });
+
             infoLog('Newsletter data saved to localStorage');
           } else {
+            // Log detailed error information
+            criticalLog('API returned success:false or missing newsletter data - ERROR PATH', {
+              success: data.success,
+              error: data.error || 'Unknown error',
+              details: data.details || 'No details provided',
+              hasNewsletter: !!data.newsletter,
+              dataKeys: Object.keys(data || {}),
+              currentNewsletterTitle: newsletter?.title || 'none'
+            });
+
             errorLog('API returned success:false or missing newsletter data', {
               success: data.success,
               error: data.error || 'Unknown error',
@@ -614,6 +736,13 @@ function DashboardPage() {
 
             // If there's a newsletter object in the error response, log its details
             if (data.newsletter) {
+              criticalLog('Error response included newsletter fallback content - FALLBACK CHECK', {
+                title: data.newsletter.title,
+                contentLength: data.newsletter.content?.length || 0,
+                source: data.newsletter.source,
+                allKeys: Object.keys(data.newsletter || {})
+              });
+
               infoLog('Error response included newsletter fallback content', {
                 title: data.newsletter.title,
                 contentLength: data.newsletter.content?.length || 0,
@@ -625,6 +754,21 @@ function DashboardPage() {
           }
         })
         .catch(error => {
+          // Log detailed error information
+          criticalLog('Newsletter fetch failed - CATCH BLOCK', {
+            errorName: error.name,
+            errorMessage: error.message,
+            errorStack: error.stack,
+            errorType: typeof error,
+            isNetworkError: error.name === 'TypeError' && error.message.includes('Failed to fetch'),
+            currentNewsletterTitle: newsletter?.title || 'none',
+            timestamp: new Date().toISOString(),
+            fetchAttemptInfo: {
+              lastAttemptTimestamp: lastFetchAttempt.timestamp,
+              timeSinceAttempt: Date.now() - lastFetchAttempt.timestamp
+            }
+          });
+
           debugLog('❌ Error fetching newsletter', error);
           errorLog(`Newsletter fetch failed: ${error.message}`, {
             stack: error.stack,
@@ -634,6 +778,14 @@ function DashboardPage() {
           // Check if it's a network error
           if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
             criticalLog('Network error detected - possible connectivity issue or CORS problem');
+
+            // Log state change for network error
+            criticalLog('Setting newsletter state - NETWORK ERROR PATH', {
+              previousTitle: newsletter?.title || 'none',
+              newTitle: "Newsletter Temporarily Unavailable",
+              stateChange: `${newsletter?.title || 'none'} -> Newsletter Temporarily Unavailable`,
+              reason: 'network error'
+            });
 
             // Provide a fallback for network errors too
             setNewsletter({
@@ -645,11 +797,26 @@ function DashboardPage() {
 
             // Don't save this fallback to localStorage for network errors
             // This will allow it to try fetching again on the next visit when SharePoint might be unblocked
+            criticalLog('Not setting loaded flag for network error - RETRY STRATEGY', {
+              reason: 'network error - allowing retry on next visit',
+              globalLoaded: globalNewsletterLoaded.current,
+              localStorageLoaded: localStorage.getItem('newsletterLoaded')
+            });
+
             console.log('[NEWSLETTER] Not setting loaded flag for network error - allowing retry on next visit');
 
             // Return early to avoid setting the error state
             return;
           }
+
+          // Log state change for general error
+          criticalLog('Setting newsletter state - GENERAL ERROR PATH', {
+            previousTitle: newsletter?.title || 'none',
+            newTitle: "Newsletter Error",
+            stateChange: `${newsletter?.title || 'none'} -> Newsletter Error`,
+            reason: 'general error',
+            errorMessage: error.message
+          });
 
           // For other errors, show a more user-friendly error message
           // but also provide a fallback newsletter content
@@ -669,9 +836,29 @@ function DashboardPage() {
 
           // Don't save this fallback to localStorage for errors
           // This will allow it to try fetching again on the next visit when the issue might be resolved
+          criticalLog('Not setting loaded flag for general error - RETRY STRATEGY', {
+            reason: 'general error - allowing retry on next visit',
+            errorMessage: error.message,
+            globalLoaded: globalNewsletterLoaded.current,
+            localStorageLoaded: localStorage.getItem('newsletterLoaded')
+          });
+
           console.log('[NEWSLETTER] Not setting loaded flag for error - allowing retry on next visit');
         });
     } else {
+      // Log detailed information about why the fetch is being skipped
+      criticalLog('Newsletter fetch skipped - ALREADY LOADED CHECK', {
+        globalLoaded: globalNewsletterLoaded.current,
+        forceFetch,
+        currentNewsletterTitle: newsletter?.title || 'none',
+        localStorage: {
+          newsletterLoaded: localStorage.getItem('newsletterLoaded'),
+          hasNewsletterData: !!localStorage.getItem('newsletterData'),
+          newsletterDataSize: localStorage.getItem('newsletterData')?.length || 0
+        },
+        skipReason: 'already loaded in this session'
+      });
+
       debugLog('🔍 Newsletter already loaded in this session, skipping fetch');
       infoLog('Newsletter fetch skipped - already loaded in this session');
     }
