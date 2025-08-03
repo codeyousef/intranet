@@ -371,7 +371,7 @@ function DashboardPage() {
     if (session && isClient) {
       fetchWeatherData();
     }
-  }, [session, isClient])
+  }, [status, isClient])
 
   // Newsletter loading effect - only runs on client side
   useEffect(() => {
@@ -415,6 +415,8 @@ function DashboardPage() {
       userEmail: session.user?.email || 'none'
     });
 
+    console.error('[NEWSLETTER-CRITICAL] About to create logging functions');
+
     // Create enhanced logging functions with actual implementation for debugging
     const debugLog = (message: any, ...args: any[]) => {
       console.debug(`[NEWSLETTER-DEBUG] ${message}`, ...args);
@@ -435,12 +437,22 @@ function DashboardPage() {
       console.error(`[NEWSLETTER-ERROR] ${message}`, ...args);
     };
 
+    console.error('[NEWSLETTER-CRITICAL] About to check newsletter loading state');
+
     // Check if newsletter has already been loaded in this session
     const newsletterLoaded = localStorage.getItem('newsletterLoaded') === 'true';
     globalNewsletterLoaded.current = newsletterLoaded;
+
+    console.error('[NEWSLETTER-CRITICAL] Newsletter loading state checked', {
+      newsletterLoaded,
+      globalNewsletterLoaded: globalNewsletterLoaded.current,
+      localStorageValue: localStorage.getItem('newsletterLoaded')
+    });
+
     infoLog(`Newsletter loading state check: ${newsletterLoaded ? 'Already loaded' : 'Not loaded yet'}`);
 
     if (newsletterLoaded) {
+      console.error('[NEWSLETTER-CRITICAL] Newsletter marked as loaded - checking localStorage data');
       debugLog('🔍 Newsletter already loaded in this session, checking localStorage for data');
       infoLog('Attempting to load newsletter from localStorage');
 
@@ -615,8 +627,15 @@ function DashboardPage() {
 
     infoLog(`Force fetch parameter check: ${forceFetch ? 'Force fetch requested' : 'Normal fetch flow'}`);
 
+    console.error('[NEWSLETTER-CRITICAL] About to check if should fetch newsletter', {
+      globalNewsletterLoaded: globalNewsletterLoaded.current,
+      forceFetch,
+      shouldFetch: !globalNewsletterLoaded.current || forceFetch
+    });
+
     // If newsletter hasn't been loaded or force_fetch is true, fetch it
     if (!globalNewsletterLoaded.current || forceFetch) {
+      console.error('[NEWSLETTER-CRITICAL] Decided to fetch newsletter - entering fetch logic');
       // Implement debounce to prevent rapid successive fetches
       const now = Date.now();
       if (now - lastFetchAttempt.timestamp < lastFetchAttempt.minInterval) {
@@ -912,6 +931,18 @@ function DashboardPage() {
           console.log('[NEWSLETTER] Not setting loaded flag for error - allowing retry on next visit');
         });
     } else {
+      console.error('[NEWSLETTER-CRITICAL] Newsletter fetch skipped - already loaded', {
+        globalLoaded: globalNewsletterLoaded.current,
+        forceFetch,
+        currentNewsletterTitle: newsletter?.title || 'none',
+        localStorage: {
+          newsletterLoaded: localStorage.getItem('newsletterLoaded'),
+          hasNewsletterData: !!localStorage.getItem('newsletterData'),
+          newsletterDataSize: localStorage.getItem('newsletterData')?.length || 0
+        },
+        skipReason: 'already loaded in this session'
+      });
+
       // Log detailed information about why the fetch is being skipped
       criticalLog('Newsletter fetch skipped - ALREADY LOADED CHECK', {
         globalLoaded: globalNewsletterLoaded.current,
