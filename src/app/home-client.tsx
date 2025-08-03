@@ -375,14 +375,24 @@ function DashboardPage() {
 
   // Newsletter loading effect - only runs on client side
   useEffect(() => {
+    // ULTRA-AGGRESSIVE LOGGING - Log absolutely everything at the start
+    console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] useEffect ENTRY POINT - ${new Date().toISOString()}`);
+    console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] Window check: ${typeof window !== 'undefined' ? 'CLIENT' : 'SERVER'}`);
+    console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] Dependencies: status="${status}", isClient=${isClient}`);
+    console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] Session: hasSession=${!!session}, email=${session?.user?.email || 'none'}`);
+    console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] Newsletter state: title="${newsletter?.title || 'none'}"`);
+    console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] Global loaded: ${globalNewsletterLoaded.current}`);
+
     // Skip this effect during server-side rendering
     if (typeof window === 'undefined') {
-      console.log('[NEWSLETTER-CRITICAL] useEffect skipped - server-side rendering');
+      console.error('🚨 [NEWSLETTER-ULTRA-CRITICAL] EXITING - server-side rendering detected');
       return;
     }
 
+    console.error('🚨 [NEWSLETTER-ULTRA-CRITICAL] PASSED window check - proceeding');
+
     // Log when the useEffect runs and why
-    console.error(`[NEWSLETTER-CRITICAL] Newsletter useEffect triggered at ${new Date().toISOString()}`, {
+    console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] Newsletter useEffect triggered at ${new Date().toISOString()}`, {
       sessionStatus: status,
       hasSession: !!session,
       userEmail: session?.user?.email || 'none',
@@ -398,17 +408,21 @@ function DashboardPage() {
 
     // Check if user is authenticated before proceeding
     if (status === 'loading') {
-      console.error('[NEWSLETTER-CRITICAL] Session still loading - skipping newsletter logic');
+      console.error('🚨 [NEWSLETTER-ULTRA-CRITICAL] EXITING - Session still loading');
       return;
     }
 
+    console.error('🚨 [NEWSLETTER-ULTRA-CRITICAL] PASSED loading check - status is not loading');
+
     if (status === 'unauthenticated' || !session) {
-      console.error('[NEWSLETTER-CRITICAL] User not authenticated - skipping newsletter logic', {
+      console.error('🚨 [NEWSLETTER-ULTRA-CRITICAL] EXITING - User not authenticated', {
         status,
         hasSession: !!session
       });
       return;
     }
+
+    console.error('🚨 [NEWSLETTER-ULTRA-CRITICAL] PASSED authentication check - user is authenticated');
 
     console.error('[NEWSLETTER-CRITICAL] User authenticated - proceeding with newsletter logic', {
       status,
