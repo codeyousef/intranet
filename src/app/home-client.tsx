@@ -113,7 +113,7 @@ function LoginPage() {
 
 function DashboardPage() {
   const { theme } = useTheme()
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
   const [weather, setWeather] = useState({ temp: 25, condition: 'Loading...', location: 'Fetching...' })
   const [weatherLoading, setWeatherLoading] = useState(true)
@@ -377,8 +377,43 @@ function DashboardPage() {
   useEffect(() => {
     // Skip this effect during server-side rendering
     if (typeof window === 'undefined') {
+      console.log('[NEWSLETTER-CRITICAL] useEffect skipped - server-side rendering');
       return;
     }
+
+    // Log when the useEffect runs and why
+    console.error(`[NEWSLETTER-CRITICAL] Newsletter useEffect triggered at ${new Date().toISOString()}`, {
+      sessionStatus: status,
+      hasSession: !!session,
+      userEmail: session?.user?.email || 'none',
+      isClient,
+      dependencies: { status, isClient },
+      currentNewsletterTitle: newsletter?.title || 'none',
+      globalNewsletterLoaded: globalNewsletterLoaded.current,
+      localStorage: {
+        newsletterLoaded: typeof window !== 'undefined' ? localStorage.getItem('newsletterLoaded') : 'unavailable',
+        hasNewsletterData: typeof window !== 'undefined' ? !!localStorage.getItem('newsletterData') : false
+      }
+    });
+
+    // Check if user is authenticated before proceeding
+    if (status === 'loading') {
+      console.error('[NEWSLETTER-CRITICAL] Session still loading - skipping newsletter logic');
+      return;
+    }
+
+    if (status === 'unauthenticated' || !session) {
+      console.error('[NEWSLETTER-CRITICAL] User not authenticated - skipping newsletter logic', {
+        status,
+        hasSession: !!session
+      });
+      return;
+    }
+
+    console.error('[NEWSLETTER-CRITICAL] User authenticated - proceeding with newsletter logic', {
+      status,
+      userEmail: session.user?.email || 'none'
+    });
 
     // Create enhanced logging functions with actual implementation for debugging
     const debugLog = (message: any, ...args: any[]) => {
@@ -453,6 +488,17 @@ function DashboardPage() {
 
           if (isValidNewsletter) {
             setNewsletter(parsedNewsletter);
+
+            // Log the state change with critical level to ensure it's always displayed
+            criticalLog('Newsletter state set from localStorage - SUCCESS', {
+              title: parsedNewsletter.title,
+              contentLength: parsedNewsletter.content?.length || 0,
+              lastUpdated: parsedNewsletter.lastUpdated,
+              source: parsedNewsletter.source,
+              stateChange: `${newsletter?.title || 'none'} -> ${parsedNewsletter.title}`,
+              timestamp: new Date().toISOString()
+            });
+
             debugLog('✅ Loaded newsletter data from localStorage', parsedNewsletter);
             infoLog('Successfully loaded newsletter from localStorage', {
               title: parsedNewsletter.title,
@@ -473,11 +519,21 @@ function DashboardPage() {
             globalNewsletterLoaded.current = false;
 
             // Set a temporary loading state message
-            setNewsletter({
+            const loadingNewsletter = {
               title: "Loading Newsletter",
               content: "<div style='text-align: center; padding: 20px;'><p>Retrieving the latest newsletter...</p></div>",
               lastUpdated: new Date().toISOString(),
               source: "system"
+            };
+
+            setNewsletter(loadingNewsletter);
+
+            // Log the state change with critical level to ensure it's always displayed
+            criticalLog('Newsletter state set to loading - INVALID STORED DATA', {
+              title: loadingNewsletter.title,
+              stateChange: `${newsletter?.title || 'none'} -> ${loadingNewsletter.title}`,
+              reason: 'invalid stored data detected',
+              timestamp: new Date().toISOString()
             });
 
             // Trigger a fetch with a slight delay to ensure UI updates first
@@ -703,6 +759,16 @@ function DashboardPage() {
             });
 
             setNewsletter(data.newsletter);
+
+            // Log the state change with critical level to ensure it's always displayed
+            criticalLog('Newsletter state set from API fetch - SUCCESS', {
+              title: data.newsletter.title,
+              contentLength: data.newsletter.content?.length || 0,
+              lastUpdated: data.newsletter.lastUpdated,
+              source: data.newsletter.source,
+              stateChange: `${newsletter?.title || 'none'} -> ${data.newsletter.title}`,
+              timestamp: new Date().toISOString()
+            });
 
             // Save to localStorage to avoid refetching
             localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
