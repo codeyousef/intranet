@@ -414,14 +414,90 @@ function DashboardPage() {
       if (storedNewsletter) {
         try {
           const parsedNewsletter = JSON.parse(storedNewsletter);
-          setNewsletter(parsedNewsletter);
-          debugLog('✅ Loaded newsletter data from localStorage', parsedNewsletter);
-          infoLog('Successfully loaded newsletter from localStorage', {
-            title: parsedNewsletter.title,
-            contentLength: parsedNewsletter.content?.length || 0,
-            lastUpdated: parsedNewsletter.lastUpdated,
-            source: parsedNewsletter.source
+
+          // Check if the stored newsletter is valid (not an error or loading state)
+          const isValidNewsletter = 
+            parsedNewsletter && 
+            parsedNewsletter.content && 
+            parsedNewsletter.title !== "Loading Newsletter" &&
+            parsedNewsletter.title !== "Newsletter Error" &&
+            parsedNewsletter.title !== "Newsletter Temporarily Unavailable" &&
+            parsedNewsletter.source !== "system";
+
+          debugLog('🔍 Validating stored newsletter', {
+            isValid: isValidNewsletter,
+            title: parsedNewsletter?.title || 'unknown',
+            hasContent: !!parsedNewsletter?.content,
+            source: parsedNewsletter?.source || 'unknown'
           });
+
+          if (isValidNewsletter) {
+            setNewsletter(parsedNewsletter);
+            debugLog('✅ Loaded newsletter data from localStorage', parsedNewsletter);
+            infoLog('Successfully loaded newsletter from localStorage', {
+              title: parsedNewsletter.title,
+              contentLength: parsedNewsletter.content?.length || 0,
+              lastUpdated: parsedNewsletter.lastUpdated,
+              source: parsedNewsletter.source
+            });
+          } else {
+            debugLog('⚠️ Stored newsletter is in error/loading state - forcing fresh fetch', {
+              title: parsedNewsletter?.title || 'unknown',
+              source: parsedNewsletter?.source || 'unknown'
+            });
+            infoLog('Stored newsletter is in error/loading state - forcing fresh fetch');
+
+            // Clear the flag since we have invalid data
+            localStorage.removeItem('newsletterLoaded');
+            localStorage.removeItem('newsletterData');
+            globalNewsletterLoaded.current = false;
+
+            // Set a temporary loading state message
+            setNewsletter({
+              title: "Loading Newsletter",
+              content: "<div style='text-align: center; padding: 20px;'><p>Retrieving the latest newsletter...</p></div>",
+              lastUpdated: new Date().toISOString(),
+              source: "system"
+            });
+
+            // Trigger a fetch with a slight delay to ensure UI updates first
+            infoLog('Triggering fetch due to invalid stored data');
+            setTimeout(() => {
+              // Continue with the fetch logic below (outside this if/else)
+              const now = Date.now();
+              lastFetchAttempt.timestamp = now;
+              debugLog('🔄 Fetching newsletter from API');
+              criticalLog(`Initiating newsletter fetch from API at ${new Date().toISOString()}`);
+
+              fetch('/api/sharepoint/newsletter-list')
+                .then(response => {
+                  criticalLog(`Newsletter API response received - Status: ${response.status} ${response.statusText}`);
+
+                  if (!response.ok) {
+                    throw new Error(`API returned ${response.status}: ${response.statusText}`);
+                  }
+                  return response.json();
+                })
+                .then(data => {
+                  if (data.success && data.newsletter) {
+                    debugLog('✅ Newsletter fetched successfully', data.newsletter);
+                    setNewsletter(data.newsletter);
+                    localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
+                    localStorage.setItem('newsletterLoaded', 'true');
+                    globalNewsletterLoaded.current = true;
+                  } else {
+                    throw new Error(data.error || 'Unknown error fetching newsletter');
+                  }
+                })
+                .catch(error => {
+                  errorLog(`Newsletter fetch failed: ${error.message}`);
+                  setNewsletterError(`Failed to load the newsletter. ${error.message}\n\nPlease try again later or contact IT support if the issue persists.`);
+                });
+            }, 100);
+
+            // Return early to avoid the normal fetch flow
+            return;
+          }
         } catch (error) {
           debugLog('❌ Error parsing newsletter data from localStorage', error);
           errorLog('Failed to parse newsletter data from localStorage', error);
