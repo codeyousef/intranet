@@ -590,110 +590,6 @@ function DashboardPage() {
       hasSession: !!session
     });
 
-    // Set up a periodic refresh timer (every 30 minutes)
-    const refreshInterval = 30 * 60 * 1000; // 30 minutes
-    const periodicRefreshTimer = setInterval(() => {
-      const currentTime = Date.now();
-      const timeSinceLastFetch = currentTime - lastFetchAttemptRef.current;
-
-      // Only refresh if it's been at least 30 minutes since the last fetch
-      if (timeSinceLastFetch >= refreshInterval) {
-        newsletterLogger.logStart(LogCategory.PERIODIC, 'periodic refresh', {
-          timeSinceLastFetch: Math.round(timeSinceLastFetch / 1000 / 60) + ' minutes',
-          lastFetchTimestamp: lastFetchAttemptRef.current ? new Date(lastFetchAttemptRef.current).toISOString() : 'never'
-        });
-
-        // Update the URL with a new timestamp
-        const url = new URL(window.location.href);
-        url.searchParams.set('fetch_ts', currentTime.toString());
-        window.history.replaceState({}, '', url.toString());
-
-        // Log the API request
-        newsletterLogger.logApiRequest(
-          '/api/sharepoint/newsletter-list?force_fetch=true',
-          'GET',
-          { action: 'periodicRefresh', timestamp: currentTime }
-        );
-
-        // Fetch the newsletter without clearing localStorage
-        fetch('/api/sharepoint/newsletter-list?force_fetch=true', {
-          credentials: 'same-origin',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        })
-        .then(response => {
-          // Log the API response
-          newsletterLogger.logApiResponse(
-            '/api/sharepoint/newsletter-list?force_fetch=true',
-            response.status,
-            response.ok,
-            { action: 'periodicRefresh', statusText: response.statusText }
-          );
-          return response.json();
-        })
-        .then(data => {
-          newsletterLogger.info(LogCategory.RESPONSE, 'Periodic refresh data received', {
-            success: data.success,
-            hasNewsletter: !!data.newsletter,
-            error: data.error || 'none'
-          });
-
-          if (data.success && data.newsletter) {
-            // Log state change
-            newsletterLogger.logStateChange(
-              newsletter?.title || 'unknown',
-              data.newsletter.title,
-              { source: 'periodic refresh success' }
-            );
-
-            setNewsletter(data.newsletter);
-
-            // Log storage operations
-            newsletterLogger.logStorage('set', 'newsletterData', true, {
-              dataSize: JSON.stringify(data.newsletter).length
-            });
-            localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
-
-            newsletterLogger.logStorage('set', 'newsletterLoaded', true, {});
-            localStorage.setItem('newsletterLoaded', 'true');
-
-            globalNewsletterLoaded.current = true;
-            lastFetchAttemptRef.current = currentTime;
-
-            newsletterLogger.logEnd(LogCategory.PERIODIC, 'periodic refresh completed successfully', {
-              title: data.newsletter.title
-            });
-          } else {
-            // Log error but don't throw - we don't want to interrupt the UI for background refreshes
-            newsletterLogger.warn(LogCategory.ERROR, 'Periodic refresh returned success:false or missing newsletter', {
-              error: data.error || 'Unknown error',
-              details: data.details || 'No details provided'
-            });
-          }
-        })
-        .catch(error => {
-          // Log error
-          newsletterLogger.error(LogCategory.ERROR, `Periodic refresh failed: ${error instanceof Error ? error.message : String(error)}`, {
-            errorName: error instanceof Error ? error.name : 'Unknown Error',
-            errorStack: error instanceof Error ? error.stack : 'No stack trace available',
-            action: 'periodicRefresh'
-          });
-
-          newsletterLogger.logEnd(LogCategory.PERIODIC, 'periodic refresh completed with errors', {
-            error: error instanceof Error ? error.message : String(error)
-          });
-
-          // Don't update the UI or show an error message for background refreshes
-        });
-      }
-    }, 5 * 60 * 1000); // Check every 5 minutes
-
-    // Clean up the timer when the component unmounts
-    return () => {
-      clearInterval(periodicRefreshTimer);
-    };
-
     // Function to fetch newsletter
     const fetchNewsletter = () => {
       // Implement debounce to prevent rapid successive fetches
@@ -1224,6 +1120,110 @@ function DashboardPage() {
         currentTitle: newsletter?.title || 'unknown'
       });
     }
+
+    // Set up a periodic refresh timer (every 30 minutes)
+    const refreshInterval = 30 * 60 * 1000; // 30 minutes
+    const periodicRefreshTimer = setInterval(() => {
+      const currentTime = Date.now();
+      const timeSinceLastFetch = currentTime - lastFetchAttemptRef.current;
+
+      // Only refresh if it's been at least 30 minutes since the last fetch
+      if (timeSinceLastFetch >= refreshInterval) {
+        newsletterLogger.logStart(LogCategory.PERIODIC, 'periodic refresh', {
+          timeSinceLastFetch: Math.round(timeSinceLastFetch / 1000 / 60) + ' minutes',
+          lastFetchTimestamp: lastFetchAttemptRef.current ? new Date(lastFetchAttemptRef.current).toISOString() : 'never'
+        });
+
+        // Update the URL with a new timestamp
+        const url = new URL(window.location.href);
+        url.searchParams.set('fetch_ts', currentTime.toString());
+        window.history.replaceState({}, '', url.toString());
+
+        // Log the API request
+        newsletterLogger.logApiRequest(
+          '/api/sharepoint/newsletter-list?force_fetch=true',
+          'GET',
+          { action: 'periodicRefresh', timestamp: currentTime }
+        );
+
+        // Fetch the newsletter without clearing localStorage
+        fetch('/api/sharepoint/newsletter-list?force_fetch=true', {
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        })
+        .then(response => {
+          // Log the API response
+          newsletterLogger.logApiResponse(
+            '/api/sharepoint/newsletter-list?force_fetch=true',
+            response.status,
+            response.ok,
+            { action: 'periodicRefresh', statusText: response.statusText }
+          );
+          return response.json();
+        })
+        .then(data => {
+          newsletterLogger.info(LogCategory.RESPONSE, 'Periodic refresh data received', {
+            success: data.success,
+            hasNewsletter: !!data.newsletter,
+            error: data.error || 'none'
+          });
+
+          if (data.success && data.newsletter) {
+            // Log state change
+            newsletterLogger.logStateChange(
+              newsletter?.title || 'unknown',
+              data.newsletter.title,
+              { source: 'periodic refresh success' }
+            );
+
+            setNewsletter(data.newsletter);
+
+            // Log storage operations
+            newsletterLogger.logStorage('set', 'newsletterData', true, {
+              dataSize: JSON.stringify(data.newsletter).length
+            });
+            localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
+
+            newsletterLogger.logStorage('set', 'newsletterLoaded', true, {});
+            localStorage.setItem('newsletterLoaded', 'true');
+
+            globalNewsletterLoaded.current = true;
+            lastFetchAttemptRef.current = currentTime;
+
+            newsletterLogger.logEnd(LogCategory.PERIODIC, 'periodic refresh completed successfully', {
+              title: data.newsletter.title
+            });
+          } else {
+            // Log error but don't throw - we don't want to interrupt the UI for background refreshes
+            newsletterLogger.warn(LogCategory.ERROR, 'Periodic refresh returned success:false or missing newsletter', {
+              error: data.error || 'Unknown error',
+              details: data.details || 'No details provided'
+            });
+          }
+        })
+        .catch(error => {
+          // Log error
+          newsletterLogger.error(LogCategory.ERROR, `Periodic refresh failed: ${error instanceof Error ? error.message : String(error)}`, {
+            errorName: error instanceof Error ? error.name : 'Unknown Error',
+            errorStack: error instanceof Error ? error.stack : 'No stack trace available',
+            action: 'periodicRefresh'
+          });
+
+          newsletterLogger.logEnd(LogCategory.PERIODIC, 'periodic refresh completed with errors', {
+            error: error instanceof Error ? error.message : String(error)
+          });
+
+          // Don't update the UI or show an error message for background refreshes
+        });
+      }
+    }, 5 * 60 * 1000); // Check every 5 minutes
+
+    // Clean up the timer when the component unmounts
+    return () => {
+      clearInterval(periodicRefreshTimer);
+    };
   }, [status]) // Session dependency to re-run when auth changes
 
   return (
