@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { useParams } from 'next/navigation';
+import { useTheme } from '@/lib/theme-context';
 
 interface Offer {
   id: string;
@@ -28,6 +29,7 @@ interface Offer {
 export default function OfferDetailsPage() {
   const params = useParams();
   const id = params.id as string;
+  const { theme } = useTheme();
 
   const [offer, setOffer] = useState<Offer | null>(null);
   const [loading, setLoading] = useState(true);
@@ -95,87 +97,87 @@ export default function OfferDetailsPage() {
 
   return (
     <div className="container mx-auto py-8">
-      <Link href="/mazaya" className="text-flyadeal-purple hover:underline flex items-center mb-6">
+      <Link href="/mazaya" className={`${theme === 'dark' ? 'text-flyadeal-yellow' : 'text-flyadeal-purple'} hover:underline flex items-center mb-6`}>
         <ArrowLeft className="w-4 h-4 mr-1" />
         Back to all offers
       </Link>
 
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+      <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg overflow-hidden`}>
         <div className="flex flex-col md:flex-row">
           {/* Content section */}
           <div className="p-6 md:w-1/2">
             <div className="flex flex-col mb-4">
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">{offer.title}</h1>
+              <h1 className={`text-2xl md:text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} mb-2`}>{offer.title}</h1>
               <span className="inline-block bg-flyadeal-yellow text-gray-800 px-3 py-1 rounded-full text-sm font-medium self-start">
                 {offer.category}
               </span>
             </div>
 
             <div className="mt-4">
-              <h2 className="text-lg font-semibold mb-2">Description</h2>
-              <div className="text-gray-700 whitespace-pre-line">{offer.description}</div>
+              <h2 className={`text-lg font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Description</h2>
+              <div className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} whitespace-pre-line`}>{offer.description}</div>
             </div>
 
             {/* Additional details section */}
-            <div className="mt-6 border-t pt-4">
-              <h2 className="text-lg font-semibold mb-2">Offer Details</h2>
+            <div className={`mt-6 ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} border-t pt-4`}>
+              <h2 className={`text-lg font-semibold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Offer Details</h2>
               <div className="grid grid-cols-1 gap-2">
-                <div>
-                  <span className="font-medium">Offer ID:</span> {offer.id}
+                <div className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
+                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>Offer ID:</span> {offer.id}
                 </div>
-                <div>
-                  <span className="font-medium">Category:</span> {offer.category}
+                <div className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
+                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>Category:</span> {offer.category}
                 </div>
                 {offer.category_id && (
-                  <div>
-                    <span className="font-medium">Category ID:</span> {offer.category_id}
+                  <div className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
+                    <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>Category ID:</span> {offer.category_id}
                   </div>
                 )}
                 {offer.offer_name_ar && (
-                  <div>
-                    <span className="font-medium">Arabic Name:</span> {offer.offer_name_ar}
+                  <div className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
+                    <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>Arabic Name:</span> {offer.offer_name_ar}
                   </div>
                 )}
                 {offer.website_url && (
-                  <div>
-                    <span className="font-medium">Website:</span> <a href={offer.website_url} target="_blank" rel="noopener noreferrer" className="text-flyadeal-purple hover:underline">{offer.website_url}</a>
+                  <div className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
+                    <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>Website:</span> <a href={offer.website_url} target="_blank" rel="noopener noreferrer" className={`${theme === 'dark' ? 'text-flyadeal-yellow' : 'text-flyadeal-purple'} hover:underline`}>{offer.website_url}</a>
                   </div>
                 )}
                 {offer.contact_number && (
-                  <div>
-                    <span className="font-medium">Contact:</span> {offer.contact_number}
+                  <div className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
+                    <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>Contact:</span> {offer.contact_number}
                   </div>
                 )}
                 {offer.effective_date && (
-                  <div>
-                    <span className="font-medium">Effective Date:</span> {new Date(offer.effective_date).toLocaleDateString()}
+                  <div className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
+                    <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>Effective Date:</span> {new Date(offer.effective_date).toLocaleDateString()}
                   </div>
                 )}
                 {offer.discontinue_date && (
-                  <div>
-                    <span className="font-medium">Discontinue Date:</span> {new Date(offer.discontinue_date).toLocaleDateString()}
+                  <div className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
+                    <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>Discontinue Date:</span> {new Date(offer.discontinue_date).toLocaleDateString()}
                   </div>
                 )}
                 {offer.is_unlimited !== undefined && (
-                  <div>
-                    <span className="font-medium">Unlimited:</span> {offer.is_unlimited ? 'Yes' : 'No'}
+                  <div className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
+                    <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>Unlimited:</span> {offer.is_unlimited ? 'Yes' : 'No'}
                   </div>
                 )}
                 {offer.status && (
-                  <div>
-                    <span className="font-medium">Status:</span> {offer.status}
+                  <div className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
+                    <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>Status:</span> {offer.status}
                   </div>
                 )}
                 {offer.offer_type && (
-                  <div>
-                    <span className="font-medium">Offer Type:</span> {offer.offer_type}
+                  <div className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
+                    <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>Offer Type:</span> {offer.offer_type}
                   </div>
                 )}
-                <div>
-                  <span className="font-medium">Created:</span> {new Date(offer.created_at).toLocaleDateString()}
+                <div className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
+                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>Created:</span> {new Date(offer.created_at).toLocaleDateString()}
                 </div>
-                <div>
-                  <span className="font-medium">Last updated:</span> {new Date(offer.updated_at).toLocaleDateString()}
+                <div className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
+                  <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>Last updated:</span> {new Date(offer.updated_at).toLocaleDateString()}
                 </div>
               </div>
             </div>
