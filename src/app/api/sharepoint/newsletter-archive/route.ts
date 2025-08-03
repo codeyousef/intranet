@@ -113,21 +113,104 @@ export async function GET(request: NextRequest) {
         processedContent = processedContent.replace(/(\s)([a-z][a-z0-9\-_]*)(?=[\s>])(?!\s*=)/gi, '$1$2=""');
         processedContent = processedContent.replace(/=([^\s"][^\s>]*)/gi, '="$1"');
 
-        // Make all images responsive
+        // Make all images responsive and prevent lazy loading
         processedContent = processedContent.replace(/<img([^>]*?)>/gi, (match, attributes) => {
           // Remove width attribute and add responsive styling
           const cleanedAttrs = attributes.replace(/width="?\d+"?/gi, '');
-          return `<img${cleanedAttrs} style="max-width: 100%; height: auto;">`;
+          return `<img${cleanedAttrs} style="max-width: 100%; height: auto;" loading="eager" decoding="sync">`;
         });
+
+        // Fix iframe issues if present
+        processedContent = processedContent.replace(/<iframe([^>]*?)>/gi, (match, attributes) => {
+          return `<iframe${attributes} sandbox="allow-same-origin allow-scripts" loading="eager">`;
+        });
+
+        // Wrap the content in a proper HTML structure if it doesn't already have one
+        if (!processedContent.includes('<!DOCTYPE html>') && !processedContent.includes('<html')) {
+          processedContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base target="_blank">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      line-height: 1.6;
+      color: #333;
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+    table {
+      width: 100% !important;
+      max-width: 100%;
+      border-collapse: collapse;
+    }
+    td, th {
+      padding: 8px;
+    }
+    a {
+      color: #00539f;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="newsletter-content">
+    ${processedContent}
+  </div>
+</body>
+</html>`;
+        }
 
         console.log(`[NEWSLETTER-ARCHIVE] Completed HTML processing [${requestId}]`);
       } catch (error: any) {
         console.error(`[NEWSLETTER-ARCHIVE] Error during HTML processing: ${error.message} [${requestId}]`);
-        // If HTML processing fails, use a simplified version of the content
-        processedContent = `<div class="newsletter-fallback">
-          <p>The newsletter content could not be properly processed. Here is a simplified version:</p>
-          <div class="newsletter-text">${fileContent.replace(/<[^>]*>/g, ' ')}</div>
-        </div>`;
+        // If HTML processing fails, use a simplified version of the content with proper HTML structure
+        processedContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      line-height: 1.6;
+      color: #333;
+      background-color: #f9f9f9;
+    }
+    .newsletter-fallback {
+      background-color: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .newsletter-text {
+      white-space: pre-line;
+      margin-top: 15px;
+      padding: 15px;
+      background-color: #f5f5f5;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="newsletter-fallback">
+    <h2 style="color: #00539f; margin-bottom: 20px;">Newsletter Content</h2>
+    <p>The newsletter content could not be properly processed. Here is a simplified version:</p>
+    <div class="newsletter-text">${fileContent.replace(/<[^>]*>/g, ' ')}</div>
+  </div>
+</body>
+</html>`;
       }
 
       // Update cache
@@ -177,38 +260,91 @@ export async function GET(request: NextRequest) {
         userMessage = 'There was a network issue while fetching the newsletter. Please check your connection.';
       }
 
-      // Create a user-friendly fallback content
-      const fallbackContent = `
-        <div style="padding: 30px; text-align: center; background: #f9f9f9; border-radius: 8px; font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">
-          <h2 style="color: #00539f; margin-bottom: 20px;">Newsletter Information</h2>
+      // Create a user-friendly fallback content with proper HTML structure
+      const fallbackContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      line-height: 1.6;
+      color: #333;
+      background-color: #f9f9f9;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    .info-box {
+      background: white;
+      border-radius: 6px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .tips-box {
+      margin: 30px 0;
+      padding: 15px;
+      background: #f0f7ff;
+      border-radius: 6px;
+      text-align: left;
+    }
+    .tips-box ul {
+      color: #555;
+      padding-left: 20px;
+    }
+    .tips-box li {
+      margin-bottom: 8px;
+    }
+    .tech-info {
+      color: #999;
+      font-size: 12px;
+      margin-top: 30px;
+      text-align: center;
+    }
+    h2 {
+      color: #00539f;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Newsletter Information</h2>
 
-          <div style="background: white; border-radius: 6px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-            <p style="color: #333; font-size: 16px; line-height: 1.5; margin-bottom: 15px;">
-              ${userMessage}
-            </p>
+    <div class="info-box">
+      <p style="color: #333; font-size: 16px; line-height: 1.5; margin-bottom: 15px;">
+        ${userMessage}
+      </p>
 
-            <p style="color: #666; font-size: 14px;">
-              Our team has been notified and is working to resolve this issue.
-            </p>
-          </div>
+      <p style="color: #666; font-size: 14px;">
+        Our team has been notified and is working to resolve this issue.
+      </p>
+    </div>
 
-          <div style="margin: 30px 0; padding: 15px; background: #f0f7ff; border-radius: 6px; text-align: left;">
-            <p style="color: #333; font-weight: bold; margin-bottom: 10px;">In the meantime, you can:</p>
-            <ul style="color: #555; padding-left: 20px;">
-              <li style="margin-bottom: 8px;">Check the company announcements section for recent updates</li>
-              <li style="margin-bottom: 8px;">Contact the communications team for the latest newsletter</li>
-              <li style="margin-bottom: 8px;">Try refreshing the page or clearing your browser cache</li>
-            </ul>
-          </div>
+    <div class="tips-box">
+      <p style="color: #333; font-weight: bold; margin-bottom: 10px;">In the meantime, you can:</p>
+      <ul>
+        <li>Check the company announcements section for recent updates</li>
+        <li>Contact the communications team for the latest newsletter</li>
+        <li>Try refreshing the page or clearing your browser cache</li>
+      </ul>
+    </div>
 
-          <p style="color: #999; font-size: 12px; margin-top: 30px; text-align: center;">
-            Technical Information:<br>
-            Error Type: ${errorType}<br>
-            Request ID: ${requestId}<br>
-            Path: ${path}
-          </p>
-        </div>
-      `;
+    <p class="tech-info">
+      Technical Information:<br>
+      Error Type: ${errorType}<br>
+      Request ID: ${requestId}<br>
+      Path: ${path}
+    </p>
+  </div>
+</body>
+</html>`;
 
       return NextResponse.json({
         success: true, // Return success:true to prevent client-side error handling
@@ -223,17 +359,60 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error(`[NEWSLETTER-ARCHIVE] Unhandled error: ${error.message} [${requestId}]`);
 
-    // Return a generic error message with fallback content
-    const fallbackContent = `
-      <div style="padding: 30px; text-align: center; background: #f9f9f9; border-radius: 8px; font-family: Arial, sans-serif;">
-        <h2 style="color: #00539f; margin-bottom: 20px;">Newsletter Archive</h2>
-        <p style="color: #333; font-size: 16px;">We're sorry, but we couldn't load the newsletter archive at this time.</p>
-        <p style="color: #666; font-size: 14px; margin-top: 10px;">Please try again later or contact support if the issue persists.</p>
-        <p style="color: #999; font-size: 12px; margin-top: 30px;">
-          Request ID: ${requestId}
-        </p>
-      </div>
-    `;
+    // Return a generic error message with fallback content using proper HTML structure
+    const fallbackContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      line-height: 1.6;
+      color: #333;
+      background-color: #f9f9f9;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      text-align: center;
+      padding: 30px;
+      border-radius: 8px;
+    }
+    h2 {
+      color: #00539f;
+      margin-bottom: 20px;
+    }
+    .message {
+      color: #333;
+      font-size: 16px;
+      margin-bottom: 15px;
+    }
+    .sub-message {
+      color: #666;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+    .request-id {
+      color: #999;
+      font-size: 12px;
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Newsletter Archive</h2>
+    <p class="message">We're sorry, but we couldn't load the newsletter archive at this time.</p>
+    <p class="sub-message">Please try again later or contact support if the issue persists.</p>
+    <p class="request-id">
+      Request ID: ${requestId}
+    </p>
+  </div>
+</body>
+</html>`;
 
     return NextResponse.json({
       success: true, // Return success:true to prevent client-side error handling

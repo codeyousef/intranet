@@ -164,7 +164,9 @@ const NewsletterArchive: React.FC<INewsletterArchiveProps> = (props) => {
             title="File Content"
             srcDoc={selectedFileContent}
             className="w-full h-full border-none bg-white"
-            sandbox="allow-same-origin"
+            sandbox="allow-same-origin allow-scripts"
+            loading="eager"
+            referrerPolicy="no-referrer"
           >
             Your browser does not support iframes or srcdoc.
           </iframe>

@@ -222,23 +222,71 @@ function DashboardPage() {
 
   // Function to reset newsletter loading state and force a fresh fetch
   // This clears the localStorage flag, resets the debounce timestamp,
-  // clears any error state, and reloads the page with a force_fetch parameter to ensure a fresh fetch
+  // clears any error state, and triggers a fresh fetch
   const resetNewsletterLoadingState = () => {
     // Only run this on the client side
     if (typeof window !== 'undefined') {
-      globalNewsletterLoaded.current = false
-      lastFetchAttemptRef.current = 0 // Reset the debounce timestamp
-      setNewsletterError(null) // Clear any error state
+      console.log('[NEWSLETTER] Resetting loading state and forcing fresh fetch');
 
-      localStorage.removeItem('newsletterLoaded')
-      if (process.env.NODE_ENV === 'development' && localStorage.getItem('debug') === 'true') {
-        console.log('🔄 Newsletter loading state and debounce timestamp reset')
-      }
+      // Clear localStorage and reset state variables
+      globalNewsletterLoaded.current = false;
+      lastFetchAttemptRef.current = 0; // Reset the debounce timestamp
+      setNewsletterError(null); // Clear any error state
+      localStorage.removeItem('newsletterLoaded');
+      localStorage.removeItem('newsletterData');
 
-      // Reload the page with force_fetch parameter to ensure a fresh fetch
-      const url = new URL(window.location.href)
-      url.searchParams.set('force_fetch', 'true')
-      window.location.href = url.toString()
+      // Set a loading state
+      setNewsletter({
+        title: "Loading Newsletter",
+        content: "<div style='text-align: center; padding: 20px;'><p>Retrieving the latest newsletter...</p></div>",
+        lastUpdated: new Date().toISOString(),
+        source: "system"
+      });
+
+      // Log the reset
+      console.log('[NEWSLETTER] Loading state reset, triggering fresh fetch');
+
+      // Use the fetch_ts parameter approach instead of reloading the page
+      // This is more efficient and provides a better user experience
+      const currentTimestamp = Date.now();
+
+      // Update the URL with the timestamp but don't reload the page
+      const url = new URL(window.location.href);
+      url.searchParams.set('fetch_ts', currentTimestamp.toString());
+      window.history.replaceState({}, '', url.toString());
+
+      // Trigger the fetch with a slight delay to ensure UI updates
+      setTimeout(() => {
+        fetch('/api/sharepoint/newsletter-list?force_fetch=true&clear_cache=true', {
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        })
+        .then(response => {
+          console.log('[NEWSLETTER] Reset fetch response:', response.status);
+          return response.json();
+        })
+        .then(data => {
+          console.log('[NEWSLETTER] Reset fetch successful:', {
+            success: data.success,
+            hasNewsletter: !!data.newsletter
+          });
+
+          if (data.success && data.newsletter) {
+            setNewsletter(data.newsletter);
+            localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
+            localStorage.setItem('newsletterLoaded', 'true');
+            globalNewsletterLoaded.current = true;
+          } else {
+            throw new Error(data.error || 'Unknown error fetching newsletter');
+          }
+        })
+        .catch(error => {
+          console.error('[NEWSLETTER] Reset fetch failed:', error.message);
+          setNewsletterError(`Failed to load the newsletter. ${error.message}\n\nPlease try again later or contact IT support if the issue persists.`);
+        });
+      }, 100);
     }
   }
 
@@ -446,6 +494,51 @@ function DashboardPage() {
       console.error(`[NEWSLETTER-ERROR] ${message}`, ...args);
     };
 
+    // Set up a periodic refresh timer (every 30 minutes)
+    const refreshInterval = 30 * 60 * 1000; // 30 minutes
+    const periodicRefreshTimer = setInterval(() => {
+      const currentTime = Date.now();
+      const timeSinceLastFetch = currentTime - lastFetchAttemptRef.current;
+
+      // Only refresh if it's been at least 30 minutes since the last fetch
+      if (timeSinceLastFetch >= refreshInterval) {
+        console.log('[NEWSLETTER] Periodic refresh triggered - fetching latest newsletter');
+
+        // Update the URL with a new timestamp
+        const url = new URL(window.location.href);
+        url.searchParams.set('fetch_ts', currentTime.toString());
+        window.history.replaceState({}, '', url.toString());
+
+        // Fetch the newsletter without clearing localStorage
+        fetch('/api/sharepoint/newsletter-list?force_fetch=true', {
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success && data.newsletter) {
+            console.log('[NEWSLETTER] Periodic refresh successful - updating content');
+            setNewsletter(data.newsletter);
+            localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
+            localStorage.setItem('newsletterLoaded', 'true');
+            globalNewsletterLoaded.current = true;
+            lastFetchAttemptRef.current = currentTime;
+          }
+        })
+        .catch(error => {
+          console.error('[NEWSLETTER] Periodic refresh failed:', error.message);
+          // Don't update the UI or show an error message for background refreshes
+        });
+      }
+    }, 5 * 60 * 1000); // Check every 5 minutes
+
+    // Clean up the timer when the component unmounts
+    return () => {
+      clearInterval(periodicRefreshTimer);
+    };
+
     // Function to fetch newsletter
     const fetchNewsletter = () => {
       // Implement debounce to prevent rapid successive fetches
@@ -485,9 +578,9 @@ function DashboardPage() {
               // Still log the error for monitoring
               console.warn("Newsletter service is in maintenance mode (503)");
 
-              // Save this fallback to localStorage to avoid repeated fetch attempts
-              localStorage.setItem('newsletterLoaded', 'true');
-              globalNewsletterLoaded.current = true;
+              // Don't set the newsletterLoaded flag for 503 errors
+              // This will allow it to try fetching again on the next visit
+              console.log('[NEWSLETTER] Not setting loaded flag due to 503 error');
 
               // Return early to avoid the error path
               return;
@@ -571,9 +664,9 @@ function DashboardPage() {
           // Still set the error for debugging purposes
           setNewsletterError(`Failed to load the newsletter. ${error.message}\n\nPlease try again later or contact IT support if the issue persists.`);
 
-          // Save this fallback to localStorage to avoid repeated fetch attempts
-          localStorage.setItem('newsletterLoaded', 'true');
-          globalNewsletterLoaded.current = true;
+          // Don't set the newsletterLoaded flag for network errors
+          // This will allow it to try fetching again on the next visit
+          console.log('[NEWSLETTER] Not setting loaded flag due to network error');
         });
     };
 
@@ -589,7 +682,7 @@ function DashboardPage() {
       const storedNewsletter = localStorage.getItem('newsletterData');
       if (storedNewsletter) {
         try {
-          const parsedNewsletter = JSON.parse(storedNewsletter);
+          const parsedNewsletter = JSON.parse(storedNewsletter as string);
           setNewsletter(parsedNewsletter);
           console.log('[NEWSLETTER] Loaded from localStorage:', {
             title: parsedNewsletter.title,
@@ -605,9 +698,19 @@ function DashboardPage() {
         localStorage.removeItem('newsletterLoaded');
         globalNewsletterLoaded.current = false;
 
-        // Trigger a fetch since we don't have the data
+        // Set a temporary loading state message
+        setNewsletter({
+          title: "Loading Newsletter",
+          content: "<div style='text-align: center; padding: 20px;'><p>Retrieving the latest newsletter...</p></div>",
+          lastUpdated: new Date().toISOString(),
+          source: "system"
+        });
+
+        // Trigger a fetch with a slight delay to ensure UI updates first
         console.log('[NEWSLETTER] Triggering fetch due to missing data');
-        fetchNewsletter();
+        setTimeout(() => {
+          fetchNewsletter();
+        }, 100);
       }
 
       return;
@@ -617,18 +720,52 @@ function DashboardPage() {
     const forceFetch = new URLSearchParams(window.location.search).get('force_fetch') === 'true';
     const clearCache = new URLSearchParams(window.location.search).get('clear_cache') === 'true';
 
+    // Also check for a timestamp parameter to determine if we should fetch
+    const fetchTimestamp = parseInt(new URLSearchParams(window.location.search).get('fetch_ts') || '0', 10);
+    const currentTimestamp = Date.now();
+    const timeSinceLastFetch = currentTimestamp - lastFetchAttemptRef.current;
+
+    // Force fetch if:
+    // 1. URL parameter force_fetch=true is present
+    // 2. A fetch_ts parameter is present and it's newer than our last fetch
+    // 3. It's been more than 30 minutes since the last fetch (auto-refresh)
+    const shouldForceFetch = 
+      forceFetch || 
+      (fetchTimestamp > 0 && fetchTimestamp > lastFetchAttemptRef.current) ||
+      (lastFetchAttemptRef.current > 0 && timeSinceLastFetch > 30 * 60 * 1000); // 30 minutes
+
     if (clearCache) {
-      console.log('Clear cache requested - removing newsletter data from localStorage');
+      console.log('[NEWSLETTER] Clear cache requested - removing newsletter data from localStorage');
       localStorage.removeItem('newsletterLoaded');
       localStorage.removeItem('newsletterData');
       globalNewsletterLoaded.current = false;
     }
 
-    console.log('[NEWSLETTER] Force fetch:', forceFetch, 'Clear cache:', clearCache);
+    console.log('[NEWSLETTER] Force fetch:', shouldForceFetch, 
+      '(URL param:', forceFetch, 
+      ', timestamp check:', fetchTimestamp > 0 && fetchTimestamp > lastFetchAttemptRef.current,
+      ', time since last fetch:', Math.round(timeSinceLastFetch / 1000 / 60), 'minutes)');
 
-    // If newsletter hasn't been loaded or force_fetch is true, fetch it
-    if (!globalNewsletterLoaded.current || forceFetch) {
-      fetchNewsletter();
+    // If newsletter hasn't been loaded or we should force fetch, fetch it
+    if (!globalNewsletterLoaded.current || shouldForceFetch) {
+      // If we're forcing a fetch but already have data, show it while fetching
+      if (shouldForceFetch && newsletter) {
+        console.log('[NEWSLETTER] Showing existing content while fetching fresh data');
+        // Keep showing the existing content while we fetch
+      } else {
+        // Set a loading state if we don't have content yet
+        setNewsletter({
+          title: "Loading Newsletter",
+          content: "<div style='text-align: center; padding: 20px;'><p>Retrieving the latest newsletter...</p></div>",
+          lastUpdated: new Date().toISOString(),
+          source: "system"
+        });
+      }
+
+      // Fetch with a slight delay to ensure UI updates
+      setTimeout(() => {
+        fetchNewsletter();
+      }, 100);
     } else {
       console.log('[NEWSLETTER] Already loaded in this session - skipping fetch');
     }
