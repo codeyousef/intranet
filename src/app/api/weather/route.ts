@@ -24,6 +24,54 @@ export interface WeatherData {
     };
 }
 
+// Static fallback weather data for when WeatherAPI is unavailable
+const FALLBACK_WEATHER_DATA: WeatherData = {
+  location: {
+    name: "Jeddah",
+    region: "Makkah",
+    country: "Saudi Arabia"
+  },
+  current: {
+    temp_c: 32,
+    condition: {
+      text: "Sunny",
+      icon: "//cdn.weatherapi.com/weather/64x64/day/113.png"
+    }
+  }
+};
+
+// Riyadh fallback data
+const RIYADH_FALLBACK_DATA: WeatherData = {
+  location: {
+    name: "Riyadh",
+    region: "Riyadh",
+    country: "Saudi Arabia"
+  },
+  current: {
+    temp_c: 35,
+    condition: {
+      text: "Clear",
+      icon: "//cdn.weatherapi.com/weather/64x64/day/113.png"
+    }
+  }
+};
+
+// Dammam fallback data
+const DAMMAM_FALLBACK_DATA: WeatherData = {
+  location: {
+    name: "Dammam",
+    region: "Eastern Province",
+    country: "Saudi Arabia"
+  },
+  current: {
+    temp_c: 33,
+    condition: {
+      text: "Partly cloudy",
+      icon: "//cdn.weatherapi.com/weather/64x64/day/116.png"
+    }
+  }
+};
+
 export async function POST(request: NextRequest) {
   console.log('[WEATHER-API] Weather API route called');
 
@@ -39,13 +87,29 @@ export async function POST(request: NextRequest) {
 
     console.log('[WEATHER-API] Authenticated as:', session.user.email);
 
+    // Check if we should use fallback data (for testing)
+    const url = new URL(request.url);
+    const useFallback = url.searchParams.get('fallback') === 'true';
+
+    if (useFallback) {
+      console.log('[WEATHER-API] Using fallback data (requested via URL parameter)');
+      return NextResponse.json({
+        weatherData: FALLBACK_WEATHER_DATA,
+        isFallback: true,
+        fallbackReason: 'Requested via URL parameter'
+      });
+    }
+
     // Check if API key is available
     if (!WEATHER_API_KEY) {
       console.error('[WEATHER-API] Weather API key not found in environment variables');
-      return NextResponse.json({ 
-        error: 'Weather service is not configured. Please contact administrator.',
-        errorType: 'Configuration'
-      }, { status: 503 });
+      // Return fallback data instead of error
+      console.log('[WEATHER-API] Missing API key, using fallback data');
+      return NextResponse.json({
+        weatherData: FALLBACK_WEATHER_DATA,
+        isFallback: true,
+        fallbackReason: 'Weather API key not configured'
+      });
     }
 
     console.log('[WEATHER-API] API key available, length:', WEATHER_API_KEY.length);
@@ -61,19 +125,37 @@ export async function POST(request: NextRequest) {
       console.log('[WEATHER-API] Received coordinates:', latitude, longitude);
     } catch (parseError) {
       console.error('[WEATHER-API] Error parsing request body:', parseError);
-      return NextResponse.json({ 
-        error: 'Invalid request format', 
-        errorType: 'RequestFormat',
-        details: parseError instanceof Error ? parseError.message : 'Unknown parsing error'
-      }, { status: 400 });
+      // Return fallback data instead of error
+      console.log('[WEATHER-API] Request parsing error, using fallback data');
+      return NextResponse.json({
+        weatherData: FALLBACK_WEATHER_DATA,
+        isFallback: true,
+        fallbackReason: 'Invalid request format'
+      });
     }
 
     if (!latitude || !longitude) {
       console.log('[WEATHER-API] Missing coordinates, received:', { latitude, longitude });
-      return NextResponse.json({ 
-        error: 'Latitude and longitude are required',
-        errorType: 'MissingParameters'
-      }, { status: 400 });
+      // Return fallback data instead of error
+      console.log('[WEATHER-API] Missing coordinates, using fallback data');
+      return NextResponse.json({
+        weatherData: FALLBACK_WEATHER_DATA,
+        isFallback: true,
+        fallbackReason: 'Missing coordinates'
+      });
+    }
+
+    // Select appropriate fallback data based on coordinates
+    // This is a simple approximation - in a real app you might want to use a more sophisticated approach
+    let fallbackData = FALLBACK_WEATHER_DATA;
+
+    // Rough check for Riyadh coordinates
+    if (latitude > 24 && latitude < 25 && longitude > 46 && longitude < 47) {
+      fallbackData = RIYADH_FALLBACK_DATA;
+    } 
+    // Rough check for Dammam coordinates
+    else if (latitude > 26 && latitude < 27 && longitude > 49 && longitude < 50) {
+      fallbackData = DAMMAM_FALLBACK_DATA;
     }
 
     // Fetch weather data from WeatherAPI
@@ -82,7 +164,10 @@ export async function POST(request: NextRequest) {
     console.log('[WEATHER-API] Request URL (redacted key):', apiUrl.replace(WEATHER_API_KEY, 'REDACTED'));
 
     try {
-      const response = await fetch(apiUrl);
+      const response = await fetch(apiUrl, { 
+        // Add a timeout to prevent long-hanging requests
+        signal: AbortSignal.timeout(10000) // 10 second timeout
+      });
       console.log('[WEATHER-API] Response status:', response.status);
 
       if (!response.ok) {
@@ -94,22 +179,41 @@ export async function POST(request: NextRequest) {
         const fallbackUrl = `https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=21.543333,39.172778&aqi=no`;
         console.log('[WEATHER-API] Fallback URL (redacted key):', fallbackUrl.replace(WEATHER_API_KEY, 'REDACTED'));
 
-        const fallbackResponse = await fetch(fallbackUrl);
-        console.log('[WEATHER-API] Fallback response status:', fallbackResponse.status);
+        try {
+          const fallbackResponse = await fetch(fallbackUrl, {
+            signal: AbortSignal.timeout(10000) // 10 second timeout
+          });
+          console.log('[WEATHER-API] Fallback response status:', fallbackResponse.status);
 
-        if (!fallbackResponse.ok) {
-          console.error('[WEATHER-API] Fallback request also failed, status:', fallbackResponse.status);
-          console.error('[WEATHER-API] Fallback response text:', await fallbackResponse.text());
-          throw new Error(`Failed to fetch weather data, status: ${fallbackResponse.status}`);
+          if (!fallbackResponse.ok) {
+            console.error('[WEATHER-API] Fallback request also failed, status:', fallbackResponse.status);
+            console.error('[WEATHER-API] Fallback response text:', await fallbackResponse.text());
+            // Return static fallback data instead of throwing an error
+            console.log('[WEATHER-API] All API requests failed, using static fallback data');
+            return NextResponse.json({
+              weatherData: fallbackData,
+              isFallback: true,
+              fallbackReason: 'API requests failed'
+            });
+          }
+
+          const jeddahWeatherData: WeatherData = await fallbackResponse.json();
+          console.log('[WEATHER-API] Successfully fetched fallback data for Jeddah');
+
+          return NextResponse.json({
+            weatherData: jeddahWeatherData,
+            isFallback: true
+          });
+        } catch (fallbackFetchError) {
+          console.error('[WEATHER-API] Error during fallback fetch:', fallbackFetchError);
+          // Return static fallback data
+          console.log('[WEATHER-API] Fallback fetch error, using static fallback data');
+          return NextResponse.json({
+            weatherData: fallbackData,
+            isFallback: true,
+            fallbackReason: 'Fallback fetch error'
+          });
         }
-
-        const fallbackData: WeatherData = await fallbackResponse.json();
-        console.log('[WEATHER-API] Successfully fetched fallback data for Jeddah');
-
-        return NextResponse.json({
-          weatherData: fallbackData,
-          isFallback: true
-        });
       }
 
       const data: WeatherData = await response.json();
@@ -122,47 +226,43 @@ export async function POST(request: NextRequest) {
     } catch (fetchError: any) {
       console.error('[WEATHER-API] Error during weather API fetch:', fetchError.message);
       console.error('[WEATHER-API] Error stack:', fetchError.stack);
-      throw fetchError; // Re-throw to be caught by outer try-catch
-    }
 
+      // Check if it's a network error
+      const isNetworkError = 
+        fetchError.name === 'TypeError' && 
+        (fetchError.message.includes('Failed to fetch') || 
+         fetchError.message.includes('Network request failed') ||
+         fetchError.message.includes('Network error') ||
+         fetchError.message.includes('network timeout')) ||
+        fetchError.name === 'AbortError';
+
+      if (isNetworkError) {
+        console.log('[WEATHER-API] Network error detected, using static fallback data');
+        return NextResponse.json({
+          weatherData: fallbackData,
+          isFallback: true,
+          fallbackReason: 'Network connectivity issue'
+        });
+      }
+
+      // For other errors, also use fallback data
+      console.log('[WEATHER-API] API fetch error, using static fallback data');
+      return NextResponse.json({
+        weatherData: fallbackData,
+        isFallback: true,
+        fallbackReason: 'API fetch error'
+      });
+    }
   } catch (error: any) {
     console.error('[WEATHER-API] Error fetching weather data:', error.message);
     console.error('[WEATHER-API] Error stack:', error.stack);
 
-    // Return Jeddah weather as ultimate fallback
-    console.log('[WEATHER-API] Attempting ultimate fallback to Jeddah by name');
-
-    try {
-      const ultimateFallbackUrl = `https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=Jeddah&aqi=no`;
-      console.log('[WEATHER-API] Ultimate fallback URL (redacted key):', WEATHER_API_KEY ? ultimateFallbackUrl.replace(WEATHER_API_KEY, 'REDACTED') : ultimateFallbackUrl);
-
-      const fallbackResponse = await fetch(ultimateFallbackUrl);
-      console.log('[WEATHER-API] Ultimate fallback response status:', fallbackResponse.status);
-
-      if (fallbackResponse.ok) {
-        const fallbackData: WeatherData = await fallbackResponse.json();
-        console.log('[WEATHER-API] Successfully fetched ultimate fallback data for Jeddah');
-
-        return NextResponse.json({
-          weatherData: fallbackData,
-          isFallback: true,
-          message: 'Using fallback location due to error with provided coordinates'
-        });
-      } else {
-        console.error('[WEATHER-API] Ultimate fallback failed, status:', fallbackResponse.status);
-        console.error('[WEATHER-API] Response text:', await fallbackResponse.text());
-      }
-    } catch (fallbackError: any) {
-      console.error('[WEATHER-API] Ultimate fallback weather fetch failed:', fallbackError.message);
-      console.error('[WEATHER-API] Fallback error stack:', fallbackError.stack);
-    }
-
-    // If all attempts fail, return detailed error
-    return NextResponse.json({ 
-      error: 'Failed to fetch weather data',
-      errorType: 'WeatherAPIError',
-      message: error.message || 'Unknown error',
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    }, { status: 500 });
+    // For any error, return fallback data instead of an error response
+    console.log('[WEATHER-API] Using static fallback data due to error');
+    return NextResponse.json({
+      weatherData: FALLBACK_WEATHER_DATA,
+      isFallback: true,
+      fallbackReason: 'Unexpected error'
+    });
   }
 }

@@ -35,6 +35,17 @@ interface FlightMetrics {
   }
   todaysFlights: number
   lastUpdated: string
+  // Business metrics
+  flyingHours?: number
+  loadFactor?: number
+  guestsCarried?: number
+  // Date range
+  dateRange?: {
+    from: string
+    to: string
+    days: number
+    actualDate: string
+  }
 }
 
 export function FlightStats() {
@@ -43,11 +54,16 @@ export function FlightStats() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+  const [isFallbackData, setIsFallbackData] = useState(false)
+  const [fallbackReason, setFallbackReason] = useState<string | null>(null)
 
   const fetchFlightData = async () => {
     try {
       setLoading(true)
       setError(null)
+      // Reset fallback state
+      setIsFallbackData(false)
+      setFallbackReason(null)
 
       console.log('[FlightStats] Fetching flight data...')
       const response = await fetch('/api/flight-data', {
@@ -86,12 +102,24 @@ export function FlightStats() {
       console.log('[FlightStats] Data received:', {
         success: data.success,
         hasMetrics: !!data.metrics,
-        recordCount: data.recordCount || 'N/A'
+        recordCount: data.recordCount || 'N/A',
+        isFallback: !!data.isFallback
       })
 
       if (data.success && data.metrics) {
         setMetrics(data.metrics)
         setLastRefresh(new Date())
+
+        // Check if this is fallback data
+        if (data.isFallback) {
+          console.log('[FlightStats] Using fallback data:', data.fallbackReason || 'Unknown reason');
+          setIsFallbackData(true)
+          setFallbackReason(data.fallbackReason || 'Connectivity issue')
+        } else {
+          setIsFallbackData(false)
+          setFallbackReason(null)
+        }
+
         console.log('[FlightStats] Metrics updated successfully');
       } else {
         console.error('[FlightStats] API returned success:false or missing metrics:', data);
@@ -100,7 +128,22 @@ export function FlightStats() {
     } catch (err: any) {
       console.error('[FlightStats] Error fetching flight data:', err.message);
       console.error('[FlightStats] Error stack:', err.stack);
-      setError(err.message || 'Failed to load flight data');
+
+      // Check if it's a network error
+      const isNetworkError = 
+        err.name === 'TypeError' && 
+        (err.message.includes('Failed to fetch') || 
+         err.message.includes('Network request failed') ||
+         err.message.includes('Network error') ||
+         err.message.includes('network timeout'));
+
+      if (isNetworkError) {
+        console.error('[FlightStats] Network error detected');
+        setError('Network error: Unable to connect to the server. Please check your internet connection and try again.');
+      } else {
+        // Server error or other error
+        setError(err.message || 'Failed to load flight data');
+      }
     } finally {
       setLoading(false)
     }
@@ -152,28 +195,40 @@ export function FlightStats() {
 
   return (
     <GlassmorphismContainer className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-800 flex items-center">
-          <Plane className="w-5 h-5 mr-2 text-flyadeal-yellow" />
-          Flight Operations Dashboard
-        </h2>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">
-            Last updated: {formatTime(lastRefresh)}
-          </span>
-          <Button
-            onClick={fetchFlightData}
-            size="sm"
-            variant="outline"
-            disabled={loading}
-            className={theme === 'dark' 
-              ? "bg-gray-700/30 border-gray-400 text-gray-200 hover:bg-gray-600/50" 
-              : "bg-white/10 border-gray-300 text-gray-700 hover:bg-gray-100"
-            }
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </Button>
+      <div className="flex flex-col mb-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-800 flex items-center">
+            <Plane className="w-5 h-5 mr-2 text-flyadeal-yellow" />
+            Flight Operations Dashboard
+          </h2>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">
+              Last updated: {formatTime(lastRefresh)}
+            </span>
+            <Button
+              onClick={fetchFlightData}
+              size="sm"
+              variant="outline"
+              disabled={loading}
+              className={theme === 'dark' 
+                ? "bg-gray-700/30 border-gray-400 text-gray-200 hover:bg-gray-600/50" 
+                : "bg-white/10 border-gray-300 text-gray-700 hover:bg-gray-100"
+              }
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
         </div>
+
+        {/* Fallback data indicator */}
+        {isFallbackData && (
+          <div className="mt-2 py-1 px-3 bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-md flex items-center">
+            <AlertCircle className="w-4 h-4 text-amber-500 mr-2" />
+            <span className="text-xs text-amber-700 dark:text-amber-400">
+              Showing offline data{fallbackReason ? `: ${fallbackReason}` : ''}. Some information may not be current.
+            </span>
+          </div>
+        )}
       </div>
 
       {metrics && (

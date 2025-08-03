@@ -202,6 +202,20 @@ function DashboardPage() {
       .catch(error => {
         console.error('[FLIGHT-DATA] Error fetching flight data:', error.message);
         console.error('[FLIGHT-DATA] Error stack:', error.stack);
+
+        // Check if it's a network error
+        const isNetworkError = 
+          error.name === 'TypeError' && 
+          (error.message.includes('Failed to fetch') || 
+           error.message.includes('Network request failed') ||
+           error.message.includes('Network error') ||
+           error.message.includes('network timeout'));
+
+        if (isNetworkError) {
+          console.error('[FLIGHT-DATA] Network error detected - connectivity issue');
+          // We could set a state here to show a network error message to the user
+          // For now, we'll just log it, but in a real app, you might want to show a toast or error message
+        }
       });
   }, [session])
 
@@ -294,8 +308,21 @@ function DashboardPage() {
                   }
                   throw new Error(`Weather API returned status ${response.status}`);
                 }
-              } catch (error) {
+              } catch (error: any) {
                 console.error('Error fetching weather:', error);
+
+                // Check if it's a network error
+                const isNetworkError = 
+                  error.name === 'TypeError' && 
+                  (error.message.includes('Failed to fetch') || 
+                   error.message.includes('Network request failed') ||
+                   error.message.includes('Network error') ||
+                   error.message.includes('network timeout'));
+
+                if (isNetworkError) {
+                  console.error('Weather API network error detected - connectivity issue');
+                }
+
                 // Use fallback if primary request fails
                 await fetchFallbackWeather();
               } finally {
@@ -367,8 +394,21 @@ function DashboardPage() {
           // Use hardcoded values as last resort
           setWeather({ temp: 25, condition: 'Clear', location: 'Jeddah' });
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching fallback weather:', error);
+
+        // Check if it's a network error
+        const isNetworkError = 
+          error.name === 'TypeError' && 
+          (error.message.includes('Failed to fetch') || 
+           error.message.includes('Network request failed') ||
+           error.message.includes('Network error') ||
+           error.message.includes('network timeout'));
+
+        if (isNetworkError) {
+          console.error('Fallback weather API network error detected - connectivity issue');
+        }
+
         // Set default values if all fails
         setWeather({ temp: 25, condition: 'Clear', location: 'Jeddah' });
       } finally {

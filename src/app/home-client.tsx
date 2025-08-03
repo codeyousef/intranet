@@ -34,7 +34,8 @@ import {
   X,
   Maximize2,
   Mail,
-  MessageSquare
+  MessageSquare,
+  AlertCircle
 } from 'lucide-react'
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
@@ -116,6 +117,8 @@ function DashboardPage() {
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
   const [weather, setWeather] = useState({ temp: 25, condition: 'Loading...', location: 'Fetching...' })
   const [weatherLoading, setWeatherLoading] = useState(true)
+  const [isWeatherFallback, setIsWeatherFallback] = useState(false)
+  const [weatherFallbackReason, setWeatherFallbackReason] = useState<string | null>(null)
   const [newsletterModalOpen, setNewsletterModalOpen] = useState(false)
   const [newsletter, setNewsletter] = useState<any>(null)
   const [newsletterError, setNewsletterError] = useState<string | null>(null)
@@ -212,6 +215,16 @@ function DashboardPage() {
                     };
                     console.log('Setting weather to:', newWeather);
                     setWeather(newWeather);
+
+                    // Check if this is fallback data
+                    if (data.isFallback) {
+                      console.log('Using fallback weather data:', data.fallbackReason || 'Unknown reason');
+                      setIsWeatherFallback(true);
+                      setWeatherFallbackReason(data.fallbackReason || 'Connectivity issue');
+                    } else {
+                      setIsWeatherFallback(false);
+                      setWeatherFallbackReason(null);
+                    }
                   } else {
                     console.error('Weather API response missing weatherData:', data);
                     throw new Error('Weather API response missing weatherData');
@@ -227,8 +240,21 @@ function DashboardPage() {
                   }
                   throw new Error(`Weather API returned status ${response.status}`);
                 }
-              } catch (error) {
+              } catch (error: any) {
                 console.error('Error fetching weather:', error);
+
+                // Check if it's a network error
+                const isNetworkError = 
+                  error.name === 'TypeError' && 
+                  (error.message.includes('Failed to fetch') || 
+                   error.message.includes('Network request failed') ||
+                   error.message.includes('Network error') ||
+                   error.message.includes('network timeout'));
+
+                if (isNetworkError) {
+                  console.error('Weather API network error detected - connectivity issue');
+                }
+
                 // Use fallback if primary request fails
                 await fetchFallbackWeather();
               } finally {
@@ -283,10 +309,23 @@ function DashboardPage() {
             };
             console.log('Setting fallback weather to:', fallbackWeather);
             setWeather(fallbackWeather);
+
+            // Check if this is fallback data from the API
+            if (data.isFallback) {
+              console.log('Using API-provided fallback weather data:', data.fallbackReason || 'Unknown reason');
+              setIsWeatherFallback(true);
+              setWeatherFallbackReason(data.fallbackReason || 'Connectivity issue');
+            } else {
+              // This is our own fallback request, so mark it as fallback
+              setIsWeatherFallback(true);
+              setWeatherFallbackReason('Using Jeddah weather data');
+            }
           } else {
             console.error('Fallback weather API response missing weatherData:', data);
             // Use hardcoded values as last resort
             setWeather({ temp: 25, condition: 'Clear', location: 'Jeddah' });
+            setIsWeatherFallback(true);
+            setWeatherFallbackReason('Using default weather data');
           }
         } else {
           console.error('Fallback weather API error:', response.status, response.statusText);
@@ -299,11 +338,28 @@ function DashboardPage() {
           }
           // Use hardcoded values as last resort
           setWeather({ temp: 25, condition: 'Clear', location: 'Jeddah' });
+          setIsWeatherFallback(true);
+          setWeatherFallbackReason('Using default weather data');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching fallback weather:', error);
+
+        // Check if it's a network error
+        const isNetworkError = 
+          error.name === 'TypeError' && 
+          (error.message.includes('Failed to fetch') || 
+           error.message.includes('Network request failed') ||
+           error.message.includes('Network error') ||
+           error.message.includes('network timeout'));
+
+        if (isNetworkError) {
+          console.error('Fallback weather API network error detected - connectivity issue');
+        }
+
         // Set default values if all fails
         setWeather({ temp: 25, condition: 'Clear', location: 'Jeddah' });
+        setIsWeatherFallback(true);
+        setWeatherFallbackReason('Network connectivity issue');
       } finally {
         setWeatherLoading(false);
       }
@@ -572,6 +628,12 @@ function DashboardPage() {
                       <div className="text-gray-600 text-xs">
                         {weatherLoading ? 'Loading weather...' : `${weather.condition}, ${weather.location}`}
                       </div>
+                      {isWeatherFallback && !weatherLoading && (
+                        <div className="text-amber-500 text-xs flex items-center mt-1">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          Offline data
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div>
