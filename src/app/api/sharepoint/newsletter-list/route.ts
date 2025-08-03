@@ -24,14 +24,37 @@ export async function GET(request: NextRequest) {
   // Use the test request ID if available, otherwise use the generated one
   const effectiveRequestId = testRequestId || requestId;
 
+  // Log comprehensive request details
+  console.log(`🔍 [NEWSLETTER-API-DEBUG] Request Details [${effectiveRequestId}]`, {
+    method: request.method,
+    url: request.url,
+    userAgent: request.headers.get('user-agent'),
+    referer: request.headers.get('referer'),
+    timestamp: new Date().toISOString(),
+    headers: {
+      authorization: request.headers.get('authorization') ? 'Present' : 'Missing',
+      contentType: request.headers.get('content-type'),
+      accept: request.headers.get('accept'),
+      cookie: request.headers.get('cookie') ? 'Present' : 'Missing'
+    }
+  });
+
   try {
+    console.log(`🔐 [NEWSLETTER-API-DEBUG] Starting authentication check [${effectiveRequestId}]`);
     const session = await getAuthSession();
     if (!session) {
+      console.error(`❌ [NEWSLETTER-API-DEBUG] Authentication failed - no session [${effectiveRequestId}]`);
       return NextResponse.json({
         success: false,
         error: 'Unauthorized'
       }, { status: 401 });
     }
+
+    console.log(`✅ [NEWSLETTER-API-DEBUG] Authentication successful [${effectiveRequestId}]`, {
+      userEmail: session.user?.email || 'unknown',
+      userName: session.user?.name || 'unknown',
+      sessionExpires: session.expires || 'unknown'
+    });
 
     // Get test parameters from query string
     const searchParams = new URL(request.url).searchParams;
@@ -39,29 +62,71 @@ export async function GET(request: NextRequest) {
     const simulatePermissionError = searchParams.get('simulate_permission_error') === 'true';
     const simulateNetworkError = searchParams.get('simulate_network_error') === 'true';
     const simulateHtmlError = searchParams.get('simulate_html_error') === 'true';
+    const forceFetch = searchParams.get('force_fetch') === 'true';
+    const clearCache = searchParams.get('clear_cache') === 'true';
+
+    // Log comprehensive query parameters
+    console.log(`📋 [NEWSLETTER-API-DEBUG] Query Parameters [${effectiveRequestId}]`, {
+      simulateNotFound,
+      simulatePermissionError,
+      simulateNetworkError,
+      simulateHtmlError,
+      forceFetch,
+      clearCache,
+      allParams: Object.fromEntries(searchParams.entries())
+    });
 
     // Log if we're in test mode
     if (simulateNotFound || simulatePermissionError || simulateNetworkError || simulateHtmlError) {
-      console.log(`[NEWSLETTER-LIST] Running in test mode with simulated conditions [${effectiveRequestId}]`);
+      console.log(`⚠️ [NEWSLETTER-API-DEBUG] Running in test mode with simulated conditions [${effectiveRequestId}]`);
     }
 
     // Check cache
     const now = Date.now();
-    if (cache.content && cache.timestamp && (now - cache.timestamp < CACHE_DURATION)) {
-      console.log(`[NEWSLETTER-LIST] Returning cached content [${requestId}]`);
+    const cacheAge = cache.timestamp ? now - cache.timestamp : null;
+    const isCacheValid = cache.content && cache.timestamp && (cacheAge! < CACHE_DURATION);
+    const shouldUseCacheAnyway = isCacheValid && !forceFetch && !clearCache;
+
+    console.log(`💾 [NEWSLETTER-API-DEBUG] Cache Status Check [${effectiveRequestId}]`, {
+      hasCachedContent: !!cache.content,
+      cacheTimestamp: cache.timestamp ? new Date(cache.timestamp).toISOString() : 'none',
+      cacheAge: cacheAge ? `${Math.round(cacheAge / 1000)} seconds` : 'none',
+      cacheDuration: `${CACHE_DURATION / 1000} seconds`,
+      isCacheValid,
+      forceFetch,
+      clearCache,
+      shouldUseCacheAnyway
+    });
+
+    if (clearCache && cache.content) {
+      console.log(`🗑️ [NEWSLETTER-API-DEBUG] Clearing cache as requested [${effectiveRequestId}]`);
+      cache = {};
+    }
+
+    if (shouldUseCacheAnyway) {
+      console.log(`✅ [NEWSLETTER-API-DEBUG] Returning cached content [${effectiveRequestId}]`, {
+        contentLength: cache.content?.length || 0,
+        cacheAge: `${Math.round(cacheAge! / 1000)} seconds`
+      });
       return NextResponse.json({
         success: true,
         newsletter: {
           title: 'CEO Newsletter',
           content: cache.content,
-          lastUpdated: new Date(cache.timestamp).toISOString(),
+          lastUpdated: new Date(cache.timestamp!).toISOString(),
           source: 'SharePoint (cached)',
           cached: true
         }
       });
     }
 
-    console.log(`[NEWSLETTER-LIST] Cache miss, fetching from SharePoint [${effectiveRequestId}]`);
+    console.log(`🔄 [NEWSLETTER-API-DEBUG] Cache miss or forced fetch, fetching from SharePoint [${effectiveRequestId}]`, {
+      reason: !cache.content ? 'no cached content' : 
+              !cache.timestamp ? 'no cache timestamp' : 
+              cacheAge! >= CACHE_DURATION ? 'cache expired' : 
+              forceFetch ? 'force fetch requested' : 
+              clearCache ? 'cache cleared' : 'unknown'
+    });
 
     try {
       // Handle simulated test conditions
@@ -111,22 +176,55 @@ export async function GET(request: NextRequest) {
       let successPath = '';
 
       // Try each path until we find the file
-      for (const path of possiblePaths) {
+      console.log(`📁 [NEWSLETTER-API-DEBUG] Starting SharePoint file search [${effectiveRequestId}]`, {
+        totalPaths: possiblePaths.length,
+        searchStartTime: new Date().toISOString()
+      });
+
+      for (let i = 0; i < possiblePaths.length; i++) {
+        const path = possiblePaths[i];
+        const pathAttemptStart = Date.now();
         try {
-          console.log(`[NEWSLETTER-LIST] Trying path: ${path} [${requestId}]`);
+          console.log(`🔍 [NEWSLETTER-API-DEBUG] Attempting path ${i + 1}/${possiblePaths.length}: ${path} [${effectiveRequestId}]`);
           newsletterContent = await getFileContent(path);
           successPath = path;
-          console.log(`[NEWSLETTER-LIST] Success! Found newsletter at: ${path} [${requestId}]`);
+          const pathAttemptDuration = Date.now() - pathAttemptStart;
+          console.log(`✅ [NEWSLETTER-API-DEBUG] SUCCESS! Found newsletter at: ${path} [${effectiveRequestId}]`, {
+            pathIndex: i + 1,
+            totalPaths: possiblePaths.length,
+            attemptDuration: `${pathAttemptDuration}ms`,
+            contentLength: newsletterContent.length,
+            contentPreview: newsletterContent.substring(0, 200).replace(/\s+/g, ' ').trim()
+          });
           break;
         } catch (error: any) {
-          if (!error.message.includes('itemNotFound')) {
-            console.error(`[NEWSLETTER-LIST] Unexpected error for ${path}: ${error.message} [${requestId}]`);
+          const pathAttemptDuration = Date.now() - pathAttemptStart;
+          if (error.message.includes('itemNotFound')) {
+            console.log(`❌ [NEWSLETTER-API-DEBUG] Path not found: ${path} [${effectiveRequestId}]`, {
+              pathIndex: i + 1,
+              totalPaths: possiblePaths.length,
+              attemptDuration: `${pathAttemptDuration}ms`,
+              errorType: 'itemNotFound'
+            });
+          } else {
+            console.error(`⚠️ [NEWSLETTER-API-DEBUG] Unexpected error for ${path} [${effectiveRequestId}]`, {
+              pathIndex: i + 1,
+              totalPaths: possiblePaths.length,
+              attemptDuration: `${pathAttemptDuration}ms`,
+              errorMessage: error.message,
+              errorType: error.name || 'Unknown',
+              errorStack: error.stack
+            });
           }
         }
       }
 
       if (!newsletterContent) {
-        console.log(`[NEWSLETTER-LIST] No newsletter content found after trying all paths [${requestId}]`);
+        console.error(`❌ [NEWSLETTER-API-DEBUG] No newsletter content found after trying all paths [${effectiveRequestId}]`, {
+          totalPathsAttempted: possiblePaths.length,
+          searchDuration: `${Date.now() - Date.now()}ms`,
+          allPathsAttempted: possiblePaths
+        });
 
         // Instead of throwing an error, return a helpful message with fallback content
         return NextResponse.json({
@@ -164,7 +262,16 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      console.log(`[NEWSLETTER-LIST] Successfully fetched newsletter, length: ${newsletterContent.length} [${effectiveRequestId}]`);
+      console.log(`🎉 [NEWSLETTER-API-DEBUG] Successfully fetched newsletter content [${effectiveRequestId}]`, {
+        contentLength: newsletterContent.length,
+        successPath: successPath,
+        contentType: newsletterContent.includes('<!DOCTYPE') || newsletterContent.includes('<html') ? 'Full HTML Document' : 'HTML Fragment',
+        hasImages: newsletterContent.includes('<img'),
+        hasTables: newsletterContent.includes('<table'),
+        hasStyles: newsletterContent.includes('<style') || newsletterContent.includes('style='),
+        hasScripts: newsletterContent.includes('<script'),
+        contentPreview: newsletterContent.substring(0, 300).replace(/\s+/g, ' ').trim()
+      });
 
       // Simulate HTML error if requested
       if (simulateHtmlError) {
@@ -189,7 +296,10 @@ export async function GET(request: NextRequest) {
       let processedContent = newsletterContent;
 
       try {
-        console.log(`[NEWSLETTER-LIST] Starting HTML processing for content length: ${newsletterContent.length} [${requestId}]`);
+        console.log(`🔧 [NEWSLETTER-API-DEBUG] Starting HTML processing [${effectiveRequestId}]`, {
+          originalContentLength: newsletterContent.length,
+          processingStartTime: new Date().toISOString()
+        });
 
         // Remove scripts and styles that might interfere
         processedContent = processedContent.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
@@ -231,9 +341,28 @@ export async function GET(request: NextRequest) {
         processedContent = processedContent.replace(/(\s)([a-z][a-z0-9\-_]*)(?=[\s>])(?!\s*=)/gi, '$1$2=""');
         processedContent = processedContent.replace(/=([^\s"][^\s>]*)/gi, '="$1"');
 
-        console.log(`[NEWSLETTER-LIST] Completed HTML processing, final length: ${processedContent.length} [${requestId}]`);
+        console.log(`✅ [NEWSLETTER-API-DEBUG] Completed HTML processing [${effectiveRequestId}]`, {
+          originalLength: newsletterContent.length,
+          finalLength: processedContent.length,
+          reductionPercentage: Math.round(((newsletterContent.length - processedContent.length) / newsletterContent.length) * 100),
+          processingSteps: {
+            scriptsRemoved: !processedContent.includes('<script'),
+            stylesRemoved: !processedContent.includes('<style'),
+            bodyExtracted: newsletterContent.includes('<body') && !processedContent.includes('<body'),
+            commentsRemoved: !processedContent.includes('<!--'),
+            tagsFixed: true,
+            mobileOptimized: true
+          }
+        });
       } catch (error: any) {
-        console.error(`[NEWSLETTER-LIST] Error during HTML processing: ${error.message} [${requestId}]`);
+        console.error(`❌ [NEWSLETTER-API-DEBUG] Error during HTML processing [${effectiveRequestId}]`, {
+          errorMessage: error.message,
+          errorType: error.name || 'Unknown',
+          errorStack: error.stack,
+          originalContentLength: newsletterContent.length,
+          partialProcessedLength: processedContent.length,
+          fallbackStrategy: 'simplified content'
+        });
         // If HTML processing fails, use a simplified version of the content
         processedContent = `<div class="newsletter-fallback">
           <p>The newsletter content could not be properly processed. Here is a simplified version:</p>
@@ -303,12 +432,19 @@ export async function GET(request: NextRequest) {
       });
 
       // Update cache
+      const cacheUpdateTime = Date.now();
       cache = {
         content: processedContent,
-        timestamp: Date.now()
+        timestamp: cacheUpdateTime
       };
 
-      return NextResponse.json({
+      console.log(`💾 [NEWSLETTER-API-DEBUG] Cache updated [${effectiveRequestId}]`, {
+        contentLength: processedContent.length,
+        cacheTimestamp: new Date(cacheUpdateTime).toISOString(),
+        successPath: successPath
+      });
+
+      const responseData = {
         success: true,
         newsletter: {
           title: 'CEO Newsletter',
@@ -317,13 +453,33 @@ export async function GET(request: NextRequest) {
           source: `SharePoint (fresh) - ${successPath}`,
           cached: false
         }
+      };
+
+      console.log(`📤 [NEWSLETTER-API-DEBUG] Sending successful response [${effectiveRequestId}]`, {
+        responseSize: JSON.stringify(responseData).length,
+        newsletterTitle: responseData.newsletter.title,
+        contentLength: responseData.newsletter.content.length,
+        source: responseData.newsletter.source,
+        cached: responseData.newsletter.cached
       });
+
+      return NextResponse.json(responseData);
     } catch (error: any) {
-      console.error(`[NEWSLETTER-LIST] Failed to fetch from SharePoint [${requestId}]`, error);
+      console.error(`❌ [NEWSLETTER-API-DEBUG] Failed to fetch from SharePoint [${effectiveRequestId}]`, {
+        errorMessage: error.message,
+        errorType: error.name || 'Unknown',
+        errorStack: error.stack,
+        hasExpiredCache: !!cache.content,
+        cacheAge: cache.timestamp ? `${Math.round((Date.now() - cache.timestamp) / 1000)} seconds` : 'none'
+      });
 
       // If we have cached content (even if expired), return it
       if (cache.content) {
-        console.log(`[NEWSLETTER-LIST] Returning expired cache due to error [${requestId}]`);
+        console.log(`🔄 [NEWSLETTER-API-DEBUG] Returning expired cache due to SharePoint error [${effectiveRequestId}]`, {
+          cacheAge: cache.timestamp ? `${Math.round((Date.now() - cache.timestamp) / 1000)} seconds` : 'unknown',
+          contentLength: cache.content.length,
+          fallbackStrategy: 'expired cache'
+        });
         return NextResponse.json({
           success: true,
           newsletter: {
@@ -337,15 +493,26 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      console.log(`⚠️ [NEWSLETTER-API-DEBUG] No cache available, re-throwing error [${effectiveRequestId}]`);
       throw error; // Re-throw to be caught by the outer catch block
     }
 
   } catch (error: any) {
-    console.error(`[NEWSLETTER-LIST] Error: ${error.message} [${requestId}]`);
+    console.error(`💥 [NEWSLETTER-API-DEBUG] Final error handler triggered [${effectiveRequestId}]`, {
+      errorMessage: error.message,
+      errorType: error.name || 'Unknown',
+      errorStack: error.stack,
+      hasAnyCache: !!cache.content,
+      requestDuration: `${Date.now() - parseInt(effectiveRequestId.split('-')[1])}ms`
+    });
 
     // Return cached content if available
     if (cache.content) {
-      console.log(`[NEWSLETTER-LIST] Returning cached content due to error [${requestId}]`);
+      console.log(`🔄 [NEWSLETTER-API-DEBUG] Final fallback: returning any cached content [${effectiveRequestId}]`, {
+        cacheAge: cache.timestamp ? `${Math.round((Date.now() - cache.timestamp) / 1000)} seconds` : 'unknown',
+        contentLength: cache.content.length,
+        fallbackStrategy: 'any available cache'
+      });
       return NextResponse.json({
         success: true,
         newsletter: {
@@ -374,7 +541,12 @@ export async function GET(request: NextRequest) {
       userMessage = 'There was a network issue while fetching the newsletter. Please check your connection.';
     }
 
-    console.log(`[NEWSLETTER-LIST] Returning friendly error message for error type: ${errorType} [${requestId}]`);
+    console.log(`🚨 [NEWSLETTER-API-DEBUG] Generating user-friendly error response [${effectiveRequestId}]`, {
+      errorType: errorType,
+      userMessage: userMessage,
+      hasCache: !!cache.content,
+      fallbackStrategy: 'user-friendly error message'
+    });
 
     // Return a user-friendly error message with success:true to prevent client-side error handling
     return NextResponse.json({
@@ -407,7 +579,7 @@ export async function GET(request: NextRequest) {
             <p style="color: #999; font-size: 12px; margin-top: 30px; text-align: center;">
               Technical Information:<br>
               Error Type: ${errorType}<br>
-              Request ID: ${requestId}
+              Request ID: ${effectiveRequestId}
             </p>
           </div>
         `,

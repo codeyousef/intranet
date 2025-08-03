@@ -141,15 +141,31 @@ async function getGraphToken() {
  * @returns Site ID
  */
 async function getSiteId(token: string): Promise<string> {
+  const requestId = `site-id-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+
   // Return cached site ID if available
   if (cachedSiteId) {
+    console.log(`💾 [SHAREPOINT-CLIENT-DEBUG] Using cached site ID [${requestId}]`, {
+      siteId: cachedSiteId,
+      source: 'cache'
+    });
     return cachedSiteId;
   }
 
-  
+  console.log(`🏢 [SHAREPOINT-CLIENT-DEBUG] Fetching site ID from Graph API [${requestId}]`, {
+    hostname: SHAREPOINT_CONFIG.hostname,
+    sitePath: SHAREPOINT_CONFIG.sitePath
+  });
+
   // Construct the URL to get site info
   const siteInfoUrl = `https://graph.microsoft.com/v1.0/sites/${SHAREPOINT_CONFIG.hostname}:${SHAREPOINT_CONFIG.sitePath}`;
-  
+
+  console.log(`🌐 [SHAREPOINT-CLIENT-DEBUG] Making site info request [${requestId}]`, {
+    url: siteInfoUrl,
+    method: 'GET'
+  });
+
+  const requestStart = Date.now();
   const response = await fetchWithRetry(
     siteInfoUrl,
     {
@@ -160,21 +176,49 @@ async function getSiteId(token: string): Promise<string> {
       }
     }
   );
-  
+  const requestDuration = Date.now() - requestStart;
+
+  console.log(`📡 [SHAREPOINT-CLIENT-DEBUG] Site info response received [${requestId}]`, {
+    status: response.status,
+    statusText: response.statusText,
+    ok: response.ok,
+    duration: `${requestDuration}ms`
+  });
+
   if (!response.ok) {
     const errorText = await response.text();
+    console.error(`❌ [SHAREPOINT-CLIENT-DEBUG] Failed to get site information [${requestId}]`, {
+      status: response.status,
+      statusText: response.statusText,
+      errorText: errorText,
+      url: siteInfoUrl
+    });
     throw new Error(`Failed to get site information: ${errorText}`);
   }
-  
+
   const siteData = await response.json();
-  
+
+  console.log(`📋 [SHAREPOINT-CLIENT-DEBUG] Site data received [${requestId}]`, {
+    hasSiteId: !!siteData.id,
+    siteId: siteData.id,
+    siteName: siteData.displayName || 'unknown',
+    webUrl: siteData.webUrl || 'unknown'
+  });
+
   if (!siteData.id) {
+    console.error(`❌ [SHAREPOINT-CLIENT-DEBUG] Site response missing ID [${requestId}]`, {
+      siteData: siteData
+    });
     throw new Error('Site response did not contain an ID');
   }
-  
+
   // Cache the site ID
   cachedSiteId = siteData.id;
-  
+
+  console.log(`✅ [SHAREPOINT-CLIENT-DEBUG] Site ID cached successfully [${requestId}]`, {
+    siteId: cachedSiteId
+  });
+
   return siteData.id;
 }
 
@@ -186,24 +230,60 @@ async function withGraphToken<T>(
   callback: (token: string) => Promise<T>,
   maxRetries: number = 3
 ): Promise<T> {
+  const requestId = `token-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
   let lastError: any = null;
   let retryCount = 0;
+
+  console.log(`🔐 [SHAREPOINT-CLIENT-DEBUG] Starting token-based operation [${requestId}]`, {
+    maxRetries: maxRetries,
+    timestamp: new Date().toISOString()
+  });
 
   while (retryCount <= maxRetries) {
     try {
       if (retryCount > 0) {
+        const backoffDelay = 1000 * Math.pow(2, retryCount - 1);
+        console.log(`⏳ [SHAREPOINT-CLIENT-DEBUG] Retry attempt ${retryCount}/${maxRetries} with backoff [${requestId}]`, {
+          backoffDelay: `${backoffDelay}ms`,
+          previousError: lastError?.message || 'unknown'
+        });
         // Add exponential backoff delay between retries
-        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount - 1)));
+        await new Promise(resolve => setTimeout(resolve, backoffDelay));
       }
 
       // Get a fresh token for each attempt
+      console.log(`🎫 [SHAREPOINT-CLIENT-DEBUG] Acquiring Graph API token [${requestId}]`, {
+        attempt: retryCount + 1,
+        maxRetries: maxRetries
+      });
+
+      const tokenStart = Date.now();
       const token = await getGraphToken();
-      
+      const tokenDuration = Date.now() - tokenStart;
+
+      console.log(`✅ [SHAREPOINT-CLIENT-DEBUG] Graph API token acquired [${requestId}]`, {
+        tokenLength: token.length,
+        acquisitionTime: `${tokenDuration}ms`,
+        attempt: retryCount + 1
+      });
+
       // Execute the callback with the token
-      return await callback(token);
+      console.log(`🚀 [SHAREPOINT-CLIENT-DEBUG] Executing callback with token [${requestId}]`);
+      const callbackStart = Date.now();
+      const result = await callback(token);
+      const callbackDuration = Date.now() - callbackStart;
+
+      console.log(`🎉 [SHAREPOINT-CLIENT-DEBUG] Token operation completed successfully [${requestId}]`, {
+        totalAttempts: retryCount + 1,
+        callbackDuration: `${callbackDuration}ms`,
+        totalDuration: `${Date.now() - parseInt(requestId.split('-')[1])}ms`
+      });
+
+      return result;
     } catch (error: any) {
       lastError = error;
-      
+      retryCount++;
+
       // Check if this is a token-related error that warrants a retry
       const isRetryableError = 
         error.message?.includes('token') || 
@@ -213,18 +293,30 @@ async function withGraphToken<T>(
         error.code === 'ETIMEDOUT' || 
         error.code === 'ECONNREFUSED' ||
         error.code === 'ENOTFOUND';
-      
+
+      console.error(`❌ [SHAREPOINT-CLIENT-DEBUG] Token operation failed [${requestId}]`, {
+        attempt: retryCount,
+        maxRetries: maxRetries,
+        errorMessage: error.message,
+        errorCode: error.code,
+        isRetryableError: isRetryableError,
+        willRetry: retryCount <= maxRetries && isRetryableError
+      });
+
       // If we've reached max retries, or it's not a retryable error, throw the error
-      if (retryCount >= maxRetries || !isRetryableError) {
+      if (retryCount > maxRetries || !isRetryableError) {
         // Add retry information to the error object
-        error.retryAttempts = retryCount;
+        error.retryAttempts = retryCount - 1;
+        console.error(`💥 [SHAREPOINT-CLIENT-DEBUG] Token operation failed permanently [${requestId}]`, {
+          totalAttempts: retryCount,
+          finalError: error.message,
+          retryAttempts: error.retryAttempts
+        });
         throw error;
       }
-      
-      retryCount++;
     }
   }
-  
+
   // This should never be reached due to the throw in the loop, but TypeScript needs it
   throw lastError;
 }
@@ -235,18 +327,42 @@ async function withGraphToken<T>(
  * @returns File content as text
  */
 export async function getFileContent(fileName: string): Promise<string> {
+  const requestId = `sharepoint-file-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+
+  console.log(`🔍 [SHAREPOINT-CLIENT-DEBUG] Starting file content retrieval [${requestId}]`, {
+    fileName: fileName,
+    encodedFileName: encodeURIComponent(fileName),
+    timestamp: new Date().toISOString()
+  });
+
   return withGraphToken(async (token) => {
+    console.log(`🔐 [SHAREPOINT-CLIENT-DEBUG] Token obtained for file retrieval [${requestId}]`);
+
     // First get the site ID
+    const siteIdStart = Date.now();
     const siteId = await getSiteId(token);
-    
+    const siteIdDuration = Date.now() - siteIdStart;
+
+    console.log(`🏢 [SHAREPOINT-CLIENT-DEBUG] Site ID retrieved [${requestId}]`, {
+      siteId: siteId,
+      duration: `${siteIdDuration}ms`
+    });
+
     // Encode the file path for the URL
     const encodedFileName = encodeURIComponent(fileName);
-    
+
     // Construct the Graph API URL to get the file
     // For files in the default document library, don't include "Shared Documents" in the path
     const fileUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root:/${encodedFileName}:/content`;
-    
-    
+
+    console.log(`🌐 [SHAREPOINT-CLIENT-DEBUG] Making Graph API request [${requestId}]`, {
+      url: fileUrl,
+      method: 'GET',
+      fileName: fileName,
+      encodedFileName: encodedFileName
+    });
+
+    const requestStart = Date.now();
     const response = await fetchWithRetry(
       fileUrl,
       {
@@ -257,14 +373,47 @@ export async function getFileContent(fileName: string): Promise<string> {
         }
       }
     );
-    
+    const requestDuration = Date.now() - requestStart;
+
+    console.log(`📡 [SHAREPOINT-CLIENT-DEBUG] Graph API response received [${requestId}]`, {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      duration: `${requestDuration}ms`,
+      headers: {
+        contentType: response.headers.get('content-type'),
+        contentLength: response.headers.get('content-length'),
+        lastModified: response.headers.get('last-modified'),
+        etag: response.headers.get('etag')
+      }
+    });
+
     if (!response.ok) {
       const errorText = await response.text();
+      console.error(`❌ [SHAREPOINT-CLIENT-DEBUG] File retrieval failed [${requestId}]`, {
+        status: response.status,
+        statusText: response.statusText,
+        errorText: errorText,
+        fileName: fileName,
+        url: fileUrl
+      });
       throw new Error(`Failed to retrieve file from SharePoint: ${errorText}`);
     }
-    
+
     // Get the content as text
+    const contentStart = Date.now();
     const content = await response.text();
+    const contentDuration = Date.now() - contentStart;
+
+    console.log(`✅ [SHAREPOINT-CLIENT-DEBUG] File content retrieved successfully [${requestId}]`, {
+      fileName: fileName,
+      contentLength: content.length,
+      contentType: response.headers.get('content-type'),
+      processingDuration: `${contentDuration}ms`,
+      totalDuration: `${Date.now() - parseInt(requestId.split('-')[2])}ms`,
+      contentPreview: content.substring(0, 200).replace(/\s+/g, ' ').trim()
+    });
+
     return content;
   });
 }
@@ -278,7 +427,7 @@ export async function listFiles(folderPath: string = ''): Promise<any[]> {
   return withGraphToken(async (token) => {
     // First get the site ID
     const siteId = await getSiteId(token);
-    
+
     let listUrl: string;
     if (!folderPath || folderPath === '') {
       // For root folder of the default document library, just use /drive/root/children
@@ -288,8 +437,8 @@ export async function listFiles(folderPath: string = ''): Promise<any[]> {
       const encodedPath = encodeURIComponent(folderPath);
       listUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root:/${encodedPath}:/children`;
     }
-    
-    
+
+
     const response = await fetchWithRetry(
       listUrl,
       {
@@ -300,18 +449,18 @@ export async function listFiles(folderPath: string = ''): Promise<any[]> {
         }
       }
     );
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`Failed to list files in SharePoint folder: ${errorText}`);
     }
-    
+
     const data = await response.json();
-    
+
     if (!data.value || !Array.isArray(data.value)) {
       throw new Error('Invalid response format when listing files');
     }
-    
+
     return data.value;
   });
 }
@@ -333,7 +482,7 @@ export async function testConnection(maxRetries: number = 3): Promise<{
   try {
     // Test connection by listing files in the root folder
     await listFiles('');
-    
+
     // If we get here, the connection was successful
     return { connected: true };
   } catch (error: any) {
@@ -422,7 +571,7 @@ export async function verifyFileAccess(fileName: string): Promise<{
   try {
     // Try to get the file content
     const content = await getFileContent(fileName);
-    
+
     // If we get here, the file is accessible
     return { 
       accessible: true,
