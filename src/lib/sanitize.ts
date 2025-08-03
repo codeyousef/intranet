@@ -28,7 +28,8 @@ export function sanitizeHtml(dirty: string, options?: any): string {
     ],
     ALLOWED_ATTR: [
       'href', 'src', 'alt', 'title', 'width', 'height',
-      'class', 'id', 'style', 'target', 'rel'
+      'class', 'id', 'style', 'target', 'rel',
+      'loading', 'decoding', 'sandbox', 'referrerpolicy'
     ],
     ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
     KEEP_CONTENT: true,

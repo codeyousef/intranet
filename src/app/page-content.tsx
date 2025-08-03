@@ -683,11 +683,43 @@ function DashboardPage() {
       if (storedNewsletter) {
         try {
           const parsedNewsletter = JSON.parse(storedNewsletter as string);
-          setNewsletter(parsedNewsletter);
-          console.log('[NEWSLETTER] Loaded from localStorage:', {
-            title: parsedNewsletter.title,
-            contentLength: parsedNewsletter.content?.length || 0
-          });
+
+          // Check if the stored newsletter is valid (not an error or loading state)
+          const isValidNewsletter = 
+            parsedNewsletter && 
+            parsedNewsletter.content && 
+            parsedNewsletter.title !== "Loading Newsletter" &&
+            parsedNewsletter.title !== "Newsletter Error" &&
+            parsedNewsletter.title !== "Newsletter Temporarily Unavailable" &&
+            parsedNewsletter.source !== "system";
+
+          if (isValidNewsletter) {
+            setNewsletter(parsedNewsletter);
+            console.log('[NEWSLETTER] Loaded from localStorage:', {
+              title: parsedNewsletter.title,
+              contentLength: parsedNewsletter.content?.length || 0
+            });
+          } else {
+            console.log('[NEWSLETTER] Stored newsletter is in error/loading state - forcing fresh fetch');
+            // Clear the flag since we have invalid data
+            localStorage.removeItem('newsletterLoaded');
+            localStorage.removeItem('newsletterData');
+            globalNewsletterLoaded.current = false;
+
+            // Set a temporary loading state message
+            setNewsletter({
+              title: "Loading Newsletter",
+              content: "<div style='text-align: center; padding: 20px;'><p>Retrieving the latest newsletter...</p></div>",
+              lastUpdated: new Date().toISOString(),
+              source: "system"
+            });
+
+            // Trigger a fetch with a slight delay to ensure UI updates first
+            console.log('[NEWSLETTER] Triggering fetch due to invalid stored data');
+            setTimeout(() => {
+              fetchNewsletter();
+            }, 100);
+          }
         } catch (error) {
           errorLog('Failed to parse newsletter data from localStorage', error);
           setNewsletterError('Error loading saved newsletter data. Please try refreshing the page.');
@@ -719,6 +751,8 @@ function DashboardPage() {
     // Check URL parameters for force_fetch flag
     const forceFetch = new URLSearchParams(window.location.search).get('force_fetch') === 'true';
     const clearCache = new URLSearchParams(window.location.search).get('clear_cache') === 'true';
+    // Check for debug parameter to always force fetch
+    const debugMode = new URLSearchParams(window.location.search).get('debug_newsletter') === 'true';
 
     // Also check for a timestamp parameter to determine if we should fetch
     const fetchTimestamp = parseInt(new URLSearchParams(window.location.search).get('fetch_ts') || '0', 10);
@@ -727,10 +761,12 @@ function DashboardPage() {
 
     // Force fetch if:
     // 1. URL parameter force_fetch=true is present
-    // 2. A fetch_ts parameter is present and it's newer than our last fetch
-    // 3. It's been more than 30 minutes since the last fetch (auto-refresh)
+    // 2. URL parameter debug_newsletter=true is present (always force fetch in debug mode)
+    // 3. A fetch_ts parameter is present and it's newer than our last fetch
+    // 4. It's been more than 30 minutes since the last fetch (auto-refresh)
     const shouldForceFetch = 
       forceFetch || 
+      debugMode ||
       (fetchTimestamp > 0 && fetchTimestamp > lastFetchAttemptRef.current) ||
       (lastFetchAttemptRef.current > 0 && timeSinceLastFetch > 30 * 60 * 1000); // 30 minutes
 
@@ -743,6 +779,7 @@ function DashboardPage() {
 
     console.log('[NEWSLETTER] Force fetch:', shouldForceFetch, 
       '(URL param:', forceFetch, 
+      ', debug mode:', debugMode,
       ', timestamp check:', fetchTimestamp > 0 && fetchTimestamp > lastFetchAttemptRef.current,
       ', time since last fetch:', Math.round(timeSinceLastFetch / 1000 / 60), 'minutes)');
 
