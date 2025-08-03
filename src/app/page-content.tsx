@@ -41,6 +41,7 @@ import {
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
 import { createSanitizedMarkup } from '@/lib/sanitize'
+import { newsletterLogger, LogCategory, LogLevel } from '@/lib/newsletter-logger'
 
 // Global variables to track newsletter loading state across renders and component instances
 // We'll initialize it as false and check localStorage in the useEffect hook
@@ -200,11 +201,12 @@ function DashboardPage() {
         }
       })
       .catch(error => {
-        console.error('[FLIGHT-DATA] Error fetching flight data:', error.message);
-        console.error('[FLIGHT-DATA] Error stack:', error.stack);
+        console.error('[FLIGHT-DATA] Error fetching flight data:', error instanceof Error ? error.message : String(error));
+        console.error('[FLIGHT-DATA] Error stack:', error instanceof Error ? error.stack : 'No stack trace available');
 
         // Check if it's a network error
         const isNetworkError = 
+          error instanceof Error && 
           error.name === 'TypeError' && 
           (error.message.includes('Failed to fetch') || 
            error.message.includes('Network request failed') ||
@@ -226,14 +228,34 @@ function DashboardPage() {
   const resetNewsletterLoadingState = () => {
     // Only run this on the client side
     if (typeof window !== 'undefined') {
-      console.log('[NEWSLETTER] Resetting loading state and forcing fresh fetch');
+      // Set up context with user information if available
+      const logContext = session?.user ? {
+        userId: session.user.email as string, // Using email as the user identifier
+        email: session.user.email as string,
+        component: 'DashboardPage',
+        action: 'resetNewsletterLoadingState'
+      } : { component: 'DashboardPage', action: 'resetNewsletterLoadingState' };
+
+      newsletterLogger.logStart(LogCategory.RESET, 'newsletter loading state reset', logContext);
 
       // Clear localStorage and reset state variables
       globalNewsletterLoaded.current = false;
       lastFetchAttemptRef.current = 0; // Reset the debounce timestamp
       setNewsletterError(null); // Clear any error state
+
+      // Log storage operations
+      newsletterLogger.logStorage('remove', 'newsletterLoaded', true, logContext);
       localStorage.removeItem('newsletterLoaded');
+
+      newsletterLogger.logStorage('remove', 'newsletterData', true, logContext);
       localStorage.removeItem('newsletterData');
+
+      // Log state change
+      newsletterLogger.logStateChange(
+        newsletter?.title || 'unknown', 
+        'Loading Newsletter',
+        { ...logContext, reason: 'manual reset' }
+      );
 
       // Set a loading state
       setNewsletter({
@@ -242,9 +264,6 @@ function DashboardPage() {
         lastUpdated: new Date().toISOString(),
         source: "system"
       });
-
-      // Log the reset
-      console.log('[NEWSLETTER] Loading state reset, triggering fresh fetch');
 
       // Use the fetch_ts parameter approach instead of reloading the page
       // This is more efficient and provides a better user experience
@@ -255,8 +274,21 @@ function DashboardPage() {
       url.searchParams.set('fetch_ts', currentTimestamp.toString());
       window.history.replaceState({}, '', url.toString());
 
+      newsletterLogger.info(LogCategory.FETCH, 'Triggering fresh fetch with force_fetch and clear_cache', {
+        ...logContext,
+        timestamp: currentTimestamp,
+        url: '/api/sharepoint/newsletter-list?force_fetch=true&clear_cache=true'
+      });
+
       // Trigger the fetch with a slight delay to ensure UI updates
       setTimeout(() => {
+        // Log the API request
+        newsletterLogger.logApiRequest(
+          '/api/sharepoint/newsletter-list?force_fetch=true&clear_cache=true',
+          'GET',
+          { ...logContext, timestamp: Date.now() }
+        );
+
         fetch('/api/sharepoint/newsletter-list?force_fetch=true&clear_cache=true', {
           credentials: 'same-origin',
           headers: {
@@ -264,27 +296,82 @@ function DashboardPage() {
           }
         })
         .then(response => {
-          console.log('[NEWSLETTER] Reset fetch response:', response.status);
+          // Log the API response
+          newsletterLogger.logApiResponse(
+            '/api/sharepoint/newsletter-list?force_fetch=true&clear_cache=true',
+            response.status,
+            response.ok,
+            { ...logContext, statusText: response.statusText }
+          );
+
           return response.json();
         })
         .then(data => {
-          console.log('[NEWSLETTER] Reset fetch successful:', {
+          newsletterLogger.info(LogCategory.RESPONSE, 'Reset fetch data received', {
+            ...logContext,
             success: data.success,
-            hasNewsletter: !!data.newsletter
+            hasNewsletter: !!data.newsletter,
+            error: data.error || 'none'
           });
 
           if (data.success && data.newsletter) {
+            // Log state change
+            newsletterLogger.logStateChange(
+              'Loading Newsletter',
+              data.newsletter.title,
+              { ...logContext, source: 'reset fetch success' }
+            );
+
             setNewsletter(data.newsletter);
+
+            // Log storage operations
+            newsletterLogger.logStorage('set', 'newsletterData', true, {
+              ...logContext,
+              dataSize: JSON.stringify(data.newsletter).length
+            });
             localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
+
+            newsletterLogger.logStorage('set', 'newsletterLoaded', true, logContext);
             localStorage.setItem('newsletterLoaded', 'true');
+
             globalNewsletterLoaded.current = true;
+
+            newsletterLogger.logEnd(LogCategory.RESET, 'newsletter reset completed successfully', {
+              ...logContext,
+              title: data.newsletter.title
+            });
           } else {
+            // Log error
+            newsletterLogger.error(LogCategory.ERROR, 'Reset fetch returned success:false or missing newsletter', {
+              ...logContext,
+              error: data.error || 'Unknown error',
+              details: data.details || 'No details provided'
+            });
+
             throw new Error(data.error || 'Unknown error fetching newsletter');
           }
         })
         .catch(error => {
-          console.error('[NEWSLETTER] Reset fetch failed:', error.message);
-          setNewsletterError(`Failed to load the newsletter. ${error.message}\n\nPlease try again later or contact IT support if the issue persists.`);
+          // Log error
+          newsletterLogger.error(LogCategory.ERROR, `Reset fetch failed: ${error instanceof Error ? error.message : String(error)}`, {
+            ...logContext,
+            errorName: error instanceof Error ? error.name : 'Unknown Error',
+            errorStack: error instanceof Error ? error.stack : 'No stack trace available'
+          });
+
+          // Log state change
+          newsletterLogger.logStateChange(
+            'Loading Newsletter',
+            'Newsletter Error',
+            { ...logContext, reason: 'reset fetch error' }
+          );
+
+          setNewsletterError(`Failed to load the newsletter. ${error instanceof Error ? error.message : String(error)}\n\nPlease try again later or contact IT support if the issue persists.`);
+
+          newsletterLogger.logEnd(LogCategory.RESET, 'newsletter reset completed with errors', {
+            ...logContext,
+            error: error instanceof Error ? error.message : String(error)
+          });
         });
       }, 100);
     }
@@ -489,10 +576,19 @@ function DashboardPage() {
 
     console.log('[NEWSLETTER] Effect running with session:', session?.user?.email);
 
-    // Newsletter logging
-    const errorLog = (message: any, ...args: any[]) => {
-      console.error(`[NEWSLETTER-ERROR] ${message}`, ...args);
-    };
+    // Set up context with user information if available
+    const logContext = session?.user ? {
+      userId: session.user.email as string, // Using email as the user identifier
+      email: session.user.email as string,
+      component: 'DashboardPage'
+    } : { component: 'DashboardPage' };
+
+    // Initialize the logger with default context
+    newsletterLogger.setDefaultContext(logContext);
+    newsletterLogger.info(LogCategory.INIT, 'Newsletter component initialized', {
+      status,
+      hasSession: !!session
+    });
 
     // Set up a periodic refresh timer (every 30 minutes)
     const refreshInterval = 30 * 60 * 1000; // 30 minutes
@@ -502,12 +598,22 @@ function DashboardPage() {
 
       // Only refresh if it's been at least 30 minutes since the last fetch
       if (timeSinceLastFetch >= refreshInterval) {
-        console.log('[NEWSLETTER] Periodic refresh triggered - fetching latest newsletter');
+        newsletterLogger.logStart(LogCategory.PERIODIC, 'periodic refresh', {
+          timeSinceLastFetch: Math.round(timeSinceLastFetch / 1000 / 60) + ' minutes',
+          lastFetchTimestamp: lastFetchAttemptRef.current ? new Date(lastFetchAttemptRef.current).toISOString() : 'never'
+        });
 
         // Update the URL with a new timestamp
         const url = new URL(window.location.href);
         url.searchParams.set('fetch_ts', currentTime.toString());
         window.history.replaceState({}, '', url.toString());
+
+        // Log the API request
+        newsletterLogger.logApiRequest(
+          '/api/sharepoint/newsletter-list?force_fetch=true',
+          'GET',
+          { action: 'periodicRefresh', timestamp: currentTime }
+        );
 
         // Fetch the newsletter without clearing localStorage
         fetch('/api/sharepoint/newsletter-list?force_fetch=true', {
@@ -516,19 +622,68 @@ function DashboardPage() {
             'Content-Type': 'application/json',
           }
         })
-        .then(response => response.json())
+        .then(response => {
+          // Log the API response
+          newsletterLogger.logApiResponse(
+            '/api/sharepoint/newsletter-list?force_fetch=true',
+            response.status,
+            response.ok,
+            { action: 'periodicRefresh', statusText: response.statusText }
+          );
+          return response.json();
+        })
         .then(data => {
+          newsletterLogger.info(LogCategory.RESPONSE, 'Periodic refresh data received', {
+            success: data.success,
+            hasNewsletter: !!data.newsletter,
+            error: data.error || 'none'
+          });
+
           if (data.success && data.newsletter) {
-            console.log('[NEWSLETTER] Periodic refresh successful - updating content');
+            // Log state change
+            newsletterLogger.logStateChange(
+              newsletter?.title || 'unknown',
+              data.newsletter.title,
+              { source: 'periodic refresh success' }
+            );
+
             setNewsletter(data.newsletter);
+
+            // Log storage operations
+            newsletterLogger.logStorage('set', 'newsletterData', true, {
+              dataSize: JSON.stringify(data.newsletter).length
+            });
             localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
+
+            newsletterLogger.logStorage('set', 'newsletterLoaded', true, {});
             localStorage.setItem('newsletterLoaded', 'true');
+
             globalNewsletterLoaded.current = true;
             lastFetchAttemptRef.current = currentTime;
+
+            newsletterLogger.logEnd(LogCategory.PERIODIC, 'periodic refresh completed successfully', {
+              title: data.newsletter.title
+            });
+          } else {
+            // Log error but don't throw - we don't want to interrupt the UI for background refreshes
+            newsletterLogger.warn(LogCategory.ERROR, 'Periodic refresh returned success:false or missing newsletter', {
+              error: data.error || 'Unknown error',
+              details: data.details || 'No details provided'
+            });
           }
         })
         .catch(error => {
-          console.error('[NEWSLETTER] Periodic refresh failed:', error.message);
+          // Log error
+          newsletterLogger.error(LogCategory.ERROR, `Periodic refresh failed: ${error instanceof Error ? error.message : String(error)}`, {
+            errorName: error instanceof Error ? error.name : 'Unknown Error',
+            errorStack: error instanceof Error ? error.stack : 'No stack trace available',
+            action: 'periodicRefresh'
+          });
+
+          newsletterLogger.logEnd(LogCategory.PERIODIC, 'periodic refresh completed with errors', {
+            error: error instanceof Error ? error.message : String(error)
+          });
+
           // Don't update the UI or show an error message for background refreshes
         });
       }
@@ -544,15 +699,30 @@ function DashboardPage() {
       // Implement debounce to prevent rapid successive fetches
       const now = Date.now();
       if (lastFetchAttemptRef.current > 0 && now - lastFetchAttemptRef.current < MIN_FETCH_INTERVAL) {
-        console.log('[NEWSLETTER] Debounce protection - skipping fetch');
+        newsletterLogger.debug(LogCategory.FETCH, 'Debounce protection - skipping fetch', {
+          lastFetchTime: new Date(lastFetchAttemptRef.current).toISOString(),
+          timeSinceLastFetch: now - lastFetchAttemptRef.current,
+          minInterval: MIN_FETCH_INTERVAL
+        });
         return;
       }
 
       lastFetchAttemptRef.current = now;
-      console.log('[NEWSLETTER] Starting fetch from API...');
+
+      // Log the start of the fetch process
+      newsletterLogger.logStart(LogCategory.FETCH, 'newsletter fetch', {
+        timestamp: now,
+        timestampISO: new Date(now).toISOString()
+      });
+
+      // Log the API request
+      newsletterLogger.logApiRequest(
+        '/api/sharepoint/newsletter-list',
+        'GET',
+        { timestamp: now }
+      );
 
       // Fetch the newsletter
-      console.log('[NEWSLETTER] Fetching from /api/sharepoint/newsletter-list');
       fetch('/api/sharepoint/newsletter-list', {
         credentials: 'same-origin', // Include cookies for authentication
         headers: {
@@ -560,13 +730,30 @@ function DashboardPage() {
         }
       })
         .then(response => {
-          console.log('[NEWSLETTER] Response received:', response.status, response.statusText);
+          // Log the API response
+          newsletterLogger.logApiResponse(
+            '/api/sharepoint/newsletter-list',
+            response.status,
+            response.ok,
+            { statusText: response.statusText }
+          );
 
           if (!response.ok) {
-            errorLog(`API returned error status: ${response.status} ${response.statusText}`);
+            newsletterLogger.error(LogCategory.ERROR, `API returned error status: ${response.status} ${response.statusText}`, {
+              status: response.status,
+              statusText: response.statusText,
+              url: '/api/sharepoint/newsletter-list'
+            });
 
             // Special handling for 503 Service Unavailable (temporary maintenance)
             if (response.status === 503) {
+              // Log state change
+              newsletterLogger.logStateChange(
+                newsletter?.title || 'unknown',
+                'Newsletter Service Temporarily Unavailable',
+                { reason: '503 Service Unavailable' }
+              );
+
               // Instead of throwing an error, set a fallback newsletter with a maintenance message
               setNewsletter({
                 title: "Newsletter Service Temporarily Unavailable",
@@ -576,11 +763,21 @@ function DashboardPage() {
               });
 
               // Still log the error for monitoring
-              console.warn("Newsletter service is in maintenance mode (503)");
+              newsletterLogger.warn(LogCategory.ERROR, "Newsletter service is in maintenance mode (503)", {
+                status: 503,
+                statusText: response.statusText
+              });
 
               // Don't set the newsletterLoaded flag for 503 errors
               // This will allow it to try fetching again on the next visit
-              console.log('[NEWSLETTER] Not setting loaded flag due to 503 error');
+              newsletterLogger.info(LogCategory.STATE, 'Not setting loaded flag due to 503 error', {
+                reason: 'service unavailable'
+              });
+
+              // Log the end of the fetch process
+              newsletterLogger.logEnd(LogCategory.FETCH, 'newsletter fetch completed with 503 error', {
+                outcome: 'maintenance mode fallback'
+              });
 
               // Return early to avoid the error path
               return;
@@ -591,27 +788,50 @@ function DashboardPage() {
           return response.json();
         })
         .then(data => {
-          console.log('[NEWSLETTER] Data received:', {
+          // Skip if we returned early from the 503 error handler
+          if (!data) return;
+
+          newsletterLogger.info(LogCategory.RESPONSE, 'Newsletter data received', {
             success: data.success,
             hasNewsletter: !!data.newsletter,
             error: data.error || 'none'
           });
 
           if (data.success && data.newsletter) {
-            console.log('[NEWSLETTER] Fetch successful:', {
+            // Log detailed info about the newsletter
+            newsletterLogger.debug(LogCategory.RESPONSE, 'Newsletter content details', {
               title: data.newsletter.title,
-              contentLength: data.newsletter.content?.length || 0
+              contentLength: data.newsletter.content?.length || 0,
+              lastUpdated: data.newsletter.lastUpdated
             });
+
+            // Log state change
+            newsletterLogger.logStateChange(
+              newsletter?.title || 'unknown',
+              data.newsletter.title,
+              { source: 'fetch success' }
+            );
 
             setNewsletter(data.newsletter);
 
-            // Save to localStorage to avoid refetching
+            // Log storage operations
+            newsletterLogger.logStorage('set', 'newsletterData', true, {
+              dataSize: JSON.stringify(data.newsletter).length
+            });
             localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
+
+            newsletterLogger.logStorage('set', 'newsletterLoaded', true, {});
             localStorage.setItem('newsletterLoaded', 'true');
+
             globalNewsletterLoaded.current = true;
-            console.log('[NEWSLETTER] Data saved to localStorage');
+
+            // Log the end of the fetch process
+            newsletterLogger.logEnd(LogCategory.FETCH, 'newsletter fetch completed successfully', {
+              title: data.newsletter.title
+            });
           } else {
-            errorLog('API returned success:false or missing newsletter data', {
+            // Log error
+            newsletterLogger.error(LogCategory.ERROR, 'API returned success:false or missing newsletter data', {
               success: data.success,
               error: data.error || 'Unknown error',
               details: data.details || 'No details provided'
@@ -619,18 +839,33 @@ function DashboardPage() {
 
             // If there's a newsletter object in the error response, log its details
             if (data.newsletter) {
-              console.log('[NEWSLETTER] Error response included fallback content');
+              newsletterLogger.debug(LogCategory.ERROR, 'Error response included fallback content', {
+                title: data.newsletter.title,
+                contentLength: data.newsletter.content?.length || 0
+              });
             }
 
             throw new Error(data.error || 'Unknown error fetching newsletter');
           }
         })
         .catch(error => {
-          errorLog(`Newsletter fetch failed: ${error.message}`);
+          newsletterLogger.error(LogCategory.ERROR, `Newsletter fetch failed: ${error instanceof Error ? error.message : String(error)}`, {
+            errorName: error instanceof Error ? error.name : 'Unknown Error',
+            errorStack: error instanceof Error ? error.stack : 'No stack trace available'
+          });
 
           // Check if it's a network error
-          if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-            console.log('[NEWSLETTER] Network error detected');
+          if (error instanceof Error && error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+            newsletterLogger.warn(LogCategory.ERROR, 'Network error detected', {
+              errorMessage: error instanceof Error ? error.message : String(error)
+            });
+
+            // Log state change
+            newsletterLogger.logStateChange(
+              newsletter?.title || 'unknown',
+              'Newsletter Temporarily Unavailable',
+              { reason: 'network error' }
+            );
 
             // Provide a fallback for network errors too
             setNewsletter({
@@ -641,12 +876,27 @@ function DashboardPage() {
             });
 
             // Save this fallback to localStorage to avoid repeated fetch attempts
+            newsletterLogger.logStorage('set', 'newsletterLoaded', true, {
+              reason: 'network error fallback'
+            });
             localStorage.setItem('newsletterLoaded', 'true');
             globalNewsletterLoaded.current = true;
+
+            // Log the end of the fetch process
+            newsletterLogger.logEnd(LogCategory.FETCH, 'newsletter fetch completed with network error', {
+              outcome: 'network error fallback'
+            });
 
             // Return early to avoid setting the error state
             return;
           }
+
+          // Log state change
+          newsletterLogger.logStateChange(
+            newsletter?.title || 'unknown',
+            'Newsletter Error',
+            { reason: 'fetch error' }
+          );
 
           // For other errors, show a more user-friendly error message
           // but also provide a fallback newsletter content
@@ -655,33 +905,54 @@ function DashboardPage() {
             content: `<div style='text-align: center; padding: 20px;'>
               <p>We encountered an issue while loading the newsletter.</p>
               <p>Please try again later or contact IT support if the issue persists.</p>
-              <p><small>Error details: ${error.message}</small></p>
+              <p><small>Error details: ${error instanceof Error ? error.message : String(error)}</small></p>
             </div>`,
             lastUpdated: typeof window !== 'undefined' ? new Date().toISOString() : 'unknown',
             source: "system"
           });
 
           // Still set the error for debugging purposes
-          setNewsletterError(`Failed to load the newsletter. ${error.message}\n\nPlease try again later or contact IT support if the issue persists.`);
+          setNewsletterError(`Failed to load the newsletter. ${error instanceof Error ? error.message : String(error)}\n\nPlease try again later or contact IT support if the issue persists.`);
 
-          // Don't set the newsletterLoaded flag for network errors
+          // Don't set the newsletterLoaded flag for errors
           // This will allow it to try fetching again on the next visit
-          console.log('[NEWSLETTER] Not setting loaded flag due to network error');
+          newsletterLogger.info(LogCategory.STATE, 'Not setting loaded flag due to error', {
+            reason: 'fetch error',
+            errorMessage: error instanceof Error ? error.message : String(error)
+          });
+
+          // Log the end of the fetch process
+          newsletterLogger.logEnd(LogCategory.FETCH, 'newsletter fetch completed with error', {
+            outcome: 'error fallback',
+            error: error instanceof Error ? error.message : String(error)
+          });
         });
     };
 
     // Check if newsletter has already been loaded in this session
     const newsletterLoaded = localStorage.getItem('newsletterLoaded') === 'true';
     globalNewsletterLoaded.current = newsletterLoaded;
-    console.log('[NEWSLETTER] Loading state check:', newsletterLoaded ? 'Already loaded' : 'Not loaded yet');
+
+    newsletterLogger.info(LogCategory.STORAGE, 'Loading state check', {
+      isLoaded: newsletterLoaded,
+      state: newsletterLoaded ? 'Already loaded' : 'Not loaded yet'
+    });
 
     if (newsletterLoaded) {
-      console.log('[NEWSLETTER] Already loaded in localStorage, checking for cached data...');
+      newsletterLogger.logStart(LogCategory.STORAGE, 'loading newsletter from localStorage', {
+        source: 'localStorage'
+      });
 
       // Try to get newsletter data from localStorage
+      newsletterLogger.logStorage('get', 'newsletterData', true, {});
       const storedNewsletter = localStorage.getItem('newsletterData');
+
       if (storedNewsletter) {
         try {
+          newsletterLogger.debug(LogCategory.STORAGE, 'Parsing newsletter data from localStorage', {
+            dataSize: storedNewsletter?.length || 0
+          });
+
           const parsedNewsletter = JSON.parse(storedNewsletter as string);
 
           // Check if the stored newsletter is valid (not an error or loading state)
@@ -693,18 +964,57 @@ function DashboardPage() {
             parsedNewsletter.title !== "Newsletter Temporarily Unavailable" &&
             parsedNewsletter.source !== "system";
 
+          newsletterLogger.debug(LogCategory.STORAGE, 'Validating stored newsletter', {
+            isValid: isValidNewsletter,
+            title: parsedNewsletter?.title || 'unknown',
+            hasContent: !!parsedNewsletter?.content,
+            source: parsedNewsletter?.source || 'unknown'
+          });
+
           if (isValidNewsletter) {
+            // Log state change
+            newsletterLogger.logStateChange(
+              newsletter?.title || 'unknown',
+              parsedNewsletter.title,
+              { source: 'localStorage' }
+            );
+
             setNewsletter(parsedNewsletter);
-            console.log('[NEWSLETTER] Loaded from localStorage:', {
+
+            newsletterLogger.info(LogCategory.STORAGE, 'Newsletter loaded from localStorage', {
               title: parsedNewsletter.title,
-              contentLength: parsedNewsletter.content?.length || 0
+              contentLength: parsedNewsletter.content?.length || 0,
+              lastUpdated: parsedNewsletter.lastUpdated
+            });
+
+            newsletterLogger.logEnd(LogCategory.STORAGE, 'loading from localStorage completed successfully', {
+              title: parsedNewsletter.title
             });
           } else {
-            console.log('[NEWSLETTER] Stored newsletter is in error/loading state - forcing fresh fetch');
+            newsletterLogger.warn(LogCategory.STORAGE, 'Stored newsletter is in error/loading state - forcing fresh fetch', {
+              title: parsedNewsletter?.title || 'unknown',
+              source: parsedNewsletter?.source || 'unknown'
+            });
+
             // Clear the flag since we have invalid data
+            newsletterLogger.logStorage('remove', 'newsletterLoaded', true, {
+              reason: 'invalid data'
+            });
             localStorage.removeItem('newsletterLoaded');
+
+            newsletterLogger.logStorage('remove', 'newsletterData', true, {
+              reason: 'invalid data'
+            });
             localStorage.removeItem('newsletterData');
+
             globalNewsletterLoaded.current = false;
+
+            // Log state change
+            newsletterLogger.logStateChange(
+              parsedNewsletter?.title || 'unknown',
+              'Loading Newsletter',
+              { reason: 'invalid stored data' }
+            );
 
             // Set a temporary loading state message
             setNewsletter({
@@ -715,20 +1025,62 @@ function DashboardPage() {
             });
 
             // Trigger a fetch with a slight delay to ensure UI updates first
-            console.log('[NEWSLETTER] Triggering fetch due to invalid stored data');
+            newsletterLogger.info(LogCategory.FETCH, 'Triggering fetch due to invalid stored data', {
+              reason: 'invalid stored newsletter'
+            });
+
             setTimeout(() => {
               fetchNewsletter();
             }, 100);
           }
-        } catch (error) {
-          errorLog('Failed to parse newsletter data from localStorage', error);
+        } catch (error: unknown) {
+          // Extract error details with explicit type assertion
+          let errorMessage: string;
+          let errorName: string;
+          let errorStack: string | undefined;
+
+          if (error instanceof Error) {
+            const typedError = error as Error; // Explicit type assertion
+            errorMessage = typedError.message;
+            errorName = typedError.name;
+            errorStack = typedError.stack;
+          } else {
+            errorMessage = String(error);
+            errorName = 'Unknown Error';
+            errorStack = 'No stack trace available';
+          }
+
+          newsletterLogger.error(LogCategory.ERROR, 'Failed to parse newsletter data from localStorage', {
+            errorMessage,
+            errorName,
+            errorStack
+          });
+
           setNewsletterError('Error loading saved newsletter data. Please try refreshing the page.');
+
+          newsletterLogger.logEnd(LogCategory.STORAGE, 'loading from localStorage failed', {
+            reason: 'parse error',
+            error: errorMessage
+          });
         }
       } else {
-        console.log('[NEWSLETTER] No data found in localStorage despite loaded flag being set - clearing flag');
+        newsletterLogger.warn(LogCategory.STORAGE, 'No data found in localStorage despite loaded flag being set', {
+          action: 'clearing flag'
+        });
+
         // Clear the flag since we don't have the actual data
+        newsletterLogger.logStorage('remove', 'newsletterLoaded', true, {
+          reason: 'missing data'
+        });
         localStorage.removeItem('newsletterLoaded');
         globalNewsletterLoaded.current = false;
+
+        // Log state change
+        newsletterLogger.logStateChange(
+          newsletter?.title || 'unknown',
+          'Loading Newsletter',
+          { reason: 'missing localStorage data' }
+        );
 
         // Set a temporary loading state message
         setNewsletter({
@@ -739,7 +1091,10 @@ function DashboardPage() {
         });
 
         // Trigger a fetch with a slight delay to ensure UI updates first
-        console.log('[NEWSLETTER] Triggering fetch due to missing data');
+        newsletterLogger.info(LogCategory.FETCH, 'Triggering fetch due to missing data', {
+          reason: 'missing localStorage data'
+        });
+
         setTimeout(() => {
           fetchNewsletter();
         }, 100);
@@ -759,6 +1114,17 @@ function DashboardPage() {
     const currentTimestamp = Date.now();
     const timeSinceLastFetch = currentTimestamp - lastFetchAttemptRef.current;
 
+    // Log URL parameters
+    newsletterLogger.debug(LogCategory.INIT, 'URL parameters check', {
+      forceFetch,
+      clearCache,
+      debugMode,
+      fetchTimestamp: fetchTimestamp > 0 ? new Date(fetchTimestamp).toISOString() : 'none',
+      currentTimestamp: new Date(currentTimestamp).toISOString(),
+      lastFetchTimestamp: lastFetchAttemptRef.current > 0 ? new Date(lastFetchAttemptRef.current).toISOString() : 'never',
+      timeSinceLastFetch: Math.round(timeSinceLastFetch / 1000 / 60) + ' minutes'
+    });
+
     // Force fetch if:
     // 1. URL parameter force_fetch=true is present
     // 2. URL parameter debug_newsletter=true is present (always force fetch in debug mode)
@@ -771,25 +1137,54 @@ function DashboardPage() {
       (lastFetchAttemptRef.current > 0 && timeSinceLastFetch > 30 * 60 * 1000); // 30 minutes
 
     if (clearCache) {
-      console.log('[NEWSLETTER] Clear cache requested - removing newsletter data from localStorage');
+      newsletterLogger.info(LogCategory.STORAGE, 'Clear cache requested - removing newsletter data from localStorage', {
+        reason: 'clear_cache parameter'
+      });
+
+      newsletterLogger.logStorage('remove', 'newsletterLoaded', true, {
+        reason: 'clear_cache parameter'
+      });
       localStorage.removeItem('newsletterLoaded');
+
+      newsletterLogger.logStorage('remove', 'newsletterData', true, {
+        reason: 'clear_cache parameter'
+      });
       localStorage.removeItem('newsletterData');
+
       globalNewsletterLoaded.current = false;
     }
 
-    console.log('[NEWSLETTER] Force fetch:', shouldForceFetch, 
-      '(URL param:', forceFetch, 
-      ', debug mode:', debugMode,
-      ', timestamp check:', fetchTimestamp > 0 && fetchTimestamp > lastFetchAttemptRef.current,
-      ', time since last fetch:', Math.round(timeSinceLastFetch / 1000 / 60), 'minutes)');
+    newsletterLogger.info(LogCategory.FETCH, 'Force fetch decision', {
+      shouldForceFetch,
+      reasons: {
+        forceFetchParam: forceFetch,
+        debugMode,
+        timestampCheck: fetchTimestamp > 0 && fetchTimestamp > lastFetchAttemptRef.current,
+        timeSinceLastFetch: lastFetchAttemptRef.current > 0 ? 
+          `${Math.round(timeSinceLastFetch / 1000 / 60)} minutes` : 'never fetched'
+      }
+    });
 
     // If newsletter hasn't been loaded or we should force fetch, fetch it
     if (!globalNewsletterLoaded.current || shouldForceFetch) {
       // If we're forcing a fetch but already have data, show it while fetching
       if (shouldForceFetch && newsletter) {
-        console.log('[NEWSLETTER] Showing existing content while fetching fresh data');
+        newsletterLogger.info(LogCategory.STATE, 'Showing existing content while fetching fresh data', {
+          currentTitle: newsletter.title,
+          forceFetchReason: forceFetch ? 'URL parameter' : 
+                           debugMode ? 'debug mode' : 
+                           (fetchTimestamp > 0 && fetchTimestamp > lastFetchAttemptRef.current) ? 'timestamp parameter' : 
+                           'time elapsed'
+        });
         // Keep showing the existing content while we fetch
       } else {
+        // Log state change
+        newsletterLogger.logStateChange(
+          newsletter?.title || 'unknown',
+          'Loading Newsletter',
+          { reason: 'initial load or force fetch' }
+        );
+
         // Set a loading state if we don't have content yet
         setNewsletter({
           title: "Loading Newsletter",
@@ -799,12 +1194,23 @@ function DashboardPage() {
         });
       }
 
+      // Log the fetch decision
+      newsletterLogger.logStart(LogCategory.FETCH, 'initiating newsletter fetch', {
+        reason: !globalNewsletterLoaded.current ? 'not loaded yet' : 'force fetch',
+        forceFetchReason: forceFetch ? 'URL parameter' : 
+                         debugMode ? 'debug mode' : 
+                         (fetchTimestamp > 0 && fetchTimestamp > lastFetchAttemptRef.current) ? 'timestamp parameter' : 
+                         'time elapsed'
+      });
+
       // Fetch with a slight delay to ensure UI updates
       setTimeout(() => {
         fetchNewsletter();
       }, 100);
     } else {
-      console.log('[NEWSLETTER] Already loaded in this session - skipping fetch');
+      newsletterLogger.info(LogCategory.STATE, 'Already loaded in this session - skipping fetch', {
+        currentTitle: newsletter?.title || 'unknown'
+      });
     }
   }, [status]) // Session dependency to re-run when auth changes
 
