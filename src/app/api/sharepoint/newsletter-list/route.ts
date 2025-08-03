@@ -254,7 +254,14 @@ export async function GET(request: NextRequest) {
       processedContent = processedContent.replace(/<img([^>]*?)>/gi, (match, attributes) => {
         // Remove width attribute and add responsive styling
         const cleanedAttrs = attributes.replace(/width="?\d+"?/gi, '');
-        return `<img${cleanedAttrs} style="max-width: 100%; height: auto;">`;
+        // Add loading="eager" to prevent lazy loading issues
+        return `<img${cleanedAttrs} style="max-width: 100%; height: auto;" loading="eager" decoding="sync">`;
+      });
+
+      // Fix iframes
+      processedContent = processedContent.replace(/<iframe([^>]*?)>/gi, (match, attributes) => {
+        // Add sandbox and loading attributes to prevent issues
+        return `<iframe${attributes} sandbox="allow-same-origin allow-scripts" loading="eager">`;
       });
 
       // Trim any whitespace
