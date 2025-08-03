@@ -422,6 +422,7 @@ function DashboardPage() {
             parsedNewsletter.title !== "Loading Newsletter" &&
             parsedNewsletter.title !== "Newsletter Error" &&
             parsedNewsletter.title !== "Newsletter Temporarily Unavailable" &&
+            parsedNewsletter.title !== "Newsletter Service Temporarily Unavailable" &&
             parsedNewsletter.source !== "system";
 
           debugLog('🔍 Validating stored newsletter', {
@@ -566,9 +567,9 @@ function DashboardPage() {
               // Still log the error for monitoring
               console.warn("Newsletter service is in maintenance mode (503)");
 
-              // Save this fallback to localStorage to avoid repeated fetch attempts
-              localStorage.setItem('newsletterLoaded', 'true');
-              globalNewsletterLoaded.current = true;
+              // Don't save this fallback to localStorage for 503 errors
+              // This will allow it to try fetching again on the next visit when the service might be available
+              console.log('[NEWSLETTER] Not setting loaded flag for 503 error - allowing retry on next visit');
 
               // Return early to avoid the error path
               return;
@@ -642,9 +643,9 @@ function DashboardPage() {
               source: "system"
             });
 
-            // Save this fallback to localStorage to avoid repeated fetch attempts
-            localStorage.setItem('newsletterLoaded', 'true');
-            globalNewsletterLoaded.current = true;
+            // Don't save this fallback to localStorage for network errors
+            // This will allow it to try fetching again on the next visit when SharePoint might be unblocked
+            console.log('[NEWSLETTER] Not setting loaded flag for network error - allowing retry on next visit');
 
             // Return early to avoid setting the error state
             return;
@@ -666,9 +667,9 @@ function DashboardPage() {
           // Still set the error for debugging purposes
           setNewsletterError(`Failed to load the newsletter. ${error.message}\n\nPlease try again later or contact IT support if the issue persists.`);
 
-          // Save this fallback to localStorage to avoid repeated fetch attempts
-          localStorage.setItem('newsletterLoaded', 'true');
-          globalNewsletterLoaded.current = true;
+          // Don't save this fallback to localStorage for errors
+          // This will allow it to try fetching again on the next visit when the issue might be resolved
+          console.log('[NEWSLETTER] Not setting loaded flag for error - allowing retry on next visit');
         });
     } else {
       debugLog('🔍 Newsletter already loaded in this session, skipping fetch');

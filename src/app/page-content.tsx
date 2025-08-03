@@ -875,12 +875,12 @@ function DashboardPage() {
               source: "system"
             });
 
-            // Save this fallback to localStorage to avoid repeated fetch attempts
-            newsletterLogger.logStorage('set', 'newsletterLoaded', true, {
-              reason: 'network error fallback'
+            // Don't save this fallback to localStorage for network errors
+            // This will allow it to try fetching again on the next visit when SharePoint might be unblocked
+            newsletterLogger.critical(LogCategory.STATE, 'Not setting loaded flag for network error', {
+              reason: 'network error - allowing retry on next visit',
+              errorMessage: error instanceof Error ? error.message : String(error)
             });
-            localStorage.setItem('newsletterLoaded', 'true');
-            globalNewsletterLoaded.current = true;
 
             // Log the end of the fetch process with critical level to ensure it's always displayed
             newsletterLogger.logCriticalEnd(LogCategory.FETCH, 'newsletter fetch completed with network error', {
@@ -962,13 +962,25 @@ function DashboardPage() {
             parsedNewsletter.title !== "Loading Newsletter" &&
             parsedNewsletter.title !== "Newsletter Error" &&
             parsedNewsletter.title !== "Newsletter Temporarily Unavailable" &&
+            parsedNewsletter.title !== "Newsletter Service Temporarily Unavailable" &&
             parsedNewsletter.source !== "system";
 
+          // Log detailed validation information with critical level to ensure it's always displayed
           newsletterLogger.critical(LogCategory.STORAGE, 'Validating stored newsletter', {
             isValid: isValidNewsletter,
             title: parsedNewsletter?.title || 'unknown',
             hasContent: !!parsedNewsletter?.content,
-            source: parsedNewsletter?.source || 'unknown'
+            source: parsedNewsletter?.source || 'unknown',
+            contentLength: parsedNewsletter?.content?.length || 0,
+            lastUpdated: parsedNewsletter?.lastUpdated || 'unknown',
+            failedChecks: {
+              noContent: !parsedNewsletter?.content,
+              loadingTitle: parsedNewsletter?.title === "Loading Newsletter",
+              errorTitle: parsedNewsletter?.title === "Newsletter Error",
+              tempUnavailableTitle: parsedNewsletter?.title === "Newsletter Temporarily Unavailable",
+              serviceUnavailableTitle: parsedNewsletter?.title === "Newsletter Service Temporarily Unavailable",
+              systemSource: parsedNewsletter?.source === "system"
+            }
           });
 
           if (isValidNewsletter) {
