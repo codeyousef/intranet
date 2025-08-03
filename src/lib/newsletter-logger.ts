@@ -10,7 +10,8 @@ export enum LogLevel {
   DEBUG = 0,
   INFO = 1,
   WARN = 2,
-  ERROR = 3
+  ERROR = 3,
+  CRITICAL = 4 // Always displayed regardless of log level
 }
 
 // Log categories
@@ -119,10 +120,18 @@ export class NewsletterLogger {
   }
 
   /**
+   * Log a critical message - always displayed regardless of log level
+   */
+  public critical(category: LogCategory | string, message: string, context: LogContext = {}, ...args: any[]): void {
+    this.log(LogLevel.CRITICAL, category, message, context, ...args);
+  }
+
+  /**
    * Internal log method
    */
   private log(level: LogLevel, category: LogCategory | string, message: string, context: LogContext = {}, ...args: any[]): void {
-    if (!this.enabled || level < this.logLevel) {
+    // CRITICAL level logs are always displayed regardless of log level
+    if (level !== LogLevel.CRITICAL && (!this.enabled || level < this.logLevel)) {
       return;
     }
 
@@ -134,7 +143,7 @@ export class NewsletterLogger {
       : '';
 
     const logPrefix = `[NEWSLETTER-${levelName}][${category}][${timestamp}]`;
-    
+
     switch (level) {
       case LogLevel.DEBUG:
         console.debug(`${logPrefix} ${message}${contextStr}`, ...args);
@@ -148,6 +157,9 @@ export class NewsletterLogger {
       case LogLevel.ERROR:
         console.error(`${logPrefix} ${message}${contextStr}`, ...args);
         break;
+      case LogLevel.CRITICAL:
+        console.error(`🔴 ${logPrefix} ${message}${contextStr}`, ...args);
+        break;
     }
   }
 
@@ -159,10 +171,24 @@ export class NewsletterLogger {
   }
 
   /**
+   * Log the critical start of a process - always displayed regardless of log level
+   */
+  public logCriticalStart(category: LogCategory | string, process: string, context: LogContext = {}): void {
+    this.critical(category, `Starting: ${process}`, context);
+  }
+
+  /**
    * Log the end of a process
    */
   public logEnd(category: LogCategory | string, process: string, context: LogContext = {}): void {
     this.info(category, `Completed: ${process}`, context);
+  }
+
+  /**
+   * Log the critical end of a process - always displayed regardless of log level
+   */
+  public logCriticalEnd(category: LogCategory | string, process: string, context: LogContext = {}): void {
+    this.critical(category, `Completed: ${process}`, context);
   }
 
   /**
@@ -173,10 +199,24 @@ export class NewsletterLogger {
   }
 
   /**
+   * Log a critical state change - always displayed regardless of log level
+   */
+  public logCriticalStateChange(from: string, to: string, context: LogContext = {}): void {
+    this.critical(LogCategory.STATE, `State change: ${from} -> ${to}`, context);
+  }
+
+  /**
    * Log an API request
    */
   public logApiRequest(url: string, method: string = 'GET', context: LogContext = {}): void {
     this.debug(LogCategory.FETCH, `API Request: ${method} ${url}`, context);
+  }
+
+  /**
+   * Log a critical API request - always displayed regardless of log level
+   */
+  public logCriticalApiRequest(url: string, method: string = 'GET', context: LogContext = {}): void {
+    this.critical(LogCategory.FETCH, `API Request: ${method} ${url}`, context);
   }
 
   /**
@@ -192,10 +232,28 @@ export class NewsletterLogger {
   }
 
   /**
+   * Log a critical API response - always displayed regardless of log level
+   */
+  public logCriticalApiResponse(url: string, status: number, success: boolean, context: LogContext = {}): void {
+    this.critical(LogCategory.RESPONSE, `API Response: ${status} from ${url}`, {
+      ...context,
+      status,
+      success
+    });
+  }
+
+  /**
    * Log data being stored
    */
   public logStorage(action: 'get' | 'set' | 'remove', key: string, success: boolean, context: LogContext = {}): void {
     this.debug(LogCategory.STORAGE, `Storage ${action}: ${key} (${success ? 'success' : 'failed'})`, context);
+  }
+
+  /**
+   * Log critical data storage operations - always displayed regardless of log level
+   */
+  public logCriticalStorage(action: 'get' | 'set' | 'remove', key: string, success: boolean, context: LogContext = {}): void {
+    this.critical(LogCategory.STORAGE, `Storage ${action}: ${key} (${success ? 'success' : 'failed'})`, context);
   }
 }
 

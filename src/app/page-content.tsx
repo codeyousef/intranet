@@ -709,14 +709,14 @@ function DashboardPage() {
 
       lastFetchAttemptRef.current = now;
 
-      // Log the start of the fetch process
-      newsletterLogger.logStart(LogCategory.FETCH, 'newsletter fetch', {
+      // Log the start of the fetch process with critical level to ensure it's always displayed
+      newsletterLogger.logCriticalStart(LogCategory.FETCH, 'newsletter fetch', {
         timestamp: now,
         timestampISO: new Date(now).toISOString()
       });
 
-      // Log the API request
-      newsletterLogger.logApiRequest(
+      // Log the API request with critical level to ensure it's always displayed
+      newsletterLogger.logCriticalApiRequest(
         '/api/sharepoint/newsletter-list',
         'GET',
         { timestamp: now }
@@ -730,8 +730,8 @@ function DashboardPage() {
         }
       })
         .then(response => {
-          // Log the API response
-          newsletterLogger.logApiResponse(
+          // Log the API response with critical level to ensure it's always displayed
+          newsletterLogger.logCriticalApiResponse(
             '/api/sharepoint/newsletter-list',
             response.status,
             response.ok,
@@ -739,7 +739,7 @@ function DashboardPage() {
           );
 
           if (!response.ok) {
-            newsletterLogger.error(LogCategory.ERROR, `API returned error status: ${response.status} ${response.statusText}`, {
+            newsletterLogger.critical(LogCategory.ERROR, `API returned error status: ${response.status} ${response.statusText}`, {
               status: response.status,
               statusText: response.statusText,
               url: '/api/sharepoint/newsletter-list'
@@ -747,8 +747,8 @@ function DashboardPage() {
 
             // Special handling for 503 Service Unavailable (temporary maintenance)
             if (response.status === 503) {
-              // Log state change
-              newsletterLogger.logStateChange(
+              // Log state change with critical level to ensure it's always displayed
+              newsletterLogger.logCriticalStateChange(
                 newsletter?.title || 'unknown',
                 'Newsletter Service Temporarily Unavailable',
                 { reason: '503 Service Unavailable' }
@@ -774,8 +774,8 @@ function DashboardPage() {
                 reason: 'service unavailable'
               });
 
-              // Log the end of the fetch process
-              newsletterLogger.logEnd(LogCategory.FETCH, 'newsletter fetch completed with 503 error', {
+              // Log the end of the fetch process with critical level to ensure it's always displayed
+              newsletterLogger.logCriticalEnd(LogCategory.FETCH, 'newsletter fetch completed with 503 error', {
                 outcome: 'maintenance mode fallback'
               });
 
@@ -798,15 +798,15 @@ function DashboardPage() {
           });
 
           if (data.success && data.newsletter) {
-            // Log detailed info about the newsletter
-            newsletterLogger.debug(LogCategory.RESPONSE, 'Newsletter content details', {
+            // Log detailed info about the newsletter with critical level to ensure it's always displayed
+            newsletterLogger.critical(LogCategory.RESPONSE, 'Newsletter content details', {
               title: data.newsletter.title,
               contentLength: data.newsletter.content?.length || 0,
               lastUpdated: data.newsletter.lastUpdated
             });
 
-            // Log state change
-            newsletterLogger.logStateChange(
+            // Log state change with critical level to ensure it's always displayed
+            newsletterLogger.logCriticalStateChange(
               newsletter?.title || 'unknown',
               data.newsletter.title,
               { source: 'fetch success' }
@@ -825,13 +825,13 @@ function DashboardPage() {
 
             globalNewsletterLoaded.current = true;
 
-            // Log the end of the fetch process
-            newsletterLogger.logEnd(LogCategory.FETCH, 'newsletter fetch completed successfully', {
+            // Log the end of the fetch process with critical level to ensure it's always displayed
+            newsletterLogger.logCriticalEnd(LogCategory.FETCH, 'newsletter fetch completed successfully', {
               title: data.newsletter.title
             });
           } else {
-            // Log error
-            newsletterLogger.error(LogCategory.ERROR, 'API returned success:false or missing newsletter data', {
+            // Log error with critical level to ensure it's always displayed
+            newsletterLogger.critical(LogCategory.ERROR, 'API returned success:false or missing newsletter data', {
               success: data.success,
               error: data.error || 'Unknown error',
               details: data.details || 'No details provided'
@@ -860,8 +860,8 @@ function DashboardPage() {
               errorMessage: error instanceof Error ? error.message : String(error)
             });
 
-            // Log state change
-            newsletterLogger.logStateChange(
+            // Log state change with critical level to ensure it's always displayed
+            newsletterLogger.logCriticalStateChange(
               newsletter?.title || 'unknown',
               'Newsletter Temporarily Unavailable',
               { reason: 'network error' }
@@ -882,8 +882,8 @@ function DashboardPage() {
             localStorage.setItem('newsletterLoaded', 'true');
             globalNewsletterLoaded.current = true;
 
-            // Log the end of the fetch process
-            newsletterLogger.logEnd(LogCategory.FETCH, 'newsletter fetch completed with network error', {
+            // Log the end of the fetch process with critical level to ensure it's always displayed
+            newsletterLogger.logCriticalEnd(LogCategory.FETCH, 'newsletter fetch completed with network error', {
               outcome: 'network error fallback'
             });
 
@@ -891,8 +891,8 @@ function DashboardPage() {
             return;
           }
 
-          // Log state change
-          newsletterLogger.logStateChange(
+          // Log state change with critical level to ensure it's always displayed
+          newsletterLogger.logCriticalStateChange(
             newsletter?.title || 'unknown',
             'Newsletter Error',
             { reason: 'fetch error' }
@@ -921,8 +921,8 @@ function DashboardPage() {
             errorMessage: error instanceof Error ? error.message : String(error)
           });
 
-          // Log the end of the fetch process
-          newsletterLogger.logEnd(LogCategory.FETCH, 'newsletter fetch completed with error', {
+          // Log the end of the fetch process with critical level to ensure it's always displayed
+          newsletterLogger.logCriticalEnd(LogCategory.FETCH, 'newsletter fetch completed with error', {
             outcome: 'error fallback',
             error: error instanceof Error ? error.message : String(error)
           });
@@ -964,7 +964,7 @@ function DashboardPage() {
             parsedNewsletter.title !== "Newsletter Temporarily Unavailable" &&
             parsedNewsletter.source !== "system";
 
-          newsletterLogger.debug(LogCategory.STORAGE, 'Validating stored newsletter', {
+          newsletterLogger.critical(LogCategory.STORAGE, 'Validating stored newsletter', {
             isValid: isValidNewsletter,
             title: parsedNewsletter?.title || 'unknown',
             hasContent: !!parsedNewsletter?.content,
@@ -972,8 +972,8 @@ function DashboardPage() {
           });
 
           if (isValidNewsletter) {
-            // Log state change
-            newsletterLogger.logStateChange(
+            // Log state change with critical level to ensure it's always displayed
+            newsletterLogger.logCriticalStateChange(
               newsletter?.title || 'unknown',
               parsedNewsletter.title,
               { source: 'localStorage' }
@@ -987,30 +987,30 @@ function DashboardPage() {
               lastUpdated: parsedNewsletter.lastUpdated
             });
 
-            newsletterLogger.logEnd(LogCategory.STORAGE, 'loading from localStorage completed successfully', {
+            newsletterLogger.logCriticalEnd(LogCategory.STORAGE, 'loading from localStorage completed successfully', {
               title: parsedNewsletter.title
             });
           } else {
-            newsletterLogger.warn(LogCategory.STORAGE, 'Stored newsletter is in error/loading state - forcing fresh fetch', {
+            newsletterLogger.critical(LogCategory.STORAGE, 'Stored newsletter is in error/loading state - forcing fresh fetch', {
               title: parsedNewsletter?.title || 'unknown',
               source: parsedNewsletter?.source || 'unknown'
             });
 
             // Clear the flag since we have invalid data
-            newsletterLogger.logStorage('remove', 'newsletterLoaded', true, {
+            newsletterLogger.logCriticalStorage('remove', 'newsletterLoaded', true, {
               reason: 'invalid data'
             });
             localStorage.removeItem('newsletterLoaded');
 
-            newsletterLogger.logStorage('remove', 'newsletterData', true, {
+            newsletterLogger.logCriticalStorage('remove', 'newsletterData', true, {
               reason: 'invalid data'
             });
             localStorage.removeItem('newsletterData');
 
             globalNewsletterLoaded.current = false;
 
-            // Log state change
-            newsletterLogger.logStateChange(
+            // Log state change with critical level to ensure it's always displayed
+            newsletterLogger.logCriticalStateChange(
               parsedNewsletter?.title || 'unknown',
               'Loading Newsletter',
               { reason: 'invalid stored data' }
@@ -1025,7 +1025,7 @@ function DashboardPage() {
             });
 
             // Trigger a fetch with a slight delay to ensure UI updates first
-            newsletterLogger.info(LogCategory.FETCH, 'Triggering fetch due to invalid stored data', {
+            newsletterLogger.critical(LogCategory.FETCH, 'Triggering fetch due to invalid stored data', {
               reason: 'invalid stored newsletter'
             });
 
@@ -1050,7 +1050,7 @@ function DashboardPage() {
             errorStack = 'No stack trace available';
           }
 
-          newsletterLogger.error(LogCategory.ERROR, 'Failed to parse newsletter data from localStorage', {
+          newsletterLogger.critical(LogCategory.ERROR, 'Failed to parse newsletter data from localStorage', {
             errorMessage,
             errorName,
             errorStack
@@ -1058,7 +1058,7 @@ function DashboardPage() {
 
           setNewsletterError('Error loading saved newsletter data. Please try refreshing the page.');
 
-          newsletterLogger.logEnd(LogCategory.STORAGE, 'loading from localStorage failed', {
+          newsletterLogger.logCriticalEnd(LogCategory.STORAGE, 'loading from localStorage failed', {
             reason: 'parse error',
             error: errorMessage
           });
