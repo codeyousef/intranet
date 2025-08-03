@@ -48,29 +48,59 @@ export function FlightStats() {
     try {
       setLoading(true)
       setError(null)
-      
+
       console.log('[FlightStats] Fetching flight data...')
-      const response = await fetch('/api/flight-data')
+      const response = await fetch('/api/flight-data', {
+        // Add credentials to ensure cookies are sent with the request
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
       console.log('[FlightStats] Response status:', response.status)
-      
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        console.error('[FlightStats] API error:', errorData)
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`)
+        // Try to get more detailed error information
+        try {
+          const responseText = await response.text();
+          let errorData;
+
+          try {
+            // Try to parse as JSON
+            errorData = JSON.parse(responseText);
+            console.error('[FlightStats] API error details:', errorData);
+            throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+          } catch (parseError) {
+            // If not JSON, use the text directly
+            console.error('[FlightStats] API error text:', responseText);
+            throw new Error(`HTTP ${response.status}: ${response.statusText}. ${responseText.substring(0, 100)}`);
+          }
+        } catch (textError) {
+          // If we can't get the response text, use a generic error
+          console.error('[FlightStats] Failed to get error details:', textError);
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
       }
-      
+
       const data = await response.json()
-      console.log('[FlightStats] Data received:', data)
-      
+      console.log('[FlightStats] Data received:', {
+        success: data.success,
+        hasMetrics: !!data.metrics,
+        recordCount: data.recordCount || 'N/A'
+      })
+
       if (data.success && data.metrics) {
         setMetrics(data.metrics)
         setLastRefresh(new Date())
+        console.log('[FlightStats] Metrics updated successfully');
       } else {
-        throw new Error(data.error || 'Failed to load flight data')
+        console.error('[FlightStats] API returned success:false or missing metrics:', data);
+        throw new Error(data.error || 'Failed to load flight data: Missing metrics');
       }
     } catch (err: any) {
-      console.error('[FlightStats] Error fetching flight data:', err)
-      setError(err.message || 'Failed to load flight data')
+      console.error('[FlightStats] Error fetching flight data:', err.message);
+      console.error('[FlightStats] Error stack:', err.stack);
+      setError(err.message || 'Failed to load flight data');
     } finally {
       setLoading(false)
     }

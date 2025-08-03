@@ -148,24 +148,62 @@ function DashboardPage() {
 
   // Fetch flight metrics when component mounts
   useEffect(() => {
-    fetch('/api/flight-data')
+    console.log('[FLIGHT-DATA] Fetching flight metrics');
+
+    // Only fetch if we have a session
+    if (!session) {
+      console.log('[FLIGHT-DATA] Skipping fetch - no session');
+      return;
+    }
+
+    fetch('/api/flight-data', {
+      // Add credentials to ensure cookies are sent with the request
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
       .then(response => {
+        console.log('[FLIGHT-DATA] Response status:', response.status);
+
         if (!response.ok) {
-          return response.json().then(errorData => {
-            throw new Error(errorData.error || 'Failed to fetch flight data')
-          })
+          // Try to get more detailed error information
+          return response.text().then(text => {
+            let errorMessage = 'Failed to fetch flight data';
+            try {
+              // Try to parse as JSON
+              const errorData = JSON.parse(text);
+              errorMessage = errorData.error || errorMessage;
+              console.error('[FLIGHT-DATA] Error details:', errorData);
+            } catch (e) {
+              // If not JSON, use the text directly
+              console.error('[FLIGHT-DATA] Error response text:', text);
+            }
+            throw new Error(errorMessage);
+          });
         }
-        return response.json()
+        return response.json();
       })
       .then(data => {
+        console.log('[FLIGHT-DATA] Data received:', {
+          success: data.success,
+          hasMetrics: !!data.metrics,
+          recordCount: data.recordCount
+        });
+
         if (data.success && data.metrics) {
-          setFlightMetrics(data.metrics)
+          setFlightMetrics(data.metrics);
+          console.log('[FLIGHT-DATA] Metrics set successfully');
+        } else {
+          console.error('[FLIGHT-DATA] Response missing metrics:', data);
+          throw new Error('Response missing metrics data');
         }
       })
       .catch(error => {
-        console.error('Error fetching flight data:', error)
-      })
-  }, [])
+        console.error('[FLIGHT-DATA] Error fetching flight data:', error.message);
+        console.error('[FLIGHT-DATA] Error stack:', error.stack);
+      });
+  }, [session])
 
 
   // Function to reset newsletter loading state and force a fresh fetch
@@ -223,6 +261,8 @@ function DashboardPage() {
                     'Content-Type': 'application/json',
                   },
                   body: JSON.stringify({ latitude, longitude }),
+                  // Add credentials to ensure cookies are sent with the request
+                  credentials: 'same-origin'
                 });
 
                 console.log('Weather API response status:', response.status);
@@ -239,12 +279,25 @@ function DashboardPage() {
                     };
                     console.log('Setting weather to:', newWeather);
                     setWeather(newWeather);
+                  } else {
+                    console.error('Weather API response missing weatherData:', data);
+                    throw new Error('Weather API response missing weatherData');
                   }
                 } else {
                   console.error('Weather API error:', response.status, response.statusText);
+                  // Try to get more detailed error information
+                  try {
+                    const errorData = await response.text();
+                    console.error('Weather API error details:', errorData);
+                  } catch (textError) {
+                    console.error('Could not read error response text:', textError);
+                  }
+                  throw new Error(`Weather API returned status ${response.status}`);
                 }
               } catch (error) {
                 console.error('Error fetching weather:', error);
+                // Use fallback if primary request fails
+                await fetchFallbackWeather();
               } finally {
                 setWeatherLoading(false);
               }
@@ -252,43 +305,17 @@ function DashboardPage() {
             async (error) => {
               // Geolocation failed, use fallback (Jeddah)
               console.log('Geolocation error:', error, 'using fallback location');
-
-              try {
-                const response = await fetch('/api/weather', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({ latitude: 21.543333, longitude: 39.172778 }),
-                });
-
-                if (response.ok) {
-                  const data = await response.json();
-                  if (data.weatherData) {
-                    setWeather({
-                      temp: Math.round(data.weatherData.current.temp_c),
-                      condition: data.weatherData.current.condition.text,
-                      location: data.weatherData.location.name
-                    });
-                  }
-                }
-              } catch (error) {
-                console.error('Error fetching fallback weather:', error);
-                // Set default values if all fails
-                setWeather({ temp: 25, condition: 'Clear', location: 'Jeddah' });
-              } finally {
-                setWeatherLoading(false);
-              }
+              await fetchFallbackWeather();
             },
             {
-              timeout: 5000,
+              timeout: 15000, // Increase timeout to 15 seconds to give more time for geolocation
               maximumAge: 300000 // Cache location for 5 minutes
             }
           );
         } else {
           // Geolocation not available, use fallback
-          setWeather({ temp: 25, condition: 'Clear', location: 'Jeddah' });
-          setWeatherLoading(false);
+          console.log('Geolocation not available in this browser, using fallback location');
+          await fetchFallbackWeather();
         }
       } catch (error) {
         console.error('Weather fetch error:', error);
@@ -297,12 +324,64 @@ function DashboardPage() {
       }
     };
 
+    // Helper function to fetch fallback weather for Jeddah
+    const fetchFallbackWeather = async () => {
+      console.log('Fetching fallback weather for Jeddah');
+      try {
+        const response = await fetch('/api/weather', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ latitude: 21.543333, longitude: 39.172778 }),
+          // Add credentials to ensure cookies are sent with the request
+          credentials: 'same-origin'
+        });
+
+        console.log('Fallback weather API response status:', response.status);
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.weatherData) {
+            const fallbackWeather = {
+              temp: Math.round(data.weatherData.current.temp_c),
+              condition: data.weatherData.current.condition.text,
+              location: data.weatherData.location.name
+            };
+            console.log('Setting fallback weather to:', fallbackWeather);
+            setWeather(fallbackWeather);
+          } else {
+            console.error('Fallback weather API response missing weatherData:', data);
+            // Use hardcoded values as last resort
+            setWeather({ temp: 25, condition: 'Clear', location: 'Jeddah' });
+          }
+        } else {
+          console.error('Fallback weather API error:', response.status, response.statusText);
+          // Try to get more detailed error information
+          try {
+            const errorData = await response.text();
+            console.error('Fallback weather API error details:', errorData);
+          } catch (textError) {
+            console.error('Could not read fallback error response text:', textError);
+          }
+          // Use hardcoded values as last resort
+          setWeather({ temp: 25, condition: 'Clear', location: 'Jeddah' });
+        }
+      } catch (error) {
+        console.error('Error fetching fallback weather:', error);
+        // Set default values if all fails
+        setWeather({ temp: 25, condition: 'Clear', location: 'Jeddah' });
+      } finally {
+        setWeatherLoading(false);
+      }
+    };
+
     // Only fetch weather after component is mounted and user is authenticated
     console.log('Weather useEffect triggered. Session:', !!session);
-    if (status === 'authenticated' && typeof window !== 'undefined') {
+    if (session && typeof window !== 'undefined') {
       fetchWeatherData();
     }
-  }, [status])
+  }, [session])
 
   // Newsletter loading effect - only runs on client side
   useEffect(() => {
