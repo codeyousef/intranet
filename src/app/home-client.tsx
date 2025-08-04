@@ -477,7 +477,8 @@ function DashboardPage() {
           const parsedNewsletter = JSON.parse(storedNewsletter);
 
           // Check if the stored newsletter is valid (not an error or loading state)
-          // Accept SharePoint content, cached content, and system-generated fallback content
+          // Accept only SharePoint content and cached SharePoint content
+          // System fallback content should trigger a fresh fetch attempt
           const isValidNewsletter =
             parsedNewsletter &&
             parsedNewsletter.content &&
@@ -485,9 +486,9 @@ function DashboardPage() {
             parsedNewsletter.title !== "Newsletter Error" &&
             parsedNewsletter.title !== "Newsletter Temporarily Unavailable" &&
             parsedNewsletter.title !== "Newsletter Service Temporarily Unavailable" &&
-            // Accept all non-system content (SharePoint content) and system fallback content
-            (parsedNewsletter.source !== "system" || 
-             (parsedNewsletter.source === "system" && parsedNewsletter.isFallback === true));
+            // Only accept non-system content (actual SharePoint content)
+            // System fallback content should not prevent fresh fetch attempts
+            parsedNewsletter.source !== "system";
 
           // Log detailed validation information to help debug issues
           criticalLog('Validating stored newsletter - DETAILED CHECK', {
@@ -504,9 +505,9 @@ function DashboardPage() {
               errorTitle: parsedNewsletter?.title === "Newsletter Error",
               tempUnavailableTitle: parsedNewsletter?.title === "Newsletter Temporarily Unavailable",
               serviceUnavailableTitle: parsedNewsletter?.title === "Newsletter Service Temporarily Unavailable",
-              invalidSystemSource: parsedNewsletter?.source === "system" && parsedNewsletter?.isFallback !== true
+              systemSource: parsedNewsletter?.source === "system"
             },
-            validFallback: parsedNewsletter?.source === "system" && parsedNewsletter?.isFallback === true
+            systemFallbackDetected: parsedNewsletter?.source === "system" && parsedNewsletter?.isFallback === true
           });
 
           debugLog('🔍 Validating stored newsletter', {
