@@ -145,14 +145,11 @@ export async function GET(request: NextRequest) {
       console.log(`[NEWSLETTER-ARCHIVE] Looking for file: ${fileName} in archive folder [${requestId}]`);
       console.log(`[NEWSLETTER-ARCHIVE] Full path requested: ${path} [${requestId}]`);
 
-      // The archive files are in the "CEO Newsletter/Archive" folder
-      // We need to filter by both the filename and the folder path
-      const archiveFolderFilter = `startswith(fields/FileDirRef, '/sites/Thelounge/CEO Newsletter/Archive')`;
-      const fileNameFilter = `fields/FileLeafRef eq '${fileName}'`;
-      const combinedFilter = `(${archiveFolderFilter}) and (${fileNameFilter})`;
+      // Try to find the file by name only (simpler approach)
+      console.log(`[NEWSLETTER-ARCHIVE] Searching for file: ${fileName} [${requestId}]`);
       
-      // Get items from the CEO Newsletter list, filtering by the filename in the archive folder
-      const itemsUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${newsletterList.id}/items?$expand=fields&$filter=${encodeURIComponent(combinedFilter)}&$top=5`;
+      // Get all items from the CEO Newsletter list and search client-side
+      const itemsUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${newsletterList.id}/items?$expand=fields&$orderby=fields/Modified desc&$top=100`;
       const itemsResponse = await fetch(itemsUrl, {
         headers: {
           'Authorization': `Bearer ${graphToken}`,
@@ -167,11 +164,28 @@ export async function GET(request: NextRequest) {
       }
 
       const itemsData = await itemsResponse.json();
-      console.log(`[NEWSLETTER-ARCHIVE] Found ${itemsData.value.length} items for file ${fileName} [${requestId}]`);
+      console.log(`[NEWSLETTER-ARCHIVE] Found ${itemsData.value.length} total items in the list [${requestId}]`);
 
+      // Search for the file by name (client-side filtering)
       let newsletterItem = null;
-      if (itemsData.value.length > 0) {
-        newsletterItem = itemsData.value[0]; // Take the first matching item
+      for (const item of itemsData.value) {
+        const fields = item.fields || {};
+        const fileLeafRef = fields.FileLeafRef || '';
+        const fileDirRef = fields.FileDirRef || '';
+        
+        console.log(`[NEWSLETTER-ARCHIVE] Checking item: ${fileLeafRef} in folder: ${fileDirRef} [${requestId}]`);
+        
+        // Look for exact filename match
+        if (fileLeafRef === fileName) {
+          // If we find a match, prefer one in archive folder, otherwise take any match
+          if (fileDirRef.toLowerCase().includes('archive') || !newsletterItem) {
+            newsletterItem = item;
+            console.log(`[NEWSLETTER-ARCHIVE] Found matching file: ${fileLeafRef} in ${fileDirRef} [${requestId}]`);
+            if (fileDirRef.toLowerCase().includes('archive')) {
+              break; // Perfect match, stop looking
+            }
+          }
+        }
       }
 
       if (!newsletterItem) {
@@ -311,9 +325,8 @@ export async function GET(request: NextRequest) {
           return `<iframe${attributes} sandbox="allow-same-origin allow-scripts" loading="eager">`;
         });
 
-        // Wrap the content in a proper HTML structure if it doesn't already have one
-        if (!processedContent.includes('<!DOCTYPE html>') && !processedContent.includes('<html')) {
-          processedContent = `<!DOCTYPE html>
+        // Always wrap content in proper HTML structure for iframe display
+        processedContent = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -323,9 +336,10 @@ export async function GET(request: NextRequest) {
     body {
       font-family: Arial, sans-serif;
       margin: 0;
-      padding: 0;
+      padding: 10px;
       line-height: 1.6;
       color: #333;
+      background: #fff;
     }
     img {
       max-width: 100%;
@@ -338,6 +352,7 @@ export async function GET(request: NextRequest) {
     }
     td, th {
       padding: 8px;
+      vertical-align: top;
     }
     a {
       color: #00539f;
@@ -345,6 +360,12 @@ export async function GET(request: NextRequest) {
     }
     a:hover {
       text-decoration: underline;
+    }
+    /* Fix for SharePoint HTML issues */
+    .newsletter-content {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
     }
   </style>
 </head>
@@ -354,7 +375,6 @@ export async function GET(request: NextRequest) {
   </div>
 </body>
 </html>`;
-        }
 
         console.log(`[NEWSLETTER-ARCHIVE] Completed HTML processing [${requestId}]`);
       } catch (error: any) {

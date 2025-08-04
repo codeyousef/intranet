@@ -1773,12 +1773,7 @@ function DashboardPage() {
                                 throw new Error('Invalid newsletter content');
                               }
 
-                              const sanitizedMarkup = createSanitizedMarkup(newsletter.content);
-
-                              // Validate that sanitization was successful
-                              if (!sanitizedMarkup || !sanitizedMarkup.__html) {
-                                throw new Error('Newsletter content sanitization failed');
-                              }
+                              // Newsletter content will be displayed in iframe for safe rendering
 
                               return (
                                 <div 
@@ -1832,10 +1827,23 @@ function DashboardPage() {
                                       }, 50);
                                     }
                                   }}
-                                  dangerouslySetInnerHTML={sanitizedMarkup}
-                                  style={{ 
-                                    color: '#374151'
+                                  style={{
+                                    padding: 0,
+                                    margin: 0
                                   }}
+                                >
+                                  <iframe
+                                    srcDoc={newsletter.content}
+                                    style={{
+                                      width: '100%',
+                                      minHeight: '400px',
+                                      border: 'none',
+                                      background: 'white'
+                                    }}
+                                    sandbox="allow-same-origin allow-scripts"
+                                    loading="eager"
+                                    title="Newsletter Content"
+                                  />
                                 />
                               );
                             } catch (error) {
@@ -2045,20 +2053,28 @@ function DashboardPage() {
                           throw new Error('Invalid newsletter content');
                         }
 
-                        const sanitizedMarkup = createSanitizedMarkup(newsletter.content);
-
-                        // Validate that sanitization was successful
-                        if (!sanitizedMarkup || !sanitizedMarkup.__html) {
-                          throw new Error('Newsletter content sanitization failed');
-                        }
+                        // Newsletter content will be displayed in iframe for safe rendering
 
                         return (
                           <div 
                             className="newsletter-modal-content"
-                            dangerouslySetInnerHTML={sanitizedMarkup}
                             style={{
-                              color: '#374151'
+                              padding: 0,
+                              margin: 0
                             }}
+                          >
+                            <iframe
+                              srcDoc={newsletter.content}
+                              style={{
+                                width: '100%',
+                                minHeight: '600px',
+                                border: 'none',
+                                background: 'white'
+                              }}
+                              sandbox="allow-same-origin allow-scripts"
+                              loading="eager"
+                              title="Newsletter Content - Full View"
+                            />
                           />
                         );
                       } catch (error) {

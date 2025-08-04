@@ -307,6 +307,59 @@ export async function GET(request: NextRequest) {
     }
     
     console.log(`[NEWSLETTER-LIST] Minimal cleanup complete: ${newsletterContent.substring(0, 500)} [${effectiveRequestId}]`);
+    
+    // Wrap content in proper HTML structure for iframe display
+    newsletterContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base target="_blank">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 10px;
+      line-height: 1.6;
+      color: #333;
+      background: #fff;
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+    table {
+      width: 100% !important;
+      max-width: 100%;
+      border-collapse: collapse;
+    }
+    td, th {
+      padding: 8px;
+      vertical-align: top;
+    }
+    a {
+      color: #00539f;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    /* Fix for SharePoint HTML issues */
+    .newsletter-content {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="newsletter-content">
+    ${newsletterContent}
+  </div>
+</body>
+</html>`;
+    
+    console.log(`[NEWSLETTER-LIST] Wrapped in HTML structure for iframe display [${effectiveRequestId}]`);
 
     console.log(`🎉 [NEWSLETTER-API-DEBUG] Successfully fetched newsletter content [${effectiveRequestId}]`, {
       contentLength: newsletterContent.length,
