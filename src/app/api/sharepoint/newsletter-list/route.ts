@@ -158,30 +158,56 @@ export async function GET(request: NextRequest) {
       }
       // Try multiple possible paths to find the newsletter file
       const possiblePaths = [
-        'CEO Newsletter/last-newsletter.html',
-        'last-newsletter.html',
+        // Root level paths (like flight data)
         'newsletter.html',
+        'last-newsletter.html',
+        'CEO-Newsletter.html',
+        'ceo-newsletter.html',
+        'Newsletter.html',
+        'LastNewsletter.html',
+        'latest-newsletter.html',
+        'current-newsletter.html',
+        'CEO Newsletter.html',
+        'CEO newsletter.html',
+        'ceo Newsletter.html',
+        
+        // CEO Newsletter folder paths (based on browser link)
+        'CEO Newsletter/last-newsletter.html',
         'CEO Newsletter/Newsletter.html',
         'CEO Newsletter/newsletter.html',
-        'Newsletter/last-newsletter.html',
         'CEO Newsletter/Last Newsletter.html',
         'CEO Newsletter/CEO Newsletter.html',
-        'CEO Newsletter.html',
-        'Newsletter.html',
-        // Additional paths to try
+        'CEO Newsletter/index.html',
+        'CEO Newsletter/current.html',
+        // Try with Forms path
+        'CEO Newsletter/Forms/last-newsletter.html',
+        'CEO Newsletter/Forms/Newsletter.html',
+        
+        // Newsletter folder paths
+        'Newsletter/last-newsletter.html',
+        'Newsletter/newsletter.html',
+        'Newsletter/index.html',
+        'Newsletter/current.html',
+        
+        // Shared Documents paths
         'Shared Documents/CEO Newsletter/last-newsletter.html',
         'Shared Documents/last-newsletter.html',
         'Shared Documents/newsletter.html',
         'Shared Documents/CEO Newsletter/Newsletter.html',
         'Shared Documents/CEO Newsletter/newsletter.html',
         'Shared Documents/Newsletter/last-newsletter.html',
+        
+        // Documents paths
         'Documents/CEO Newsletter/last-newsletter.html',
         'Documents/last-newsletter.html',
         'Documents/newsletter.html',
-        'CEO Newsletter/index.html',
-        'Newsletter/index.html',
-        'CEO Newsletter/current.html',
-        'Newsletter/current.html'
+        
+        // Try without extension
+        'newsletter',
+        'Newsletter',
+        'CEO Newsletter',
+        'last-newsletter',
+        'LastNewsletter'
       ];
 
       let newsletterContent = '';
@@ -201,14 +227,16 @@ export async function GET(request: NextRequest) {
           console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] About to call getFileContent for: ${path} [${effectiveRequestId}]`);
           
           // Log environment variables to ensure SharePoint is configured
-          console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] SharePoint Config Check:`, {
-            SHAREPOINT_SITE_URL: process.env.SHAREPOINT_SITE_URL || 'NOT SET',
-            SHAREPOINT_CLIENT_ID: process.env.SHAREPOINT_CLIENT_ID ? 'SET' : 'NOT SET',
-            SHAREPOINT_CLIENT_SECRET: process.env.SHAREPOINT_CLIENT_SECRET ? 'SET' : 'NOT SET',
-            AZURE_AD_CLIENT_ID: process.env.AZURE_AD_CLIENT_ID ? 'SET' : 'NOT SET',
-            AZURE_AD_CLIENT_SECRET: process.env.AZURE_AD_CLIENT_SECRET ? 'SET' : 'NOT SET',
-            AZURE_AD_TENANT_ID: process.env.AZURE_AD_TENANT_ID || 'NOT SET'
-          });
+          if (i === 0) { // Only log once
+            console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] SharePoint Config Check:`, {
+              SHAREPOINT_SITE_URL: process.env.SHAREPOINT_SITE_URL || 'NOT SET',
+              SHAREPOINT_CLIENT_ID: process.env.SHAREPOINT_CLIENT_ID ? 'SET' : 'NOT SET',
+              SHAREPOINT_CLIENT_SECRET: process.env.SHAREPOINT_CLIENT_SECRET ? 'SET' : 'NOT SET',
+              AZURE_AD_CLIENT_ID: process.env.AZURE_AD_CLIENT_ID ? 'SET' : 'NOT SET',
+              AZURE_AD_CLIENT_SECRET: process.env.AZURE_AD_CLIENT_SECRET ? 'SET' : 'NOT SET',
+              AZURE_AD_TENANT_ID: process.env.AZURE_AD_TENANT_ID || 'NOT SET'
+            });
+          }
 
           newsletterContent = await getFileContent(path);
           successPath = path;
