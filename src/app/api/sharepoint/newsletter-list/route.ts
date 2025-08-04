@@ -320,6 +320,18 @@ export async function GET(request: NextRequest) {
     cleanedContent = cleanedContent.replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec));
     cleanedContent = cleanedContent.replace(/&#x([0-9a-f]+);/gi, (match, hex) => String.fromCharCode(parseInt(hex, 16)));
     
+    // Fix the specific issue where normal text is being treated as HTML attributes
+    // This appears to be caused by malformed HTML where quotes are missing around attribute values
+    // Pattern: word="" should become just word (remove the empty attribute)
+    cleanedContent = cleanedContent.replace(/(\w+)=""/g, '$1');
+    
+    // Also fix cases where there might be malformed attributes in the middle of text
+    // Pattern: word - word="" - word should become word - word - word
+    cleanedContent = cleanedContent.replace(/(\w+)=""(\s*[-–]\s*)/g, '$1$2');
+    
+    // Fix any remaining malformed attribute patterns that might appear in text content
+    cleanedContent = cleanedContent.replace(/([a-zA-Z]+)=""\s+/g, '$1 ');
+    
     // Remove scripts and styles
     cleanedContent = cleanedContent.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
     cleanedContent = cleanedContent.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
