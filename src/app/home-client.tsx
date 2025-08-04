@@ -477,13 +477,17 @@ function DashboardPage() {
           const parsedNewsletter = JSON.parse(storedNewsletter);
 
           // Check if the stored newsletter is valid (not an error or loading state)
+          // Accept SharePoint content, cached content, and system-generated fallback content
           const isValidNewsletter =
             parsedNewsletter &&
             parsedNewsletter.content &&
             parsedNewsletter.title !== "Loading Newsletter" &&
             parsedNewsletter.title !== "Newsletter Error" &&
             parsedNewsletter.title !== "Newsletter Temporarily Unavailable" &&
-            parsedNewsletter.title !== "Newsletter Service Temporarily Unavailable";
+            parsedNewsletter.title !== "Newsletter Service Temporarily Unavailable" &&
+            // Accept all non-system content (SharePoint content) and system fallback content
+            (parsedNewsletter.source !== "system" || 
+             (parsedNewsletter.source === "system" && parsedNewsletter.isFallback === true));
 
           // Log detailed validation information to help debug issues
           criticalLog('Validating stored newsletter - DETAILED CHECK', {
@@ -500,8 +504,9 @@ function DashboardPage() {
               errorTitle: parsedNewsletter?.title === "Newsletter Error",
               tempUnavailableTitle: parsedNewsletter?.title === "Newsletter Temporarily Unavailable",
               serviceUnavailableTitle: parsedNewsletter?.title === "Newsletter Service Temporarily Unavailable",
-              systemSource: parsedNewsletter?.source === "system"
-            }
+              invalidSystemSource: parsedNewsletter?.source === "system" && parsedNewsletter?.isFallback !== true
+            },
+            validFallback: parsedNewsletter?.source === "system" && parsedNewsletter?.isFallback === true
           });
 
           debugLog('🔍 Validating stored newsletter', {
