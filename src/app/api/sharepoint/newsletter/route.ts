@@ -27,6 +27,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthSession } from '@/lib/auth'
+import { getFileContent } from '@/lib/sharepointClient'
 import fs from 'fs'
 import path from 'path'
 
@@ -75,6 +76,10 @@ function cacheNewsletter(data: any) {
 // Get fresh access token using client credentials
 async function getFreshAccessToken() {
   try {
+    console.log('[NEWSLETTER-API] Getting fresh access token for Graph API');
+    console.log('[NEWSLETTER-API] Tenant ID:', process.env.AZURE_AD_TENANT_ID);
+    console.log('[NEWSLETTER-API] Client ID:', process.env.AZURE_AD_CLIENT_ID);
+    console.log('[NEWSLETTER-API] Client Secret present:', !!process.env.AZURE_AD_CLIENT_SECRET);
 
     const response = await fetch(`https://login.microsoftonline.com/${process.env.AZURE_AD_TENANT_ID}/oauth2/v2.0/token`, {
       method: 'POST',
@@ -89,14 +94,20 @@ async function getFreshAccessToken() {
       }),
     })
 
+    console.log('[NEWSLETTER-API] Token response status:', response.status, response.statusText);
+
     if (response.ok) {
       const tokenData = await response.json()
+      console.log('[NEWSLETTER-API] Token acquired successfully');
       return tokenData.access_token
     } else {
       const errorText = await response.text()
+      console.error('[NEWSLETTER-API] Token acquisition failed:', errorText);
       return null
     }
-  } catch (error) {
+  } catch (error: any) {
+    console.error('[NEWSLETTER-API] Token acquisition error:', error.message);
+    console.error('[NEWSLETTER-API] Error stack:', error.stack);
     return null
   }
 }
@@ -140,6 +151,39 @@ export async function GET(request: NextRequest) {
     let htmlContent = ''
     let fetchMethod = ''
 
+    // Method 0: Try using the same SharePoint client that works for flight data
+    try {
+      console.log('[NEWSLETTER-API] Method 0: Trying SharePoint client (same as flight data)');
+      const possiblePaths = [
+        'CEO Newsletter/last-newsletter.html',
+        'last-newsletter.html',
+        'newsletter.html',
+        'CEO Newsletter/Newsletter.html',
+        'CEO Newsletter/newsletter.html',
+        'Newsletter/last-newsletter.html',
+        'CEO Newsletter/Last Newsletter.html',
+        'CEO Newsletter/CEO Newsletter.html'
+      ];
+      
+      for (const path of possiblePaths) {
+        try {
+          console.log(`[NEWSLETTER-API] Trying SharePoint client with path: ${path}`);
+          const content = await getFileContent(path);
+          if (content) {
+            console.log(`[NEWSLETTER-API] Success! Found newsletter at: ${path}`);
+            htmlContent = content;
+            fetchMethod = `SharePoint Client (${path})`;
+            break;
+          }
+        } catch (error: any) {
+          console.log(`[NEWSLETTER-API] SharePoint client failed for ${path}:`, error.message);
+        }
+      }
+    } catch (error: any) {
+      console.error('[NEWSLETTER-API] SharePoint client error:', error.message);
+      console.error('[NEWSLETTER-API] Error stack:', error.stack);
+    }
+
     // Method 1: Try SharePoint REST API with user's token (often works better)
     try {
       // Updated server-relative URL to match the correct path
@@ -148,6 +192,7 @@ export async function GET(request: NextRequest) {
       
       console.log('[NEWSLETTER-API] Method 1: Trying SharePoint REST API');
       console.log('[NEWSLETTER-API] REST API URL:', restApiUrl);
+      console.log('[NEWSLETTER-API] Using session token:', session.accessToken ? `Bearer ${session.accessToken.substring(0, 10)}...` : 'NO TOKEN');
       
       const restResponse = await fetch(restApiUrl, {
         headers: {
@@ -157,21 +202,30 @@ export async function GET(request: NextRequest) {
       })
       
       console.log('[NEWSLETTER-API] REST API Response:', restResponse.status, restResponse.statusText);
+      
+      if (!restResponse.ok) {
+        const errorBody = await restResponse.text();
+        console.error('[NEWSLETTER-API] REST API Error Response Body:', errorBody.substring(0, 500));
+      }
 
       if (restResponse.ok) {
         htmlContent = await restResponse.text()
         fetchMethod = 'SharePoint REST API'
       }
-    } catch (error) {
-      console.error('SharePoint REST API error:', error)
+    } catch (error: any) {
+      console.error('[NEWSLETTER-API] SharePoint REST API error:', error.message);
+      console.error('[NEWSLETTER-API] Error stack:', error.stack);
     }
 
     // Method 2: Try Graph API with fresh application token
     if (!htmlContent) {
       try {
+        console.log('[NEWSLETTER-API] Method 2: Trying Graph API with application token');
         const graphToken = await getFreshAccessToken()
         
         if (graphToken) {
+          console.log('[NEWSLETTER-API] Graph token acquired:', graphToken ? `Bearer ${graphToken.substring(0, 10)}...` : 'NO TOKEN');
+          
           // Try multiple possible Graph API paths based on different URL structures
           const graphPaths = [
             "/sites/flyadeal.sharepoint.com,flyadeal.sharepoint.com:/sites/Thelounge:/drive/root:/CEO Newsletter/last-newsletter.html:/content",
@@ -182,31 +236,47 @@ export async function GET(request: NextRequest) {
 
           for (const path of graphPaths) {
             try {
-              const graphResponse = await fetch(`https://graph.microsoft.com/v1.0${path}`, {
+              const graphUrl = `https://graph.microsoft.com/v1.0${path}`;
+              console.log(`[NEWSLETTER-API] Trying Graph API path: ${graphUrl}`);
+              
+              const graphResponse = await fetch(graphUrl, {
                 headers: {
                   'Authorization': `Bearer ${graphToken}`,
                   'Accept': 'text/html, */*',
                 },
               })
+              
+              console.log(`[NEWSLETTER-API] Graph API Response for ${path}:`, graphResponse.status, graphResponse.statusText);
+              
+              if (!graphResponse.ok) {
+                const errorBody = await graphResponse.text();
+                console.error(`[NEWSLETTER-API] Graph API Error Response Body:`, errorBody.substring(0, 500));
+              }
 
               if (graphResponse.ok) {
                 htmlContent = await graphResponse.text()
                 fetchMethod = `Graph API (${path})`
                 break
               }
-            } catch (error) {
-              console.error(`Graph API error for path ${path}:`, error)
+            } catch (error: any) {
+              console.error(`[NEWSLETTER-API] Graph API error for path ${path}:`, error.message)
             }
           }
+        } else {
+          console.error('[NEWSLETTER-API] Failed to acquire Graph API token');
         }
-      } catch (error) {
-        console.error('Graph API error:', error)
+      } catch (error: any) {
+        console.error('[NEWSLETTER-API] Graph API error:', error.message)
+        console.error('[NEWSLETTER-API] Error stack:', error.stack)
       }
     }
 
     // Method 3: Try direct fetch with user's token
     if (!htmlContent) {
       try {
+        console.log('[NEWSLETTER-API] Method 3: Trying direct fetch with user token');
+        console.log('[NEWSLETTER-API] Direct URL:', newsletterUrl);
+        
         const directResponse = await fetch(newsletterUrl, {
           headers: {
             'Authorization': `Bearer ${session.accessToken}`,
@@ -214,13 +284,21 @@ export async function GET(request: NextRequest) {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           },
         })
+        
+        console.log('[NEWSLETTER-API] Direct fetch response:', directResponse.status, directResponse.statusText);
+        
+        if (!directResponse.ok) {
+          const errorBody = await directResponse.text();
+          console.error('[NEWSLETTER-API] Direct fetch error response body:', errorBody.substring(0, 500));
+        }
 
         if (directResponse.ok) {
           htmlContent = await directResponse.text()
           fetchMethod = 'Direct Fetch'
         }
-      } catch (error) {
-        console.error('Direct fetch error:', error)
+      } catch (error: any) {
+        console.error('[NEWSLETTER-API] Direct fetch error:', error.message)
+        console.error('[NEWSLETTER-API] Error stack:', error.stack)
       }
     }
 

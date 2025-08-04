@@ -199,6 +199,16 @@ export async function GET(request: NextRequest) {
         try {
           console.log(`🔍 [NEWSLETTER-API-DEBUG] Attempting path ${i + 1}/${possiblePaths.length}: ${path} [${effectiveRequestId}]`);
           console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] About to call getFileContent for: ${path} [${effectiveRequestId}]`);
+          
+          // Log environment variables to ensure SharePoint is configured
+          console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] SharePoint Config Check:`, {
+            SHAREPOINT_SITE_URL: process.env.SHAREPOINT_SITE_URL || 'NOT SET',
+            SHAREPOINT_CLIENT_ID: process.env.SHAREPOINT_CLIENT_ID ? 'SET' : 'NOT SET',
+            SHAREPOINT_CLIENT_SECRET: process.env.SHAREPOINT_CLIENT_SECRET ? 'SET' : 'NOT SET',
+            AZURE_AD_CLIENT_ID: process.env.AZURE_AD_CLIENT_ID ? 'SET' : 'NOT SET',
+            AZURE_AD_CLIENT_SECRET: process.env.AZURE_AD_CLIENT_SECRET ? 'SET' : 'NOT SET',
+            AZURE_AD_TENANT_ID: process.env.AZURE_AD_TENANT_ID || 'NOT SET'
+          });
 
           newsletterContent = await getFileContent(path);
           successPath = path;
@@ -223,6 +233,8 @@ export async function GET(request: NextRequest) {
           console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] Error message: ${error.message}`);
           console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] Error type: ${error.name || 'Unknown'}`);
           console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] Error code: ${error.code || 'None'}`);
+          console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] Full error object:`, JSON.stringify(error, null, 2));
+          console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] Error stack:`, error.stack);
 
           if (error.message.includes('itemNotFound')) {
             console.log(`❌ [NEWSLETTER-API-DEBUG] Path not found: ${path} [${effectiveRequestId}]`, {
