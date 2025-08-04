@@ -24,6 +24,18 @@ export async function GET(request: NextRequest) {
   // Use the test request ID if available, otherwise use the generated one
   const effectiveRequestId = testRequestId || requestId;
 
+  // 🚨 ULTRA-CRITICAL DEBUGGING - Log everything at the start
+  console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] API ENTRY POINT - ${new Date().toISOString()}`);
+  console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] Request ID: ${effectiveRequestId}`);
+  console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] Method: ${request.method}`);
+  console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] URL: ${request.url}`);
+  console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] User-Agent: ${request.headers.get('user-agent')}`);
+  console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] Authorization: ${request.headers.get('authorization') ? 'Present' : 'Missing'}`);
+  console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] Environment: ${process.env.NODE_ENV}`);
+  console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] SharePoint Site: ${process.env.SHAREPOINT_SITE_URL || 'Not configured'}`);
+  console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] SharePoint Client ID: ${process.env.SHAREPOINT_CLIENT_ID ? 'Present' : 'Missing'}`);
+  console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] Timestamp: ${new Date().toISOString()}`);
+
   // Log comprehensive request details
   console.log(`🔍 [NEWSLETTER-API-DEBUG] Request Details [${effectiveRequestId}]`, {
     method: request.method,
@@ -186,9 +198,16 @@ export async function GET(request: NextRequest) {
         const pathAttemptStart = Date.now();
         try {
           console.log(`🔍 [NEWSLETTER-API-DEBUG] Attempting path ${i + 1}/${possiblePaths.length}: ${path} [${effectiveRequestId}]`);
+          console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] About to call getFileContent for: ${path} [${effectiveRequestId}]`);
+
           newsletterContent = await getFileContent(path);
           successPath = path;
           const pathAttemptDuration = Date.now() - pathAttemptStart;
+
+          console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] SUCCESS! getFileContent returned content for: ${path} [${effectiveRequestId}]`);
+          console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] Content length: ${newsletterContent.length}`);
+          console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] Content preview: ${newsletterContent.substring(0, 100).replace(/\s+/g, ' ').trim()}`);
+
           console.log(`✅ [NEWSLETTER-API-DEBUG] SUCCESS! Found newsletter at: ${path} [${effectiveRequestId}]`, {
             pathIndex: i + 1,
             totalPaths: possiblePaths.length,
@@ -199,6 +218,12 @@ export async function GET(request: NextRequest) {
           break;
         } catch (error: any) {
           const pathAttemptDuration = Date.now() - pathAttemptStart;
+
+          console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] getFileContent FAILED for: ${path} [${effectiveRequestId}]`);
+          console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] Error message: ${error.message}`);
+          console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] Error type: ${error.name || 'Unknown'}`);
+          console.error(`🚨 [NEWSLETTER-API-ULTRA-CRITICAL] Error code: ${error.code || 'None'}`);
+
           if (error.message.includes('itemNotFound')) {
             console.log(`❌ [NEWSLETTER-API-DEBUG] Path not found: ${path} [${effectiveRequestId}]`, {
               pathIndex: i + 1,
@@ -226,10 +251,17 @@ export async function GET(request: NextRequest) {
           allPathsAttempted: possiblePaths
         });
 
-        // Instead of throwing an error, return a helpful message with fallback content
+        // 🚨 CRITICAL FIX: Return success:false to trigger proper error handling on frontend
+        // This prevents system fallback content from being cached as valid content
+        console.error(`🚨 [NEWSLETTER-API-CRITICAL] Returning error to prevent caching of fallback content [${effectiveRequestId}]`);
+
         return NextResponse.json({
-          success: true, // Return success:true to prevent client-side error handling
-          newsletter: {
+          success: false,
+          error: 'Newsletter file not found in any of the expected locations',
+          errorType: 'not_found',
+          details: 'All possible newsletter file paths have been checked',
+          searchedPaths: possiblePaths,
+          fallbackContent: {
             title: 'Newsletter Update',
             content: `
               <div style="padding: 20px; text-align: center; background: #f9f9f9; border-radius: 8px; font-family: Arial, sans-serif;">
@@ -249,7 +281,7 @@ export async function GET(request: NextRequest) {
                   </ul>
                 </div>
                 <p style="color: #999; font-size: 12px; margin-top: 30px;">
-                  Request ID: ${requestId}<br>
+                  Request ID: ${effectiveRequestId}<br>
                   This is an automatically generated message.
                 </p>
               </div>
@@ -259,7 +291,7 @@ export async function GET(request: NextRequest) {
             isFallback: true,
             fallbackReason: 'Newsletter file not found in any of the expected locations'
           }
-        });
+        }, { status: 404 });
       }
 
       console.log(`🎉 [NEWSLETTER-API-DEBUG] Successfully fetched newsletter content [${effectiveRequestId}]`, {

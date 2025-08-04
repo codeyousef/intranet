@@ -586,13 +586,24 @@ function DashboardPage() {
                   return response.json();
                 })
                 .then(data => {
+                  console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] API Response received: ${JSON.stringify(data, null, 2)}`);
+
                   if (data.success && data.newsletter) {
                     debugLog('✅ Newsletter fetched successfully', data.newsletter);
+                    console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] SUCCESS - Setting newsletter from API response`);
                     setNewsletter(data.newsletter);
                     localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
                     localStorage.setItem('newsletterLoaded', 'true');
                     globalNewsletterLoaded.current = true;
+                  } else if (!data.success && data.fallbackContent) {
+                    // API returned error but provided fallback content
+                    console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] API ERROR with fallback - Using fallback content but NOT caching it`);
+                    debugLog('⚠️ Newsletter API returned error, using fallback content', data.fallbackContent);
+                    setNewsletter(data.fallbackContent);
+                    // Don't cache fallback content - this allows retry on next visit
+                    // Don't set newsletterLoaded flag either
                   } else {
+                    console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] API ERROR without fallback - Throwing error`);
                     throw new Error(data.error || 'Unknown error fetching newsletter');
                   }
                 })
@@ -821,6 +832,41 @@ function DashboardPage() {
             });
 
             infoLog('Newsletter data saved to localStorage');
+          } else if (!data.success && data.fallbackContent) {
+            // API returned error but provided fallback content
+            console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] API ERROR with fallback - Using fallback content but NOT caching it`);
+
+            criticalLog('API returned error with fallback content - FALLBACK PATH', {
+              success: data.success,
+              error: data.error || 'Unknown error',
+              details: data.details || 'No details provided',
+              hasFallbackContent: !!data.fallbackContent,
+              fallbackTitle: data.fallbackContent?.title || 'unknown',
+              fallbackSource: data.fallbackContent?.source || 'unknown',
+              dataKeys: Object.keys(data || {}),
+              currentNewsletterTitle: newsletter?.title || 'none'
+            });
+
+            debugLog('⚠️ Newsletter API returned error, using fallback content', data.fallbackContent);
+
+            // Log state change for fallback content
+            criticalLog('Setting newsletter state - FALLBACK CONTENT PATH', {
+              previousTitle: newsletter?.title || 'none',
+              newTitle: data.fallbackContent.title,
+              stateChange: `${newsletter?.title || 'none'} -> ${data.fallbackContent.title}`,
+              reason: 'API error with fallback content',
+              willCache: false
+            });
+
+            setNewsletter(data.fallbackContent);
+
+            // 🚨 CRITICAL: Don't cache fallback content - this allows retry on next visit
+            // Don't set newsletterLoaded flag either
+            criticalLog('NOT caching fallback content - RETRY STRATEGY', {
+              reason: 'fallback content should not prevent fresh fetch attempts',
+              globalLoaded: globalNewsletterLoaded.current,
+              localStorageLoaded: localStorage.getItem('newsletterLoaded')
+            });
           } else {
             // Log detailed error information
             criticalLog('API returned success:false or missing newsletter data - ERROR PATH', {
@@ -828,6 +874,7 @@ function DashboardPage() {
               error: data.error || 'Unknown error',
               details: data.details || 'No details provided',
               hasNewsletter: !!data.newsletter,
+              hasFallbackContent: !!data.fallbackContent,
               dataKeys: Object.keys(data || {}),
               currentNewsletterTitle: newsletter?.title || 'none'
             });
