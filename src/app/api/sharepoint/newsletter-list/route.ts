@@ -293,65 +293,20 @@ export async function GET(request: NextRequest) {
       throw new Error('No newsletter content found in the list');
     }
 
-    // Clean up the HTML
+    // Minimal cleanup - just remove scripts and extract body content like before
     console.log(`[NEWSLETTER-LIST] Original content preview: ${newsletterContent.substring(0, 500)} [${effectiveRequestId}]`);
     
-    // Fix malformed HTML at the beginning - handle incomplete opening tags
-    // The content appears to start with an incomplete <td> tag followed by <html>
-    let cleanedContent = newsletterContent;
+    // Remove scripts and styles that might interfere (keeping this minimal)
+    newsletterContent = newsletterContent.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    newsletterContent = newsletterContent.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
     
-    // Remove any incomplete opening tags at the beginning
-    cleanedContent = cleanedContent.replace(/^[^<]*<[^>]*(?<!>)[^<]*<html/i, '<html');
-    
-    // If it still doesn't start with proper HTML, find the first complete HTML structure
-    if (!cleanedContent.trim().startsWith('<html') && !cleanedContent.trim().startsWith('<!DOCTYPE')) {
-      const htmlMatch = cleanedContent.match(/<html[\s\S]*$/i);
-      if (htmlMatch) {
-        cleanedContent = htmlMatch[0];
-      }
-    }
-    
-    // HTML entity decoding
-    cleanedContent = cleanedContent.replace(/&quot;/g, '"');
-    cleanedContent = cleanedContent.replace(/&lt;/g, '<');
-    cleanedContent = cleanedContent.replace(/&gt;/g, '>');
-    cleanedContent = cleanedContent.replace(/&amp;/g, '&');
-    cleanedContent = cleanedContent.replace(/&nbsp;/g, ' ');
-    cleanedContent = cleanedContent.replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec));
-    cleanedContent = cleanedContent.replace(/&#x([0-9a-f]+);/gi, (match, hex) => String.fromCharCode(parseInt(hex, 16)));
-    
-    // Fix the specific issue where normal text is being treated as HTML attributes
-    // This appears to be caused by malformed HTML where quotes are missing around attribute values
-    // Pattern: word="" should become just word (remove the empty attribute)
-    cleanedContent = cleanedContent.replace(/(\w+)=""/g, '$1');
-    
-    // Also fix cases where there might be malformed attributes in the middle of text
-    // Pattern: word - word="" - word should become word - word - word
-    cleanedContent = cleanedContent.replace(/(\w+)=""(\s*[-–]\s*)/g, '$1$2');
-    
-    // Fix any remaining malformed attribute patterns that might appear in text content
-    cleanedContent = cleanedContent.replace(/([a-zA-Z]+)=""\s+/g, '$1 ');
-    
-    // Remove scripts and styles
-    cleanedContent = cleanedContent.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-    cleanedContent = cleanedContent.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
-    
-    // Extract body content if present
-    const bodyMatch = cleanedContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    // Extract body content if present (this was working before)
+    const bodyMatch = newsletterContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
     if (bodyMatch) {
-      cleanedContent = bodyMatch[1];
+      newsletterContent = bodyMatch[1];
     }
     
-    // Fix common HTML structure issues from SharePoint
-    // Remove any remaining malformed opening tags
-    cleanedContent = cleanedContent.replace(/^[^<]*<[^>]*(?<!>)(?=<)/g, '');
-    
-    // Ensure the content starts cleanly
-    cleanedContent = cleanedContent.trim();
-    
-    newsletterContent = cleanedContent;
-    
-    console.log(`[NEWSLETTER-LIST] Cleaned content preview: ${newsletterContent.substring(0, 500)} [${effectiveRequestId}]`);
+    console.log(`[NEWSLETTER-LIST] Minimal cleanup complete: ${newsletterContent.substring(0, 500)} [${effectiveRequestId}]`);
 
     console.log(`🎉 [NEWSLETTER-API-DEBUG] Successfully fetched newsletter content [${effectiveRequestId}]`, {
       contentLength: newsletterContent.length,

@@ -233,15 +233,27 @@ export async function GET(request: NextRequest) {
         
         // Fix the specific issue where normal text is being treated as HTML attributes
         // This appears to be caused by malformed HTML where quotes are missing around attribute values
-        // Pattern: word="" should become just word (remove the empty attribute)
+        
+        // More aggressive approach: find all instances of word="" and replace with just word
         cleanedContent = cleanedContent.replace(/(\w+)=""/g, '$1');
         
-        // Also fix cases where there might be malformed attributes in the middle of text
-        // Pattern: word - word="" - word should become word - word - word
-        cleanedContent = cleanedContent.replace(/(\w+)=""(\s*[-–]\s*)/g, '$1$2');
+        // Handle cases in middle of sentences
+        cleanedContent = cleanedContent.replace(/(\w+)=""(\s+)/g, '$1$2');
         
-        // Fix any remaining malformed attribute patterns that might appear in text content
-        cleanedContent = cleanedContent.replace(/([a-zA-Z]+)=""\s+/g, '$1 ');
+        // Handle cases with punctuation after
+        cleanedContent = cleanedContent.replace(/(\w+)=""([.,;:!?\-–])/g, '$1$2');
+        
+        // Handle cases at end of lines or before line breaks
+        cleanedContent = cleanedContent.replace(/(\w+)=""(\s*[\r\n])/g, '$1$2');
+        
+        // More aggressive: clean up any remaining ="" patterns that might be scattered
+        cleanedContent = cleanedContent.replace(/=""(\s)/g, '$1');
+        cleanedContent = cleanedContent.replace(/=""/g, '');
+        
+        // Also handle cases where there might be space before the =""
+        cleanedContent = cleanedContent.replace(/(\w+)\s*=""/g, '$1');
+        
+        console.log(`[NEWSLETTER-ARCHIVE] After attribute cleaning: ${cleanedContent.substring(0, 500)} [${requestId}]`);
         
         // Remove scripts and styles that might interfere
         cleanedContent = cleanedContent.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
