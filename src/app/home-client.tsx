@@ -479,16 +479,41 @@ function DashboardPage() {
           // Check if the stored newsletter is valid (not an error or loading state)
           // Accept only SharePoint content and cached SharePoint content
           // System fallback content should trigger a fresh fetch attempt
-          const isValidNewsletter =
-            parsedNewsletter &&
-            parsedNewsletter.content &&
-            parsedNewsletter.title !== "Loading Newsletter" &&
-            parsedNewsletter.title !== "Newsletter Error" &&
-            parsedNewsletter.title !== "Newsletter Temporarily Unavailable" &&
-            parsedNewsletter.title !== "Newsletter Service Temporarily Unavailable" &&
-            // Only accept non-system content (actual SharePoint content)
-            // System fallback content should not prevent fresh fetch attempts
-            parsedNewsletter.source !== "system";
+
+          // 🚨 ULTRA-CRITICAL DEBUGGING - Log every single validation step
+          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] Starting validation - ${new Date().toISOString()}`);
+          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] parsedNewsletter exists: ${!!parsedNewsletter}`);
+          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] has content: ${!!parsedNewsletter?.content}`);
+          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] title: "${parsedNewsletter?.title}"`);
+          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] source: "${parsedNewsletter?.source}"`);
+          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] isFallback: ${parsedNewsletter?.isFallback}`);
+
+          const hasNewsletter = !!parsedNewsletter;
+          const hasContent = !!parsedNewsletter?.content;
+          const notLoadingTitle = parsedNewsletter?.title !== "Loading Newsletter";
+          const notErrorTitle = parsedNewsletter?.title !== "Newsletter Error";
+          const notTempUnavailableTitle = parsedNewsletter?.title !== "Newsletter Temporarily Unavailable";
+          const notServiceUnavailableTitle = parsedNewsletter?.title !== "Newsletter Service Temporarily Unavailable";
+          const notSystemSource = parsedNewsletter?.source !== "system";
+
+          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] Validation checks:`);
+          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   hasNewsletter: ${hasNewsletter}`);
+          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   hasContent: ${hasContent}`);
+          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   notLoadingTitle: ${notLoadingTitle}`);
+          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   notErrorTitle: ${notErrorTitle}`);
+          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   notTempUnavailableTitle: ${notTempUnavailableTitle}`);
+          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   notServiceUnavailableTitle: ${notServiceUnavailableTitle}`);
+          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   notSystemSource: ${notSystemSource}`);
+
+          const isValidNewsletter = hasNewsletter && hasContent && notLoadingTitle && notErrorTitle && notTempUnavailableTitle && notServiceUnavailableTitle && notSystemSource;
+
+          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] FINAL RESULT: isValidNewsletter = ${isValidNewsletter}`);
+          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] System content should be REJECTED: ${parsedNewsletter?.source === "system" ? "YES - SHOULD BE REJECTED" : "NO - NOT SYSTEM CONTENT"}`);
+
+          if (parsedNewsletter?.source === "system") {
+            console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] ⚠️ SYSTEM CONTENT DETECTED - THIS SHOULD BE REJECTED!`);
+            console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] ⚠️ If isValidNewsletter is true, there's a bug in the validation logic!`);
+          }
 
           // Log detailed validation information to help debug issues
           criticalLog('Validating stored newsletter - DETAILED CHECK', {

@@ -1710,62 +1710,103 @@ function DashboardPage() {
                             fetchNewsletter();
                           }}
                         >
-                          <div 
-                            className="newsletter-content"
-                            ref={(el) => {
-                              if (el && window.innerWidth <= 640) {
-                                // Wait for content to render
-                                setTimeout(() => {
-                                  // More aggressive empty element removal
-                                  let modified = true;
-                                  while (modified) {
-                                    modified = false;
-                                    const firstChild = el.firstElementChild as HTMLElement;
-
-                                    if (firstChild) {
-                                      const text = firstChild.textContent?.trim() || '';
-                                      const isEmptyOrWhitespace = !text || text === '\u00A0' || text === '&nbsp;';
-                                      const isOnlyBr = firstChild.tagName === 'BR';
-                                      const hasOnlyEmptyChildren = firstChild.children.length > 0 && 
-                                        Array.from(firstChild.children).every(child => 
-                                          !(child as HTMLElement).textContent?.trim()
-                                        );
-
-                                      if (isEmptyOrWhitespace || isOnlyBr || hasOnlyEmptyChildren) {
-                                        firstChild.remove();
-                                        modified = true;
-                                      } else {
-                                        // Found real content, force remove all spacing
-                                        firstChild.style.marginTop = '0';
-                                        firstChild.style.paddingTop = '0';
-                                        firstChild.style.marginBlockStart = '0';
-                                        firstChild.style.paddingBlockStart = '0';
-
-                                        // Also check first child of first child
-                                        const nestedFirst = firstChild.firstElementChild as HTMLElement;
-                                        if (nestedFirst) {
-                                          nestedFirst.style.marginTop = '0';
-                                          nestedFirst.style.paddingTop = '0';
-                                          nestedFirst.style.marginBlockStart = '0';
-                                          nestedFirst.style.paddingBlockStart = '0';
-                                        }
-                                      }
-                                    }
-                                  }
-
-                                  // Also force the wrapper to have no top padding
-                                  const wrapper = el.parentElement;
-                                  if (wrapper) {
-                                    wrapper.style.paddingTop = '0';
-                                  }
-                                }, 50);
+                          {(() => {
+                            try {
+                              // Additional validation before rendering
+                              if (!newsletter.content || typeof newsletter.content !== 'string') {
+                                throw new Error('Invalid newsletter content');
                               }
-                            }}
-                            dangerouslySetInnerHTML={createSanitizedMarkup(newsletter.content)}
-                            style={{ 
-                              color: '#374151'
-                            }}
-                          />
+
+                              const sanitizedMarkup = createSanitizedMarkup(newsletter.content);
+
+                              // Validate that sanitization was successful
+                              if (!sanitizedMarkup || !sanitizedMarkup.__html) {
+                                throw new Error('Newsletter content sanitization failed');
+                              }
+
+                              return (
+                                <div 
+                                  className="newsletter-content"
+                                  ref={(el) => {
+                                    if (el && window.innerWidth <= 640) {
+                                      // Wait for content to render
+                                      setTimeout(() => {
+                                        // More aggressive empty element removal
+                                        let modified = true;
+                                        while (modified) {
+                                          modified = false;
+                                          const firstChild = el.firstElementChild as HTMLElement;
+
+                                          if (firstChild) {
+                                            const text = firstChild.textContent?.trim() || '';
+                                            const isEmptyOrWhitespace = !text || text === '\u00A0' || text === '&nbsp;';
+                                            const isOnlyBr = firstChild.tagName === 'BR';
+                                            const hasOnlyEmptyChildren = firstChild.children.length > 0 && 
+                                              Array.from(firstChild.children).every(child => 
+                                                !(child as HTMLElement).textContent?.trim()
+                                              );
+
+                                            if (isEmptyOrWhitespace || isOnlyBr || hasOnlyEmptyChildren) {
+                                              firstChild.remove();
+                                              modified = true;
+                                            } else {
+                                              // Found real content, force remove all spacing
+                                              firstChild.style.marginTop = '0';
+                                              firstChild.style.paddingTop = '0';
+                                              firstChild.style.marginBlockStart = '0';
+                                              firstChild.style.paddingBlockStart = '0';
+
+                                              // Also check first child of first child
+                                              const nestedFirst = firstChild.firstElementChild as HTMLElement;
+                                              if (nestedFirst) {
+                                                nestedFirst.style.marginTop = '0';
+                                                nestedFirst.style.paddingTop = '0';
+                                                nestedFirst.style.marginBlockStart = '0';
+                                                nestedFirst.style.paddingBlockStart = '0';
+                                              }
+                                            }
+                                          }
+                                        }
+
+                                        // Also force the wrapper to have no top padding
+                                        const wrapper = el.parentElement;
+                                        if (wrapper) {
+                                          wrapper.style.paddingTop = '0';
+                                        }
+                                      }, 50);
+                                    }
+                                  }}
+                                  dangerouslySetInnerHTML={sanitizedMarkup}
+                                  style={{ 
+                                    color: '#374151'
+                                  }}
+                                />
+                              );
+                            } catch (error) {
+                              console.error('Newsletter rendering error:', error);
+                              return (
+                                <div className="newsletter-render-error p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                  <h4 className="text-lg font-semibold text-yellow-800 mb-2">
+                                    Newsletter Display Issue
+                                  </h4>
+                                  <p className="text-yellow-700 mb-4">
+                                    The newsletter content could not be displayed due to formatting issues.
+                                  </p>
+                                  <Button
+                                    onClick={() => {
+                                      setNewsletter(null);
+                                      setNewsletterError(null);
+                                      fetchNewsletter();
+                                    }}
+                                    size="sm"
+                                    className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                                  >
+                                    Try Again
+                                  </Button>
+                                </div>
+                              );
+                            }
+                          })()}
                         </NewsletterErrorBoundary>
                       </div>
                     </div>
@@ -1941,13 +1982,65 @@ function DashboardPage() {
                       fetchNewsletter();
                     }}
                   >
-                    <div 
-                      className="newsletter-modal-content"
-                      dangerouslySetInnerHTML={createSanitizedMarkup(newsletter.content)}
-                      style={{
-                        color: '#374151'
-                      }}
-                    />
+                    {(() => {
+                      try {
+                        // Additional validation before rendering
+                        if (!newsletter.content || typeof newsletter.content !== 'string') {
+                          throw new Error('Invalid newsletter content');
+                        }
+
+                        const sanitizedMarkup = createSanitizedMarkup(newsletter.content);
+
+                        // Validate that sanitization was successful
+                        if (!sanitizedMarkup || !sanitizedMarkup.__html) {
+                          throw new Error('Newsletter content sanitization failed');
+                        }
+
+                        return (
+                          <div 
+                            className="newsletter-modal-content"
+                            dangerouslySetInnerHTML={sanitizedMarkup}
+                            style={{
+                              color: '#374151'
+                            }}
+                          />
+                        );
+                      } catch (error) {
+                        console.error('Newsletter rendering error:', error);
+                        return (
+                          <div className="newsletter-render-error p-6 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <h4 className="text-lg font-semibold text-yellow-800 mb-2">
+                              Newsletter Display Issue
+                            </h4>
+                            <p className="text-yellow-700 mb-4">
+                              The newsletter content could not be displayed due to formatting issues. 
+                              This is likely due to complex HTML in the original newsletter.
+                            </p>
+                            <div className="flex space-x-3">
+                              <Button
+                                onClick={() => {
+                                  setNewsletter(null);
+                                  setNewsletterError(null);
+                                  fetchNewsletter();
+                                }}
+                                size="sm"
+                                className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                              >
+                                Try Again
+                              </Button>
+                              <Button
+                                onClick={() => window.open('/newsletter-archive', '_blank')}
+                                size="sm"
+                                variant="outline"
+                                className="border-yellow-300 text-yellow-700 hover:bg-yellow-50"
+                              >
+                                View Archive
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      }
+                    })()}
                   </NewsletterErrorBoundary>
                   <div className="mt-6 p-4 bg-gray-50 rounded-lg text-sm text-gray-600">
                     <p><strong>Last updated:</strong> {new Date(newsletter.lastUpdated).toLocaleString()}</p>
