@@ -41,6 +41,7 @@ import {
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
 import { createSanitizedMarkup } from '@/lib/sanitize'
+import NewsletterErrorBoundary from '@/components/newsletter-error-boundary'
 import { newsletterLogger, LogCategory, LogLevel } from '@/lib/newsletter-logger'
 
 // Global variables to track newsletter loading state across renders and component instances
@@ -124,6 +125,231 @@ function DashboardPage() {
   const [newsletter, setNewsletter] = useState<any>(null)
   const [newsletterError, setNewsletterError] = useState<string | null>(null)
   const [flightMetrics, setFlightMetrics] = useState<any>(null)
+
+  // Function to fetch newsletter - moved to component level for accessibility
+  const fetchNewsletter = () => {
+    // Only proceed if we have a session
+    if (!session) {
+      console.log('[NEWSLETTER] Skipping fetch - no session');
+      return;
+    }
+
+    // Set up context with user information if available
+    const logContext = session?.user ? {
+      userId: session.user.email as string, // Using email as the user identifier
+      email: session.user.email as string,
+      component: 'DashboardPage'
+    } : { component: 'DashboardPage' };
+
+    // Initialize the logger with default context
+    newsletterLogger.setDefaultContext(logContext);
+
+    // Implement debounce to prevent rapid successive fetches
+    const now = Date.now();
+    if (lastFetchAttemptRef.current > 0 && now - lastFetchAttemptRef.current < MIN_FETCH_INTERVAL) {
+      newsletterLogger.debug(LogCategory.FETCH, 'Debounce protection - skipping fetch', {
+        lastFetchTime: new Date(lastFetchAttemptRef.current).toISOString(),
+        timeSinceLastFetch: now - lastFetchAttemptRef.current,
+        minInterval: MIN_FETCH_INTERVAL
+      });
+      return;
+    }
+
+    lastFetchAttemptRef.current = now;
+
+    // Log the start of the fetch process with critical level to ensure it's always displayed
+    newsletterLogger.logCriticalStart(LogCategory.FETCH, 'newsletter fetch', {
+      timestamp: now,
+      timestampISO: new Date(now).toISOString()
+    });
+
+    // Log the API request with critical level to ensure it's always displayed
+    newsletterLogger.logCriticalApiRequest(
+      '/api/sharepoint/newsletter-list',
+      'GET',
+      { timestamp: now }
+    );
+
+    // Fetch the newsletter
+    fetch('/api/sharepoint/newsletter-list', {
+      credentials: 'same-origin', // Include cookies for authentication
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+      .then(response => {
+        // Log the API response with critical level to ensure it's always displayed
+        newsletterLogger.logCriticalApiResponse(
+          '/api/sharepoint/newsletter-list',
+          response.status,
+          response.ok,
+          { statusText: response.statusText }
+        );
+
+        if (!response.ok) {
+          newsletterLogger.critical(LogCategory.ERROR, `API returned error status: ${response.status} ${response.statusText}`, {
+            status: response.status,
+            statusText: response.statusText,
+            url: '/api/sharepoint/newsletter-list'
+          });
+
+          // Special handling for 503 Service Unavailable (temporary maintenance)
+          if (response.status === 503) {
+            // Log state change with critical level to ensure it's always displayed
+            newsletterLogger.logCriticalStateChange(
+              newsletter?.title || 'unknown',
+              'Newsletter Service Temporarily Unavailable',
+              { reason: '503 Service Unavailable' }
+            );
+
+            // Instead of throwing an error, set a fallback newsletter with a maintenance message
+            setNewsletter({
+              title: "Newsletter Service Temporarily Unavailable",
+              content: "<div style='text-align: center; padding: 20px;'><p>The newsletter service is temporarily unavailable for maintenance.</p><p>Please check back later.</p></div>",
+              lastUpdated: new Date().toISOString(),
+              source: "system"
+            });
+
+            // Still log the error for monitoring
+            newsletterLogger.warn(LogCategory.ERROR, "Newsletter service is in maintenance mode (503)", {
+              status: 503,
+              statusText: response.statusText
+            });
+
+            // Don't set the newsletterLoaded flag for 503 errors
+            // This will allow it to try fetching again on the next visit
+            newsletterLogger.info(LogCategory.STATE, 'Not setting loaded flag due to 503 error', {
+              reason: 'service unavailable'
+            });
+
+            // Log the end of the fetch process with critical level to ensure it's always displayed
+            newsletterLogger.logCriticalEnd(LogCategory.FETCH, 'newsletter fetch completed with 503 error', {
+              outcome: 'maintenance mode fallback'
+            });
+
+            // Return early to avoid the error path
+            return;
+          } else {
+            throw new Error(`API returned ${response.status}: ${response.statusText}`);
+          }
+        }
+        return response.json();
+      })
+      .then(data => {
+        // Skip if we returned early from the 503 error handler
+        if (!data) return;
+
+        newsletterLogger.info(LogCategory.RESPONSE, 'Newsletter data received', {
+          success: data.success,
+          hasNewsletter: !!data.newsletter,
+          error: data.error || 'none'
+        });
+
+        if (data.success && data.newsletter) {
+          // Log detailed info about the newsletter with critical level to ensure it's always displayed
+          newsletterLogger.critical(LogCategory.RESPONSE, 'Newsletter content details', {
+            title: data.newsletter.title,
+            contentLength: data.newsletter.content?.length || 0,
+            source: data.newsletter.source || 'unknown',
+            lastUpdated: data.newsletter.lastUpdated || 'unknown',
+            isFallback: data.newsletter.isFallback || false,
+            cached: data.newsletter.cached || false
+          });
+
+          // Log state change with critical level to ensure it's always displayed
+          newsletterLogger.logCriticalStateChange(
+            newsletter?.title || 'unknown',
+            data.newsletter.title,
+            { source: 'API response' }
+          );
+
+          setNewsletter(data.newsletter);
+          setNewsletterError(null);
+
+          // Store in localStorage for future visits
+          if (typeof window !== 'undefined') {
+            newsletterLogger.logCriticalStorage('set', 'newsletterData', true, {
+              title: data.newsletter.title,
+              contentLength: data.newsletter.content?.length || 0
+            });
+            localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
+
+            newsletterLogger.logCriticalStorage('set', 'newsletterLoaded', true, {
+              value: 'true'
+            });
+            localStorage.setItem('newsletterLoaded', 'true');
+            globalNewsletterLoaded.current = true;
+          }
+
+          // Log the end of the fetch process with critical level to ensure it's always displayed
+          newsletterLogger.logCriticalEnd(LogCategory.FETCH, 'newsletter fetch completed successfully', {
+            title: data.newsletter.title,
+            source: data.newsletter.source || 'unknown'
+          });
+        } else {
+          newsletterLogger.critical(LogCategory.ERROR, 'API returned success:false or missing newsletter data', {
+            success: data.success,
+            hasNewsletter: !!data.newsletter,
+            error: data.error || 'none',
+            responseKeys: Object.keys(data)
+          });
+
+          // Log state change with critical level to ensure it's always displayed
+          newsletterLogger.logCriticalStateChange(
+            newsletter?.title || 'unknown',
+            'Newsletter Error',
+            { reason: 'API success:false' }
+          );
+
+          setNewsletterError(`Newsletter fetch failed: ${data.error || 'Unknown error'}`);
+
+          // Log the end of the fetch process with critical level to ensure it's always displayed
+          newsletterLogger.logCriticalEnd(LogCategory.FETCH, 'newsletter fetch completed with API error', {
+            error: data.error || 'Unknown error'
+          });
+        }
+      })
+      .catch(error => {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorName = error instanceof Error ? error.name : 'Unknown Error';
+        const errorStack = error instanceof Error ? error.stack : 'No stack trace available';
+
+        newsletterLogger.critical(LogCategory.ERROR, 'Newsletter fetch failed with exception', {
+          errorMessage,
+          errorName,
+          errorStack
+        });
+
+        // Log state change with critical level to ensure it's always displayed
+        newsletterLogger.logCriticalStateChange(
+          newsletter?.title || 'unknown',
+          'Newsletter Error',
+          { reason: 'fetch exception' }
+        );
+
+        // Create a more user-friendly error message
+        let userFriendlyError = `Newsletter fetch failed: ${errorMessage}`;
+
+        // Check for specific error types and provide better guidance
+        if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network request failed')) {
+          userFriendlyError += '\n\nThis might be due to:\n• Network connectivity issues\n• Server maintenance\n• Firewall or proxy restrictions\n\nPlease check your internet connection and try again.';
+        } else if (errorMessage.includes('Unauthorized') || errorMessage.includes('401')) {
+          userFriendlyError += '\n\nThis appears to be an authentication issue. Please try signing out and signing back in.';
+        } else if (errorMessage.includes('Forbidden') || errorMessage.includes('403')) {
+          userFriendlyError += '\n\nYou may not have permission to access the newsletter. Please contact your IT administrator.';
+        } else if (errorMessage.includes('Not Found') || errorMessage.includes('404')) {
+          userFriendlyError += '\n\nThe newsletter content could not be found. This might be temporary - please try again later.';
+        }
+
+        setNewsletterError(userFriendlyError);
+
+        // Log the end of the fetch process with critical level to ensure it's always displayed
+        newsletterLogger.logCriticalEnd(LogCategory.FETCH, 'newsletter fetch completed with exception', {
+          errorMessage,
+          errorName
+        });
+      });
+  };
 
   // Format date range for display
   const getDateRangeText = () => {
@@ -1475,62 +1701,72 @@ function DashboardPage() {
                             }
                           }
                         `}</style>
-                        <div 
-                          className="newsletter-content"
-                          ref={(el) => {
-                            if (el && window.innerWidth <= 640) {
-                              // Wait for content to render
-                              setTimeout(() => {
-                                // More aggressive empty element removal
-                                let modified = true;
-                                while (modified) {
-                                  modified = false;
-                                  const firstChild = el.firstElementChild as HTMLElement;
+                        <NewsletterErrorBoundary 
+                          fallbackTitle="Newsletter Content Error"
+                          onRetry={() => {
+                            // Reset newsletter state and refetch
+                            setNewsletter(null);
+                            setNewsletterError(null);
+                            fetchNewsletter();
+                          }}
+                        >
+                          <div 
+                            className="newsletter-content"
+                            ref={(el) => {
+                              if (el && window.innerWidth <= 640) {
+                                // Wait for content to render
+                                setTimeout(() => {
+                                  // More aggressive empty element removal
+                                  let modified = true;
+                                  while (modified) {
+                                    modified = false;
+                                    const firstChild = el.firstElementChild as HTMLElement;
 
-                                  if (firstChild) {
-                                    const text = firstChild.textContent?.trim() || '';
-                                    const isEmptyOrWhitespace = !text || text === '\u00A0' || text === '&nbsp;';
-                                    const isOnlyBr = firstChild.tagName === 'BR';
-                                    const hasOnlyEmptyChildren = firstChild.children.length > 0 && 
-                                      Array.from(firstChild.children).every(child => 
-                                        !(child as HTMLElement).textContent?.trim()
-                                      );
+                                    if (firstChild) {
+                                      const text = firstChild.textContent?.trim() || '';
+                                      const isEmptyOrWhitespace = !text || text === '\u00A0' || text === '&nbsp;';
+                                      const isOnlyBr = firstChild.tagName === 'BR';
+                                      const hasOnlyEmptyChildren = firstChild.children.length > 0 && 
+                                        Array.from(firstChild.children).every(child => 
+                                          !(child as HTMLElement).textContent?.trim()
+                                        );
 
-                                    if (isEmptyOrWhitespace || isOnlyBr || hasOnlyEmptyChildren) {
-                                      firstChild.remove();
-                                      modified = true;
-                                    } else {
-                                      // Found real content, force remove all spacing
-                                      firstChild.style.marginTop = '0';
-                                      firstChild.style.paddingTop = '0';
-                                      firstChild.style.marginBlockStart = '0';
-                                      firstChild.style.paddingBlockStart = '0';
+                                      if (isEmptyOrWhitespace || isOnlyBr || hasOnlyEmptyChildren) {
+                                        firstChild.remove();
+                                        modified = true;
+                                      } else {
+                                        // Found real content, force remove all spacing
+                                        firstChild.style.marginTop = '0';
+                                        firstChild.style.paddingTop = '0';
+                                        firstChild.style.marginBlockStart = '0';
+                                        firstChild.style.paddingBlockStart = '0';
 
-                                      // Also check first child of first child
-                                      const nestedFirst = firstChild.firstElementChild as HTMLElement;
-                                      if (nestedFirst) {
-                                        nestedFirst.style.marginTop = '0';
-                                        nestedFirst.style.paddingTop = '0';
-                                        nestedFirst.style.marginBlockStart = '0';
-                                        nestedFirst.style.paddingBlockStart = '0';
+                                        // Also check first child of first child
+                                        const nestedFirst = firstChild.firstElementChild as HTMLElement;
+                                        if (nestedFirst) {
+                                          nestedFirst.style.marginTop = '0';
+                                          nestedFirst.style.paddingTop = '0';
+                                          nestedFirst.style.marginBlockStart = '0';
+                                          nestedFirst.style.paddingBlockStart = '0';
+                                        }
                                       }
                                     }
                                   }
-                                }
 
-                                // Also force the wrapper to have no top padding
-                                const wrapper = el.parentElement;
-                                if (wrapper) {
-                                  wrapper.style.paddingTop = '0';
-                                }
-                              }, 50);
-                            }
-                          }}
-                          dangerouslySetInnerHTML={createSanitizedMarkup(newsletter.content)}
-                          style={{ 
-                            color: '#374151'
-                          }}
-                        />
+                                  // Also force the wrapper to have no top padding
+                                  const wrapper = el.parentElement;
+                                  if (wrapper) {
+                                    wrapper.style.paddingTop = '0';
+                                  }
+                                }, 50);
+                              }
+                            }}
+                            dangerouslySetInnerHTML={createSanitizedMarkup(newsletter.content)}
+                            style={{ 
+                              color: '#374151'
+                            }}
+                          />
+                        </NewsletterErrorBoundary>
                       </div>
                     </div>
                   ) : (
@@ -1696,13 +1932,23 @@ function DashboardPage() {
                       }
                     }
                   `}</style>
-                  <div 
-                    className="newsletter-modal-content"
-                    dangerouslySetInnerHTML={createSanitizedMarkup(newsletter.content)}
-                    style={{
-                      color: '#374151'
+                  <NewsletterErrorBoundary 
+                    fallbackTitle="Newsletter Modal Content Error"
+                    onRetry={() => {
+                      // Reset newsletter state and refetch
+                      setNewsletter(null);
+                      setNewsletterError(null);
+                      fetchNewsletter();
                     }}
-                  />
+                  >
+                    <div 
+                      className="newsletter-modal-content"
+                      dangerouslySetInnerHTML={createSanitizedMarkup(newsletter.content)}
+                      style={{
+                        color: '#374151'
+                      }}
+                    />
+                  </NewsletterErrorBoundary>
                   <div className="mt-6 p-4 bg-gray-50 rounded-lg text-sm text-gray-600">
                     <p><strong>Last updated:</strong> {new Date(newsletter.lastUpdated).toLocaleString()}</p>
                   </div>

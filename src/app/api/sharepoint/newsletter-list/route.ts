@@ -316,9 +316,24 @@ export async function GET(request: NextRequest) {
         // Remove HTML comments
         processedContent = processedContent.replace(/<!--[\s\S]*?-->/g, '');
 
-        // Ensure all tags are properly closed
-        const openTags = processedContent.match(/<([a-z][a-z0-9]*)[^>]*(?<!\/)\s*>/gi) || [];
+        // Fix self-closing tags for React compatibility (React expects XHTML format)
         const selfClosingTags = ['img', 'br', 'hr', 'input', 'meta', 'link', 'area', 'base', 'col', 'embed', 'param', 'source', 'track', 'wbr'];
+
+        for (const tagName of selfClosingTags) {
+          // Convert HTML-style self-closing tags to XHTML-style for React
+          const htmlStyleRegex = new RegExp(`<${tagName}([^>]*?)(?<!/)>`, 'gi');
+          processedContent = processedContent.replace(htmlStyleRegex, (match, attributes) => {
+            // If it already ends with />, leave it as is
+            if (match.endsWith('/>')) {
+              return match;
+            }
+            // Convert to XHTML-style self-closing tag
+            return `<${tagName}${attributes} />`;
+          });
+        }
+
+        // Ensure all non-self-closing tags are properly closed
+        const openTags = processedContent.match(/<([a-z][a-z0-9]*)[^>]*(?<!\/)\s*>/gi) || [];
 
         for (const tag of openTags) {
           const tagName = tag.match(/<([a-z][a-z0-9]*)/i)?.[1]?.toLowerCase();
