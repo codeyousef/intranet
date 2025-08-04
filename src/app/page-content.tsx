@@ -268,17 +268,25 @@ function DashboardPage() {
 
           // Store in localStorage for future visits
           if (typeof window !== 'undefined') {
-            newsletterLogger.logCriticalStorage('set', 'newsletterData', true, {
-              title: data.newsletter.title,
-              contentLength: data.newsletter.content?.length || 0
-            });
-            localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
+            // Only save to localStorage if it's not fallback content
+            if (!data.newsletter.isFallback && data.newsletter.source !== 'system') {
+              newsletterLogger.logCriticalStorage('set', 'newsletterData', true, {
+                title: data.newsletter.title,
+                contentLength: data.newsletter.content?.length || 0
+              });
+              localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
 
-            newsletterLogger.logCriticalStorage('set', 'newsletterLoaded', true, {
-              value: 'true'
-            });
-            localStorage.setItem('newsletterLoaded', 'true');
-            globalNewsletterLoaded.current = true;
+              newsletterLogger.logCriticalStorage('set', 'newsletterLoaded', true, {
+                value: 'true'
+              });
+              localStorage.setItem('newsletterLoaded', 'true');
+              globalNewsletterLoaded.current = true;
+            } else {
+              newsletterLogger.critical(LogCategory.API, 'Newsletter is fallback content - NOT saving to localStorage', {
+                isFallback: data.newsletter.isFallback,
+                source: data.newsletter.source
+              });
+            }
           }
 
           // Log the end of the fetch process with critical level to ensure it's always displayed
@@ -550,17 +558,25 @@ function DashboardPage() {
 
             setNewsletter(data.newsletter);
 
-            // Log storage operations
-            newsletterLogger.logStorage('set', 'newsletterData', true, {
-              ...logContext,
-              dataSize: JSON.stringify(data.newsletter).length
-            });
-            localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
+            // Only save to localStorage if it's not fallback content
+            if (!data.newsletter.isFallback && data.newsletter.source !== 'system') {
+              // Log storage operations
+              newsletterLogger.logStorage('set', 'newsletterData', true, {
+                ...logContext,
+                dataSize: JSON.stringify(data.newsletter).length
+              });
+              localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
 
-            newsletterLogger.logStorage('set', 'newsletterLoaded', true, logContext);
-            localStorage.setItem('newsletterLoaded', 'true');
+              newsletterLogger.logStorage('set', 'newsletterLoaded', true, logContext);
+              localStorage.setItem('newsletterLoaded', 'true');
 
-            globalNewsletterLoaded.current = true;
+              globalNewsletterLoaded.current = true;
+            } else {
+              newsletterLogger.critical(LogCategory.API, 'Newsletter is fallback content - NOT saving to localStorage', {
+                isFallback: data.newsletter.isFallback,
+                source: data.newsletter.source
+              });
+            }
 
             newsletterLogger.logEnd(LogCategory.RESET, 'newsletter reset completed successfully', {
               ...logContext,
@@ -936,16 +952,24 @@ function DashboardPage() {
 
             setNewsletter(data.newsletter);
 
-            // Log storage operations
-            newsletterLogger.logStorage('set', 'newsletterData', true, {
-              dataSize: JSON.stringify(data.newsletter).length
-            });
-            localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
+            // Only save to localStorage if it's not fallback content
+            if (!data.newsletter.isFallback && data.newsletter.source !== 'system') {
+              // Log storage operations
+              newsletterLogger.logStorage('set', 'newsletterData', true, {
+                dataSize: JSON.stringify(data.newsletter).length
+              });
+              localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
 
-            newsletterLogger.logStorage('set', 'newsletterLoaded', true, {});
-            localStorage.setItem('newsletterLoaded', 'true');
+              newsletterLogger.logStorage('set', 'newsletterLoaded', true, {});
+              localStorage.setItem('newsletterLoaded', 'true');
 
-            globalNewsletterLoaded.current = true;
+              globalNewsletterLoaded.current = true;
+            } else {
+              newsletterLogger.critical(LogCategory.API, 'Newsletter is fallback content - NOT saving to localStorage', {
+                isFallback: data.newsletter.isFallback,
+                source: data.newsletter.source
+              });
+            }
 
             // Log the end of the fetch process with critical level to ensure it's always displayed
             newsletterLogger.logCriticalEnd(LogCategory.FETCH, 'newsletter fetch completed successfully', {
@@ -1051,6 +1075,26 @@ function DashboardPage() {
         });
     };
 
+    // CRITICAL: First check if we have fallback content cached and clear it
+    const cachedNewsletterData = localStorage.getItem('newsletterData');
+    if (cachedNewsletterData) {
+      try {
+        const parsedData = JSON.parse(cachedNewsletterData);
+        if (parsedData.isFallback || parsedData.source === 'system') {
+          newsletterLogger.critical(LogCategory.STORAGE, 'Found cached fallback content - CLEARING IT', {
+            title: parsedData.title,
+            source: parsedData.source,
+            isFallback: parsedData.isFallback
+          });
+          localStorage.removeItem('newsletterData');
+          localStorage.removeItem('newsletterLoaded');
+          globalNewsletterLoaded.current = false;
+        }
+      } catch (e) {
+        newsletterLogger.error(LogCategory.STORAGE, 'Error parsing cached newsletter data', { error: e });
+      }
+    }
+
     // Check if newsletter has already been loaded in this session
     const newsletterLoaded = localStorage.getItem('newsletterLoaded') === 'true';
     globalNewsletterLoaded.current = newsletterLoaded;
@@ -1080,13 +1124,15 @@ function DashboardPage() {
           // Check if the stored newsletter is valid (not an error or loading state)
           // FIXED: Validation now only checks for specific error titles, not the source
           // This allows system-generated fallback content to be displayed properly
+          // CRITICAL: Also check for fallback content to force fresh fetch
           const isValidNewsletter = 
             parsedNewsletter && 
             parsedNewsletter.content && 
             parsedNewsletter.title !== "Loading Newsletter" &&
             parsedNewsletter.title !== "Newsletter Error" &&
             parsedNewsletter.title !== "Newsletter Temporarily Unavailable" &&
-            parsedNewsletter.title !== "Newsletter Service Temporarily Unavailable";
+            parsedNewsletter.title !== "Newsletter Service Temporarily Unavailable" &&
+            !parsedNewsletter.isFallback;
 
           // Log detailed validation information with critical level to ensure it's always displayed
           newsletterLogger.critical(LogCategory.STORAGE, 'Validating stored newsletter', {
@@ -1407,16 +1453,24 @@ function DashboardPage() {
 
             setNewsletter(data.newsletter);
 
-            // Log storage operations
-            newsletterLogger.logStorage('set', 'newsletterData', true, {
-              dataSize: JSON.stringify(data.newsletter).length
-            });
-            localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
+            // Only save to localStorage if it's not fallback content
+            if (!data.newsletter.isFallback && data.newsletter.source !== 'system') {
+              // Log storage operations
+              newsletterLogger.logStorage('set', 'newsletterData', true, {
+                dataSize: JSON.stringify(data.newsletter).length
+              });
+              localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
 
-            newsletterLogger.logStorage('set', 'newsletterLoaded', true, {});
-            localStorage.setItem('newsletterLoaded', 'true');
+              newsletterLogger.logStorage('set', 'newsletterLoaded', true, {});
+              localStorage.setItem('newsletterLoaded', 'true');
 
-            globalNewsletterLoaded.current = true;
+              globalNewsletterLoaded.current = true;
+            } else {
+              newsletterLogger.critical(LogCategory.API, 'Newsletter is fallback content - NOT saving to localStorage', {
+                isFallback: data.newsletter.isFallback,
+                source: data.newsletter.source
+              });
+            }
             lastFetchAttemptRef.current = currentTime;
 
             newsletterLogger.logEnd(LogCategory.PERIODIC, 'periodic refresh completed successfully', {

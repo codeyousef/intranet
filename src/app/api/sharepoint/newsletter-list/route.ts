@@ -595,10 +595,13 @@ export async function GET(request: NextRequest) {
       fallbackStrategy: 'user-friendly error message'
     });
 
-    // Return a user-friendly error message with success:true to prevent client-side error handling
+    // Return error with fallback content to prevent caching of system-generated content
     return NextResponse.json({
-      success: true,
-      newsletter: {
+      success: false,
+      error: error.message,
+      errorType: errorType,
+      details: userMessage,
+      fallbackContent: {
         title: 'Newsletter Update',
         content: `
           <div style="padding: 30px; text-align: center; background: #f9f9f9; border-radius: 8px; font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">
@@ -633,8 +636,7 @@ export async function GET(request: NextRequest) {
         lastUpdated: new Date().toISOString(),
         source: 'system',
         isFallback: true,
-        fallbackReason: error.message,
-        errorType: errorType
+        fallbackReason: error.message
       }
     });
   }

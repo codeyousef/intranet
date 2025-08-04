@@ -473,6 +473,27 @@ function DashboardPage() {
     };
 
     console.error('[NEWSLETTER-CRITICAL] About to check newsletter loading state');
+    
+    // CRITICAL: First check if we have fallback content cached and clear it
+    const cachedNewsletterData = localStorage.getItem('newsletterData');
+    if (cachedNewsletterData) {
+      try {
+        const parsedData = JSON.parse(cachedNewsletterData);
+        if (parsedData.isFallback || parsedData.source === 'system') {
+          console.error('[NEWSLETTER-CRITICAL] Found cached fallback content - CLEARING IT');
+          localStorage.removeItem('newsletterData');
+          localStorage.removeItem('newsletterLoaded');
+          globalNewsletterLoaded.current = false;
+          criticalLog('Cleared cached fallback content to force fresh fetch', {
+            title: parsedData.title,
+            source: parsedData.source,
+            isFallback: parsedData.isFallback
+          });
+        }
+      } catch (e) {
+        console.error('[NEWSLETTER-CRITICAL] Error parsing cached newsletter data', e);
+      }
+    }
 
     // Check if newsletter has already been loaded in this session
     const newsletterLoaded = localStorage.getItem('newsletterLoaded') === 'true';
@@ -525,7 +546,9 @@ function DashboardPage() {
 
           // FIXED: Only reject based on specific error titles, not the source
           // This allows system-generated fallback content to be displayed properly
-          const isValidNewsletter = hasNewsletter && hasContent && notLoadingTitle && notErrorTitle && notTempUnavailableTitle && notServiceUnavailableTitle;
+          // CRITICAL: Also check for fallback content to force fresh fetch
+          const notFallbackContent = !parsedNewsletter?.isFallback;
+          const isValidNewsletter = hasNewsletter && hasContent && notLoadingTitle && notErrorTitle && notTempUnavailableTitle && notServiceUnavailableTitle && notFallbackContent;
 
           console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] FINAL RESULT: isValidNewsletter = ${isValidNewsletter}`);
           console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] Content source: ${parsedNewsletter?.source || 'unknown'}`);
@@ -859,10 +882,23 @@ function DashboardPage() {
               timestamp: new Date().toISOString()
             });
 
-            // Save to localStorage to avoid refetching
-            localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
-            localStorage.setItem('newsletterLoaded', 'true');
-            globalNewsletterLoaded.current = true;
+            // Save to localStorage to avoid refetching - but ONLY if it's not fallback content
+            if (!data.newsletter.isFallback && data.newsletter.source !== 'system') {
+              localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
+              localStorage.setItem('newsletterLoaded', 'true');
+              globalNewsletterLoaded.current = true;
+              
+              criticalLog('Newsletter is NOT fallback content - SAVING to localStorage', {
+                isFallback: data.newsletter.isFallback,
+                source: data.newsletter.source
+              });
+            } else {
+              criticalLog('Newsletter IS fallback content - NOT saving to localStorage', {
+                isFallback: data.newsletter.isFallback,
+                source: data.newsletter.source,
+                reason: 'Preventing fallback content from blocking future fetches'
+              });
+            }
 
             criticalLog('Newsletter data saved to localStorage - SUCCESS COMPLETE', {
               title: data.newsletter.title,
