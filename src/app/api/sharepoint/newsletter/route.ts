@@ -103,15 +103,20 @@ async function getFreshAccessToken() {
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('[NEWSLETTER-API] Request received at /api/sharepoint/newsletter');
+    
     // Check authentication
     const session = await getAuthSession()
     
     if (!session) {
+      console.error('[NEWSLETTER-API] No session found - returning 401');
       return NextResponse.json({
         success: false,
         error: 'Unauthorized'
       }, { status: 401 })
     }
+    
+    console.log('[NEWSLETTER-API] Session authenticated for user:', session.user?.email);
 
     // Check for force fetch parameter
     const { searchParams } = new URL(request.url)
@@ -141,12 +146,17 @@ export async function GET(request: NextRequest) {
       const serverRelativeUrl = '/sites/Thelounge/CEO%20Newsletter/last-newsletter.html'
       const restApiUrl = `https://flyadeal.sharepoint.com/_api/web/GetFileByServerRelativeUrl('${serverRelativeUrl}')/$value`
       
+      console.log('[NEWSLETTER-API] Method 1: Trying SharePoint REST API');
+      console.log('[NEWSLETTER-API] REST API URL:', restApiUrl);
+      
       const restResponse = await fetch(restApiUrl, {
         headers: {
           'Authorization': `Bearer ${session.accessToken}`,
           'Accept': 'text/html, */*',
         },
       })
+      
+      console.log('[NEWSLETTER-API] REST API Response:', restResponse.status, restResponse.statusText);
 
       if (restResponse.ok) {
         htmlContent = await restResponse.text()
@@ -216,10 +226,14 @@ export async function GET(request: NextRequest) {
 
     // If we still don't have content, return an error
     if (!htmlContent) {
+      console.error('[NEWSLETTER-API] Failed to fetch newsletter content from all methods');
+      console.error('[NEWSLETTER-API] Returning error response');
+      
       return NextResponse.json({
         success: false,
         error: 'Failed to fetch newsletter',
-        details: 'All methods to fetch the newsletter failed. Please check SharePoint permissions.'
+        details: 'All methods to fetch the newsletter failed. Please check SharePoint permissions.',
+        attemptedUrl: newsletterUrl
       })
     }
 

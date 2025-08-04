@@ -165,13 +165,13 @@ function DashboardPage() {
 
     // Log the API request with critical level to ensure it's always displayed
     newsletterLogger.logCriticalApiRequest(
-      '/api/sharepoint/newsletter-list',
+      '/api/sharepoint/newsletter',
       'GET',
       { timestamp: now }
     );
 
     // Fetch the newsletter
-    fetch('/api/sharepoint/newsletter-list', {
+    fetch('/api/sharepoint/newsletter', {
       credentials: 'same-origin', // Include cookies for authentication
       headers: {
         'Content-Type': 'application/json',
@@ -180,7 +180,7 @@ function DashboardPage() {
       .then(response => {
         // Log the API response with critical level to ensure it's always displayed
         newsletterLogger.logCriticalApiResponse(
-          '/api/sharepoint/newsletter-list',
+          '/api/sharepoint/newsletter',
           response.status,
           response.ok,
           { statusText: response.statusText }
@@ -190,7 +190,7 @@ function DashboardPage() {
           newsletterLogger.critical(LogCategory.ERROR, `API returned error status: ${response.status} ${response.statusText}`, {
             status: response.status,
             statusText: response.statusText,
-            url: '/api/sharepoint/newsletter-list'
+            url: '/api/sharepoint/newsletter'
           });
 
           // Special handling for 503 Service Unavailable (temporary maintenance)
@@ -503,19 +503,19 @@ function DashboardPage() {
       newsletterLogger.info(LogCategory.FETCH, 'Triggering fresh fetch with force_fetch and clear_cache', {
         ...logContext,
         timestamp: currentTimestamp,
-        url: '/api/sharepoint/newsletter-list?force_fetch=true&clear_cache=true'
+        url: '/api/sharepoint/newsletter?force_fetch=true&clear_cache=true'
       });
 
       // Trigger the fetch with a slight delay to ensure UI updates
       setTimeout(() => {
         // Log the API request
         newsletterLogger.logApiRequest(
-          '/api/sharepoint/newsletter-list?force_fetch=true&clear_cache=true',
+          '/api/sharepoint/newsletter?force_fetch=true&clear_cache=true',
           'GET',
           { ...logContext, timestamp: Date.now() }
         );
 
-        fetch('/api/sharepoint/newsletter-list?force_fetch=true&clear_cache=true', {
+        fetch('/api/sharepoint/newsletter?force_fetch=true&clear_cache=true', {
           credentials: 'same-origin',
           headers: {
             'Content-Type': 'application/json',
@@ -524,7 +524,7 @@ function DashboardPage() {
         .then(response => {
           // Log the API response
           newsletterLogger.logApiResponse(
-            '/api/sharepoint/newsletter-list?force_fetch=true&clear_cache=true',
+            '/api/sharepoint/newsletter?force_fetch=true&clear_cache=true',
             response.status,
             response.ok,
             { ...logContext, statusText: response.statusText }
@@ -839,13 +839,13 @@ function DashboardPage() {
 
       // Log the API request with critical level to ensure it's always displayed
       newsletterLogger.logCriticalApiRequest(
-        '/api/sharepoint/newsletter-list',
+        '/api/sharepoint/newsletter',
         'GET',
         { timestamp: now }
       );
 
       // Fetch the newsletter
-      fetch('/api/sharepoint/newsletter-list', {
+      fetch('/api/sharepoint/newsletter', {
         credentials: 'same-origin', // Include cookies for authentication
         headers: {
           'Content-Type': 'application/json',
@@ -854,7 +854,7 @@ function DashboardPage() {
         .then(response => {
           // Log the API response with critical level to ensure it's always displayed
           newsletterLogger.logCriticalApiResponse(
-            '/api/sharepoint/newsletter-list',
+            '/api/sharepoint/newsletter',
             response.status,
             response.ok,
             { statusText: response.statusText }
@@ -864,7 +864,7 @@ function DashboardPage() {
             newsletterLogger.critical(LogCategory.ERROR, `API returned error status: ${response.status} ${response.statusText}`, {
               status: response.status,
               statusText: response.statusText,
-              url: '/api/sharepoint/newsletter-list'
+              url: '/api/sharepoint/newsletter'
             });
 
             // Special handling for 503 Service Unavailable (temporary maintenance)
@@ -1078,6 +1078,8 @@ function DashboardPage() {
           const parsedNewsletter = JSON.parse(storedNewsletter as string);
 
           // Check if the stored newsletter is valid (not an error or loading state)
+          // FIXED: Validation now only checks for specific error titles, not the source
+          // This allows system-generated fallback content to be displayed properly
           const isValidNewsletter = 
             parsedNewsletter && 
             parsedNewsletter.content && 
@@ -1099,9 +1101,9 @@ function DashboardPage() {
               loadingTitle: parsedNewsletter?.title === "Loading Newsletter",
               errorTitle: parsedNewsletter?.title === "Newsletter Error",
               tempUnavailableTitle: parsedNewsletter?.title === "Newsletter Temporarily Unavailable",
-              serviceUnavailableTitle: parsedNewsletter?.title === "Newsletter Service Temporarily Unavailable",
-              systemSource: parsedNewsletter?.source === "system"
-            }
+              serviceUnavailableTitle: parsedNewsletter?.title === "Newsletter Service Temporarily Unavailable"
+            },
+            isFallback: parsedNewsletter?.isFallback || false
           });
 
           if (isValidNewsletter) {
@@ -1366,13 +1368,13 @@ function DashboardPage() {
 
         // Log the API request
         newsletterLogger.logApiRequest(
-          '/api/sharepoint/newsletter-list?force_fetch=true',
+          '/api/sharepoint/newsletter?force_fetch=true',
           'GET',
           { action: 'periodicRefresh', timestamp: currentTime }
         );
 
         // Fetch the newsletter without clearing localStorage
-        fetch('/api/sharepoint/newsletter-list?force_fetch=true', {
+        fetch('/api/sharepoint/newsletter?force_fetch=true', {
           credentials: 'same-origin',
           headers: {
             'Content-Type': 'application/json',
@@ -1381,7 +1383,7 @@ function DashboardPage() {
         .then(response => {
           // Log the API response
           newsletterLogger.logApiResponse(
-            '/api/sharepoint/newsletter-list?force_fetch=true',
+            '/api/sharepoint/newsletter?force_fetch=true',
             response.status,
             response.ok,
             { action: 'periodicRefresh', statusText: response.statusText }

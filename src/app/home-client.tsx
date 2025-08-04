@@ -498,8 +498,7 @@ function DashboardPage() {
           const parsedNewsletter = JSON.parse(storedNewsletter);
 
           // Check if the stored newsletter is valid (not an error or loading state)
-          // Accept only SharePoint content and cached SharePoint content
-          // System fallback content should trigger a fresh fetch attempt
+          // FIXED: Removed system source check to allow fallback content to be displayed
 
           // 🚨 ULTRA-CRITICAL DEBUGGING - Log every single validation step
           console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] Starting validation - ${new Date().toISOString()}`);
@@ -515,8 +514,6 @@ function DashboardPage() {
           const notErrorTitle = parsedNewsletter?.title !== "Newsletter Error";
           const notTempUnavailableTitle = parsedNewsletter?.title !== "Newsletter Temporarily Unavailable";
           const notServiceUnavailableTitle = parsedNewsletter?.title !== "Newsletter Service Temporarily Unavailable";
-          const notSystemSource = parsedNewsletter?.source !== "system";
-          const notLoadingSource = parsedNewsletter?.source !== "loading";
 
           console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] Validation checks:`);
           console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   hasNewsletter: ${hasNewsletter}`);
@@ -525,31 +522,14 @@ function DashboardPage() {
           console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   notErrorTitle: ${notErrorTitle}`);
           console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   notTempUnavailableTitle: ${notTempUnavailableTitle}`);
           console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   notServiceUnavailableTitle: ${notServiceUnavailableTitle}`);
-          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   notSystemSource: ${notSystemSource}`);
-          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   notLoadingSource: ${notLoadingSource}`);
 
-          // 🚨 CRITICAL FIX: System and loading content should ALWAYS be rejected to force fresh fetch
-          // This prevents showing stale fallback content and ensures proper loading UX
-          const isSystemContent = parsedNewsletter?.source === "system";
-          const isLoadingContent = parsedNewsletter?.source === "loading";
-          const isFallbackContent = parsedNewsletter?.isFallback === true;
-
-          // System and loading content should always be rejected, regardless of other factors
-          const isValidNewsletter = hasNewsletter && hasContent && notLoadingTitle && notErrorTitle && notTempUnavailableTitle && notServiceUnavailableTitle && notSystemSource && notLoadingSource && !isSystemContent && !isLoadingContent && !isFallbackContent;
+          // FIXED: Only reject based on specific error titles, not the source
+          // This allows system-generated fallback content to be displayed properly
+          const isValidNewsletter = hasNewsletter && hasContent && notLoadingTitle && notErrorTitle && notTempUnavailableTitle && notServiceUnavailableTitle;
 
           console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] FINAL RESULT: isValidNewsletter = ${isValidNewsletter}`);
-          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] System content should be REJECTED: ${parsedNewsletter?.source === "system" ? "YES - SHOULD BE REJECTED" : "NO - NOT SYSTEM CONTENT"}`);
-          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] Additional checks: isSystemContent=${isSystemContent}, isLoadingContent=${isLoadingContent}, isFallbackContent=${isFallbackContent}`);
-
-          if (parsedNewsletter?.source === "system") {
-            console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] ⚠️ SYSTEM CONTENT DETECTED - THIS WILL BE REJECTED!`);
-            console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] ⚠️ Forcing fresh fetch to get real content`);
-          }
-
-          if (parsedNewsletter?.source === "loading") {
-            console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] ⚠️ LOADING CONTENT DETECTED - THIS WILL BE REJECTED!`);
-            console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] ⚠️ Forcing fresh fetch to replace loading state`);
-          }
+          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] Content source: ${parsedNewsletter?.source || 'unknown'}`);
+          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] Is fallback: ${parsedNewsletter?.isFallback || false}`);
 
           // Log detailed validation information to help debug issues
           criticalLog('Validating stored newsletter - DETAILED CHECK', {
@@ -565,11 +545,9 @@ function DashboardPage() {
               loadingTitle: parsedNewsletter?.title === "Loading Newsletter",
               errorTitle: parsedNewsletter?.title === "Newsletter Error",
               tempUnavailableTitle: parsedNewsletter?.title === "Newsletter Temporarily Unavailable",
-              serviceUnavailableTitle: parsedNewsletter?.title === "Newsletter Service Temporarily Unavailable",
-              systemSource: parsedNewsletter?.source === "system",
-              loadingSource: parsedNewsletter?.source === "loading"
+              serviceUnavailableTitle: parsedNewsletter?.title === "Newsletter Service Temporarily Unavailable"
             },
-            systemFallbackDetected: parsedNewsletter?.source === "system" && parsedNewsletter?.isFallback === true
+            isFallback: parsedNewsletter?.isFallback || false
           });
 
           debugLog('🔍 Validating stored newsletter', {
@@ -638,7 +616,7 @@ function DashboardPage() {
               debugLog('🔄 Fetching newsletter from API');
               criticalLog(`Initiating newsletter fetch from API at ${new Date().toISOString()}`);
 
-              fetch('/api/sharepoint/newsletter-list')
+              fetch('/api/sharepoint/newsletter')
                 .then(response => {
                   criticalLog(`Newsletter API response received - Status: ${response.status} ${response.statusText}`);
 
@@ -747,7 +725,7 @@ function DashboardPage() {
         cookiesEnabled: navigator.cookieEnabled,
         windowDimensions: `${window.innerWidth}x${window.innerHeight}`,
         timestamp: new Date().toISOString(),
-        endpoint: '/api/sharepoint/newsletter-list',
+        endpoint: '/api/sharepoint/newsletter',
         sessionInfo: {
           hasSession: !!session,
           userEmail: session?.user?.email || 'unknown'
