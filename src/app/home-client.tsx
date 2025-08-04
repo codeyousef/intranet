@@ -477,14 +477,13 @@ function DashboardPage() {
           const parsedNewsletter = JSON.parse(storedNewsletter);
 
           // Check if the stored newsletter is valid (not an error or loading state)
-          const isValidNewsletter = 
-            parsedNewsletter && 
-            parsedNewsletter.content && 
+          const isValidNewsletter =
+            parsedNewsletter &&
+            parsedNewsletter.content &&
             parsedNewsletter.title !== "Loading Newsletter" &&
             parsedNewsletter.title !== "Newsletter Error" &&
             parsedNewsletter.title !== "Newsletter Temporarily Unavailable" &&
-            parsedNewsletter.title !== "Newsletter Service Temporarily Unavailable" &&
-            parsedNewsletter.source !== "system";
+            parsedNewsletter.title !== "Newsletter Service Temporarily Unavailable";
 
           // Log detailed validation information to help debug issues
           criticalLog('Validating stored newsletter - DETAILED CHECK', {

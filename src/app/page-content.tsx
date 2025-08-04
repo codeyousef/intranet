@@ -858,8 +858,7 @@ function DashboardPage() {
             parsedNewsletter.title !== "Loading Newsletter" &&
             parsedNewsletter.title !== "Newsletter Error" &&
             parsedNewsletter.title !== "Newsletter Temporarily Unavailable" &&
-            parsedNewsletter.title !== "Newsletter Service Temporarily Unavailable" &&
-            parsedNewsletter.source !== "system";
+            parsedNewsletter.title !== "Newsletter Service Temporarily Unavailable";
 
           // Log detailed validation information with critical level to ensure it's always displayed
           newsletterLogger.critical(LogCategory.STORAGE, 'Validating stored newsletter', {
