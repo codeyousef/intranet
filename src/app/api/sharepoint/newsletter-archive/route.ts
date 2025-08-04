@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
-import { getFileContent } from '@/lib/sharepointClient';
 
 // Cache for newsletter archive content
 let cache: {
@@ -11,6 +10,28 @@ let cache: {
 } = {};
 
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
+
+async function getGraphToken() {
+  const tokenUrl = `https://login.microsoftonline.com/${process.env.AZURE_AD_TENANT_ID}/oauth2/v2.0/token`;
+  
+  const response = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: process.env.AZURE_AD_CLIENT_ID!,
+      client_secret: process.env.AZURE_AD_CLIENT_SECRET!,
+      scope: 'https://graph.microsoft.com/.default',
+      grant_type: 'client_credentials',
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to get Graph token');
+  }
+
+  const data = await response.json();
+  return data.access_token;
+}
 
 export async function GET(request: NextRequest) {
   const requestId = `newsletter-archive-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
@@ -69,24 +90,165 @@ export async function GET(request: NextRequest) {
     console.log(`[NEWSLETTER-ARCHIVE] Cache miss, fetching from SharePoint [${requestId}]`);
 
     try {
-      // Get the file content using the getFileContent function from sharepointClient
-      const fileContent = await getFileContent(path);
+      // Get Graph API token
+      const graphToken = await getGraphToken();
+
+      // First, get the site ID
+      const siteUrl = 'https://graph.microsoft.com/v1.0/sites/flyadeal.sharepoint.com:/sites/Thelounge';
+      const siteResponse = await fetch(siteUrl, {
+        headers: {
+          'Authorization': `Bearer ${graphToken}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!siteResponse.ok) {
+        throw new Error(`Failed to get site: ${siteResponse.status}`);
+      }
+
+      const siteData = await siteResponse.json();
+      const siteId = siteData.id;
+      console.log(`[NEWSLETTER-ARCHIVE] Site ID: ${siteId} [${requestId}]`);
+
+      // Get the CEO Newsletter list
+      const listsUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/lists`;
+      const listsResponse = await fetch(listsUrl, {
+        headers: {
+          'Authorization': `Bearer ${graphToken}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!listsResponse.ok) {
+        throw new Error(`Failed to get lists: ${listsResponse.status}`);
+      }
+
+      const listsData = await listsResponse.json();
+      
+      // Find the CEO Newsletter list
+      const newsletterList = listsData.value.find((list: any) => 
+        list.displayName === 'CEO Newsletter' || 
+        list.name === 'CEO Newsletter' ||
+        list.displayName === 'CEO%20Newsletter'
+      );
+
+      if (!newsletterList) {
+        console.log('[NEWSLETTER-ARCHIVE] Available lists:', listsData.value.map((l: any) => l.displayName));
+        throw new Error('CEO Newsletter list not found');
+      }
+
+      console.log(`[NEWSLETTER-ARCHIVE] Found newsletter list: ${newsletterList.id} [${requestId}]`);
+
+      // Extract the filename from the path for filtering
+      const pathParts = path.split('/');
+      const fileName = pathParts[pathParts.length - 1];
+      console.log(`[NEWSLETTER-ARCHIVE] Looking for file: ${fileName} in archive folder [${requestId}]`);
+      console.log(`[NEWSLETTER-ARCHIVE] Full path requested: ${path} [${requestId}]`);
+
+      // The archive files are in the "CEO Newsletter/Archive" folder
+      // We need to filter by both the filename and the folder path
+      const archiveFolderFilter = `startswith(fields/FileDirRef, '/sites/Thelounge/CEO Newsletter/Archive')`;
+      const fileNameFilter = `fields/FileLeafRef eq '${fileName}'`;
+      const combinedFilter = `(${archiveFolderFilter}) and (${fileNameFilter})`;
+      
+      // Get items from the CEO Newsletter list, filtering by the filename in the archive folder
+      const itemsUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${newsletterList.id}/items?$expand=fields&$filter=${encodeURIComponent(combinedFilter)}&$top=5`;
+      const itemsResponse = await fetch(itemsUrl, {
+        headers: {
+          'Authorization': `Bearer ${graphToken}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!itemsResponse.ok) {
+        const errorText = await itemsResponse.text();
+        console.error(`[NEWSLETTER-ARCHIVE] Failed to get items: ${errorText} [${requestId}]`);
+        throw new Error(`Failed to get list items: ${itemsResponse.status}`);
+      }
+
+      const itemsData = await itemsResponse.json();
+      console.log(`[NEWSLETTER-ARCHIVE] Found ${itemsData.value.length} items for file ${fileName} [${requestId}]`);
+
+      let newsletterItem = null;
+      if (itemsData.value.length > 0) {
+        newsletterItem = itemsData.value[0]; // Take the first matching item
+      }
+
+      if (!newsletterItem) {
+        throw new Error(`Newsletter file '${fileName}' not found in the list`);
+      }
+
+      // Get the file content
+      const driveItemId = newsletterItem.id;
+      const fileUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${newsletterList.id}/items/${driveItemId}/driveItem/content`;
+      
+      console.log(`[NEWSLETTER-ARCHIVE] Fetching file content [${requestId}]`);
+      
+      const fileResponse = await fetch(fileUrl, {
+        headers: {
+          'Authorization': `Bearer ${graphToken}`,
+          'Accept': 'text/html, text/plain, */*'
+        }
+      });
+
+      let fileContent = '';
+      if (fileResponse.ok) {
+        fileContent = await fileResponse.text();
+        console.log(`[NEWSLETTER-ARCHIVE] Successfully fetched content, length: ${fileContent.length} [${requestId}]`);
+      } else {
+        throw new Error(`Failed to fetch file content: ${fileResponse.status}`);
+      }
 
       console.log(`[NEWSLETTER-ARCHIVE] Successfully fetched file content (${fileContent.length} characters) [${requestId}]`);
 
-      // Process the HTML content to make it safe for rendering
+      // Process the HTML content to make it safe for rendering - using enhanced processing
       let processedContent = fileContent;
 
       try {
         console.log(`[NEWSLETTER-ARCHIVE] Starting HTML processing [${requestId}]`);
-
+        console.log(`[NEWSLETTER-ARCHIVE] Original content preview: ${fileContent.substring(0, 500)} [${requestId}]`);
+        
+        // Fix malformed HTML at the beginning - handle incomplete opening tags
+        let cleanedContent = fileContent;
+        
+        // Remove any incomplete opening tags at the beginning
+        cleanedContent = cleanedContent.replace(/^[^<]*<[^>]*(?<!>)[^<]*<html/i, '<html');
+        
+        // If it still doesn't start with proper HTML, find the first complete HTML structure
+        if (!cleanedContent.trim().startsWith('<html') && !cleanedContent.trim().startsWith('<!DOCTYPE')) {
+          const htmlMatch = cleanedContent.match(/<html[\s\S]*$/i);
+          if (htmlMatch) {
+            cleanedContent = htmlMatch[0];
+          }
+        }
+        
+        // HTML entity decoding
+        cleanedContent = cleanedContent.replace(/&quot;/g, '"');
+        cleanedContent = cleanedContent.replace(/&lt;/g, '<');
+        cleanedContent = cleanedContent.replace(/&gt;/g, '>');
+        cleanedContent = cleanedContent.replace(/&amp;/g, '&');
+        cleanedContent = cleanedContent.replace(/&nbsp;/g, ' ');
+        cleanedContent = cleanedContent.replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec));
+        cleanedContent = cleanedContent.replace(/&#x([0-9a-f]+);/gi, (match, hex) => String.fromCharCode(parseInt(hex, 16)));
+        
         // Remove scripts and styles that might interfere
-        processedContent = processedContent.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-        processedContent = processedContent.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+        cleanedContent = cleanedContent.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+        cleanedContent = cleanedContent.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
 
         // Additional sanitization to prevent React rendering errors
         // Remove HTML comments
-        processedContent = processedContent.replace(/<!--[\s\S]*?-->/g, '');
+        cleanedContent = cleanedContent.replace(/<!--[\s\S]*?-->/g, '');
+        
+        // Fix common HTML structure issues from SharePoint
+        // Remove any remaining malformed opening tags
+        cleanedContent = cleanedContent.replace(/^[^<]*<[^>]*(?<!>)(?=<)/g, '');
+        
+        // Ensure the content starts cleanly
+        cleanedContent = cleanedContent.trim();
+        
+        processedContent = cleanedContent;
+        
+        console.log(`[NEWSLETTER-ARCHIVE] Cleaned content preview: ${processedContent.substring(0, 500)} [${requestId}]`);
 
         // Ensure all tags are properly closed
         const openTags = processedContent.match(/<([a-z][a-z0-9]*)[^>]*(?<!\/)\s*>/gi) || [];
