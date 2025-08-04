@@ -120,7 +120,28 @@ function DashboardPage() {
   const [isWeatherFallback, setIsWeatherFallback] = useState(false)
   const [weatherFallbackReason, setWeatherFallbackReason] = useState<string | null>(null)
   const [newsletterModalOpen, setNewsletterModalOpen] = useState(false)
-  const [newsletter, setNewsletter] = useState<any>(null)
+  // Start with a proper loading state instead of null to improve UX
+  const [newsletter, setNewsletter] = useState<any>({
+    title: "Loading Newsletter",
+    content: `
+      <div style="text-align: center; padding: 40px 20px; font-family: Arial, sans-serif;">
+        <div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #00539f; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
+        <h3 style="color: #00539f; margin-bottom: 15px;">Loading Newsletter</h3>
+        <p style="color: #666; font-size: 14px; line-height: 1.5;">
+          Fetching the latest newsletter content from SharePoint...
+        </p>
+        <style>
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        </style>
+      </div>
+    `,
+    lastUpdated: new Date().toISOString(),
+    source: "loading",
+    isLoading: true
+  })
   const [newsletterError, setNewsletterError] = useState<string | null>(null)
   const [isClient, setIsClient] = useState(false)
 
@@ -495,6 +516,7 @@ function DashboardPage() {
           const notTempUnavailableTitle = parsedNewsletter?.title !== "Newsletter Temporarily Unavailable";
           const notServiceUnavailableTitle = parsedNewsletter?.title !== "Newsletter Service Temporarily Unavailable";
           const notSystemSource = parsedNewsletter?.source !== "system";
+          const notLoadingSource = parsedNewsletter?.source !== "loading";
 
           console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] Validation checks:`);
           console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   hasNewsletter: ${hasNewsletter}`);
@@ -504,15 +526,29 @@ function DashboardPage() {
           console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   notTempUnavailableTitle: ${notTempUnavailableTitle}`);
           console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   notServiceUnavailableTitle: ${notServiceUnavailableTitle}`);
           console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   notSystemSource: ${notSystemSource}`);
+          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   notLoadingSource: ${notLoadingSource}`);
 
-          const isValidNewsletter = hasNewsletter && hasContent && notLoadingTitle && notErrorTitle && notTempUnavailableTitle && notServiceUnavailableTitle && notSystemSource;
+          // 🚨 CRITICAL FIX: System and loading content should ALWAYS be rejected to force fresh fetch
+          // This prevents showing stale fallback content and ensures proper loading UX
+          const isSystemContent = parsedNewsletter?.source === "system";
+          const isLoadingContent = parsedNewsletter?.source === "loading";
+          const isFallbackContent = parsedNewsletter?.isFallback === true;
+
+          // System and loading content should always be rejected, regardless of other factors
+          const isValidNewsletter = hasNewsletter && hasContent && notLoadingTitle && notErrorTitle && notTempUnavailableTitle && notServiceUnavailableTitle && notSystemSource && notLoadingSource && !isSystemContent && !isLoadingContent && !isFallbackContent;
 
           console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] FINAL RESULT: isValidNewsletter = ${isValidNewsletter}`);
           console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] System content should be REJECTED: ${parsedNewsletter?.source === "system" ? "YES - SHOULD BE REJECTED" : "NO - NOT SYSTEM CONTENT"}`);
+          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] Additional checks: isSystemContent=${isSystemContent}, isLoadingContent=${isLoadingContent}, isFallbackContent=${isFallbackContent}`);
 
           if (parsedNewsletter?.source === "system") {
-            console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] ⚠️ SYSTEM CONTENT DETECTED - THIS SHOULD BE REJECTED!`);
-            console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] ⚠️ If isValidNewsletter is true, there's a bug in the validation logic!`);
+            console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] ⚠️ SYSTEM CONTENT DETECTED - THIS WILL BE REJECTED!`);
+            console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] ⚠️ Forcing fresh fetch to get real content`);
+          }
+
+          if (parsedNewsletter?.source === "loading") {
+            console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] ⚠️ LOADING CONTENT DETECTED - THIS WILL BE REJECTED!`);
+            console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] ⚠️ Forcing fresh fetch to replace loading state`);
           }
 
           // Log detailed validation information to help debug issues
@@ -530,7 +566,8 @@ function DashboardPage() {
               errorTitle: parsedNewsletter?.title === "Newsletter Error",
               tempUnavailableTitle: parsedNewsletter?.title === "Newsletter Temporarily Unavailable",
               serviceUnavailableTitle: parsedNewsletter?.title === "Newsletter Service Temporarily Unavailable",
-              systemSource: parsedNewsletter?.source === "system"
+              systemSource: parsedNewsletter?.source === "system",
+              loadingSource: parsedNewsletter?.source === "loading"
             },
             systemFallbackDetected: parsedNewsletter?.source === "system" && parsedNewsletter?.isFallback === true
           });
