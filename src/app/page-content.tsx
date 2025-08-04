@@ -1844,7 +1844,7 @@ function DashboardPage() {
                                     loading="eager"
                                     title="Newsletter Content"
                                   />
-                                />
+                                </div>
                               );
                             } catch (error) {
                               console.error('Newsletter rendering error:', error);
@@ -2075,7 +2075,7 @@ function DashboardPage() {
                               loading="eager"
                               title="Newsletter Content - Full View"
                             />
-                          />
+                          </div>
                         );
                       } catch (error) {
                         console.error('Newsletter rendering error:', error);
