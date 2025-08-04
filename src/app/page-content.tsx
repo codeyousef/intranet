@@ -282,7 +282,7 @@ function DashboardPage() {
               localStorage.setItem('newsletterLoaded', 'true');
               globalNewsletterLoaded.current = true;
             } else {
-              newsletterLogger.critical(LogCategory.API, 'Newsletter is fallback content - NOT saving to localStorage', {
+              newsletterLogger.critical(LogCategory.STORAGE, 'Newsletter is fallback content - NOT saving to localStorage', {
                 isFallback: data.newsletter.isFallback,
                 source: data.newsletter.source
               });
@@ -572,7 +572,7 @@ function DashboardPage() {
 
               globalNewsletterLoaded.current = true;
             } else {
-              newsletterLogger.critical(LogCategory.API, 'Newsletter is fallback content - NOT saving to localStorage', {
+              newsletterLogger.critical(LogCategory.STORAGE, 'Newsletter is fallback content - NOT saving to localStorage', {
                 isFallback: data.newsletter.isFallback,
                 source: data.newsletter.source
               });
@@ -965,7 +965,7 @@ function DashboardPage() {
 
               globalNewsletterLoaded.current = true;
             } else {
-              newsletterLogger.critical(LogCategory.API, 'Newsletter is fallback content - NOT saving to localStorage', {
+              newsletterLogger.critical(LogCategory.STORAGE, 'Newsletter is fallback content - NOT saving to localStorage', {
                 isFallback: data.newsletter.isFallback,
                 source: data.newsletter.source
               });
@@ -1466,7 +1466,7 @@ function DashboardPage() {
 
               globalNewsletterLoaded.current = true;
             } else {
-              newsletterLogger.critical(LogCategory.API, 'Newsletter is fallback content - NOT saving to localStorage', {
+              newsletterLogger.critical(LogCategory.STORAGE, 'Newsletter is fallback content - NOT saving to localStorage', {
                 isFallback: data.newsletter.isFallback,
                 source: data.newsletter.source
               });
