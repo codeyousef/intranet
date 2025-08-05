@@ -1,0 +1,60 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  surveyResponses SurveyResponse[]
+}
+
+model Survey {
+  id            String    @id @default(cuid())
+  title         String
+  question      String
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  options       SurveyOption[]
+  responses     SurveyResponse[]
+}
+
+model SurveyOption {
+  id            String    @id @default(cuid())
+  surveyId      String
+  text          String
+  displayOrder  Int
+  createdAt     DateTime  @default(now())
+  
+  survey        Survey    @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  responses     SurveyResponse[]
+}
+
+model SurveyResponse {
+  id            String    @id @default(cuid())
+  surveyId      String
+  optionId      String
+  userId        String
+  userEmail     String
+  createdAt     DateTime  @default(now())
+  
+  survey        Survey    @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  option        SurveyOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([surveyId, userId]) // Each user can only vote once per survey
+}

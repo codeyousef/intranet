@@ -179,7 +179,7 @@ export function FlightStats() {
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-400" />
-            <p className="text-red-600 mb-4">{error}</p>
+            <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
             <Button 
               onClick={fetchFlightData}
               size="sm"
@@ -240,8 +240,8 @@ export function FlightStats() {
               <div className="flex items-center justify-between mb-2">
                 <Activity className="w-5 h-5 text-green-600" />
                 <span className={`text-2xl font-bold ${
-                  metrics.onTimePerformance >= 80 ? 'text-green-600' : 
-                  metrics.onTimePerformance >= 70 ? 'text-yellow-600' : 'text-red-600'
+                  metrics.onTimePerformance >= 80 ? 'text-green-600 dark:text-green-400' : 
+                  metrics.onTimePerformance >= 70 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'
                 }`}>
                   {metrics.onTimePerformance}%
                 </span>

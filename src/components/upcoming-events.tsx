@@ -49,11 +49,11 @@ export function UpcomingEvents() {
   if (loading) {
     return (
       <GlassmorphismContainer className="p-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+        <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4 flex items-center">
           <Calendar className="w-5 h-5 mr-2 text-flyadeal-yellow" />
           Upcoming Events
         </h2>
-        <div className="text-gray-500 text-center py-4">
+        <div className="text-gray-500 dark:text-gray-400 text-center py-4">
           <p>Loading events data...</p>
         </div>
       </GlassmorphismContainer>
@@ -63,11 +63,11 @@ export function UpcomingEvents() {
   if (error) {
     return (
       <GlassmorphismContainer className="p-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+        <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4 flex items-center">
           <Calendar className="w-5 h-5 mr-2 text-flyadeal-yellow" />
           Upcoming Events
         </h2>
-        <div className="text-red-500 text-center py-4">
+        <div className="text-red-500 dark:text-red-400 text-center py-4">
           <p>{error}</p>
         </div>
       </GlassmorphismContainer>
@@ -76,7 +76,7 @@ export function UpcomingEvents() {
 
   return (
     <GlassmorphismContainer className="p-6">
-      <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+      <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4 flex items-center">
         <Calendar className="w-5 h-5 mr-2 text-flyadeal-yellow" />
         Upcoming Events
       </h2>
@@ -84,8 +84,8 @@ export function UpcomingEvents() {
         {events.length > 0 ? (
           events.map((event) => (
             <div key={event.id} className="p-3 bg-white/5 border border-white/10 rounded-lg">
-              <div className="text-gray-800 font-medium mb-1">{event.title}</div>
-              <div className="text-gray-600 text-sm">
+              <div className="text-gray-800 dark:text-white font-medium mb-1">{event.title}</div>
+              <div className="text-gray-600 dark:text-gray-300 text-sm">
                 {event.event_date ? (
                   <>
                     {isClient ? (
@@ -101,7 +101,7 @@ export function UpcomingEvents() {
                 )}
               </div>
               {event.description && (
-                <div className="text-gray-500 text-xs mt-1">
+                <div className="text-gray-500 dark:text-gray-400 text-xs mt-1">
                   {event.description.length > 100 
                     ? `${event.description.substring(0, 100)}...` 
                     : event.description}
@@ -110,7 +110,7 @@ export function UpcomingEvents() {
             </div>
           ))
         ) : (
-          <div className="text-gray-500 text-center py-4">
+          <div className="text-gray-500 dark:text-gray-400 text-center py-4">
             <p>No upcoming events</p>
           </div>
         )}

@@ -59,7 +59,7 @@ export function CelebrationsComponent() {
 
   if (error) {
     return (
-      <div className="text-red-500 text-center py-4">
+      <div className="text-red-500 dark:text-red-400 text-center py-4">
         <p>{error}</p>
       </div>
     )

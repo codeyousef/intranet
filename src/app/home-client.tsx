@@ -86,16 +86,16 @@ function LoginPage() {
         <div className="w-16 h-16 mx-auto mb-4 bg-flyadeal-yellow rounded-full flex items-center justify-center">
           <Plane className="w-8 h-8 text-flyadeal-purple" />
         </div>
-        <h1 className="text-3xl font-bold text-gray-800 mb-2 font-raleway">
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2 font-raleway">
           Welcome to Flyadeal Intranet
         </h1>
-        <p className="text-gray-600">
+        <p className="text-gray-600 dark:text-gray-300">
           Sign in with your Microsoft account to access the portal
         </p>
 
         {/* Always render the error container, but hide it when no error */}
         <div className={`mt-4 p-3 bg-red-500/20 border border-red-500/40 rounded-lg ${mounted && error ? 'block' : 'hidden'}`}>
-          <p className="text-red-400 text-sm">
+          <p className="text-red-400 dark:text-red-300 text-sm">
             {error ? getErrorMessage(error) : ''}
           </p>
         </div>
@@ -1114,10 +1114,10 @@ function DashboardPage() {
             <GlassmorphismContainer className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-800 mb-2">
+                  <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
                     Welcome back{session?.user?.name ? `, ${session.user.name.split(' ')[0]}` : ''}! 👋
                   </h1>
-                  <p className="text-gray-600">
+                  <p className="text-gray-600 dark:text-gray-300">
                     Here's what's happening at Flyadeal today
                   </p>
                 </div>
@@ -1125,10 +1125,10 @@ function DashboardPage() {
                   <div className="flex items-center space-x-2">
                     <Thermometer className="w-6 h-6 text-orange-400/60" />
                     <div>
-                      <div className="text-gray-800 font-semibold">
+                      <div className="text-gray-800 dark:text-white font-semibold">
                         {weatherLoading ? '...' : `${weather.temp}°C`}
                       </div>
-                      <div className="text-gray-600 text-xs">
+                      <div className="text-gray-600 dark:text-gray-300 text-xs">
                         {weatherLoading ? 'Loading weather...' : `${weather.condition}, ${weather.location}`}
                       </div>
                       {isWeatherFallback && !weatherLoading && (
@@ -1140,14 +1140,14 @@ function DashboardPage() {
                     </div>
                   </div>
                   <div>
-                    <div className="text-gray-800 text-lg font-semibold">
+                    <div className="text-gray-800 dark:text-white text-lg font-semibold">
                       {isClient && currentTime ? currentTime.toLocaleTimeString('en-US', { 
                         hour: '2-digit', 
                         minute: '2-digit',
                         hour12: true 
                       }) : '--:--'}
                     </div>
-                    <div className="text-gray-600 text-sm">
+                    <div className="text-gray-600 dark:text-gray-300 text-sm">
                       {isClient && currentTime ? currentTime.toLocaleDateString('en-US', { 
                         weekday: 'long',
                         year: 'numeric',
@@ -1169,7 +1169,7 @@ function DashboardPage() {
             <GlassmorphismContainer className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 text-sm">Growth of Guests</p>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm">Growth of Guests</p>
                   <p className="text-2xl font-bold text-flyadeal-bright-green">+12%</p>
                 </div>
                 <TrendingUp className="w-8 h-8 text-flyadeal-bright-green/60" />
@@ -1179,7 +1179,7 @@ function DashboardPage() {
             <GlassmorphismContainer className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 text-sm">Flying Hours</p>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm">Flying Hours</p>
                   <p className="text-2xl font-bold text-flyadeal-yellow">1,245</p>
                 </div>
                 <Clock className="w-8 h-8 text-flyadeal-yellow/60" />
@@ -1189,7 +1189,7 @@ function DashboardPage() {
             <GlassmorphismContainer className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 text-sm">Flights Growth</p>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm">Flights Growth</p>
                   <p className="text-2xl font-bold text-flyadeal-bright-green">+8%</p>
                 </div>
                 <TrendingUp className="w-8 h-8 text-flyadeal-bright-green/60" />
@@ -1199,7 +1199,7 @@ function DashboardPage() {
             <GlassmorphismContainer className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 text-sm">Guests Carried</p>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm">Guests Carried</p>
                   <p className="text-2xl font-bold text-flyadeal-yellow">156K</p>
                 </div>
                 <Users className="w-8 h-8 text-flyadeal-yellow/60" />
@@ -1209,7 +1209,7 @@ function DashboardPage() {
             <GlassmorphismContainer className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 text-sm">Total Flights</p>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm">Total Flights</p>
                   <p className="text-2xl font-bold text-flyadeal-yellow">1,872</p>
                 </div>
                 <Plane className="w-8 h-8 text-flyadeal-yellow/60" />
@@ -1227,7 +1227,7 @@ function DashboardPage() {
               {/* Viva Engage - COMMENTED OUT */}
               {/* <GlassmorphismContainer className="p-6 mt-6 h-[calc(24rem+1.5rem)]">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                  <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center">
                     <MessageSquare className="w-5 h-5 mr-2 text-flyadeal-yellow" />
                     Viva Engage
                   </h2>
@@ -1256,7 +1256,7 @@ function DashboardPage() {
               {/* Employee Offers */}
               <GlassmorphismContainer className="p-6">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                  <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center">
                     <Gift className="w-5 h-5 mr-2 text-flyadeal-yellow" />
                     New Offers
                   </h2>
@@ -1273,7 +1273,7 @@ function DashboardPage() {
 
               {/* Birthdays & Anniversaries */}
               <GlassmorphismContainer className="p-6">
-                <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4 flex items-center">
                   <Users className="w-5 h-5 mr-2 text-flyadeal-yellow" />
                   Celebrations
                 </h2>

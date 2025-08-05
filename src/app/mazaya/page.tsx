@@ -17,8 +17,8 @@ export default function MazayaPage() {
       {/* Welcome Header */}
       <div className="mb-8">
         <GlassmorphismContainer className="p-6">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Mazaya Offers</h1>
-          <p className="text-gray-600">Exclusive offers and discounts for employees</p>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Mazaya Offers</h1>
+          <p className="text-gray-600 dark:text-gray-300">Exclusive offers and discounts for employees</p>
         </GlassmorphismContainer>
       </div>
 
@@ -26,7 +26,7 @@ export default function MazayaPage() {
       {companies.length > 0 && (
         <div className="mb-6">
           <GlassmorphismContainer className="p-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4 flex items-center">
               Filter by Company
             </h2>
             <CompanyFilter 
@@ -41,7 +41,7 @@ export default function MazayaPage() {
       {categories.length > 0 && (
         <div className="mb-8">
           <GlassmorphismContainer className="p-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4 flex items-center">
               Filter by Category
             </h2>
             <CategoryFilter 

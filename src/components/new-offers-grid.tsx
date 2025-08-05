@@ -59,7 +59,7 @@ export default function NewOffersGrid() {
   }
 
   if (error) {
-    return <div className="text-red-500 p-4">{error}</div>;
+    return <div className="text-red-500 dark:text-red-400 p-4">{error}</div>;
   }
 
   if (offers.length === 0) {
@@ -74,7 +74,7 @@ export default function NewOffersGrid() {
             href={`/mazaya/${offer.id}`}
             className="block bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition-colors cursor-pointer text-center h-full w-full flex items-center justify-center no-underline"
           >
-            <div className="text-sm font-medium text-gray-800 overflow-hidden break-words line-clamp-3">{offer.title}</div>
+            <div className="text-sm font-medium text-gray-800 dark:text-white overflow-hidden break-words line-clamp-3">{offer.title}</div>
           </Link>
         </div>
       ))}

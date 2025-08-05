@@ -5,7 +5,7 @@ import { useSession, signOut } from 'next-auth/react'
 import { GlassmorphismContainer } from './glassmorphism-container'
 import { ThemeToggle } from './theme-toggle'
 import { Button } from './ui/button'
-import { Home, LogOut, Menu, X, Gift, Settings } from 'lucide-react'
+import { Home, LogOut, Menu, X, Gift, Settings, ChevronDown, BarChart3 } from 'lucide-react'
 import Image from 'next/image'
 
 // Custom signout function
@@ -69,6 +69,7 @@ function NavigationContent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [showAdminDropdown, setShowAdminDropdown] = useState(false)
 
   // Set mounted to true on client-side
   useEffect(() => {
@@ -114,13 +115,41 @@ function NavigationContent() {
 
         {/* Admin Link - Show only when user is admin */}
         {isAdmin && (
-          <a
-            href="/admin"
-            className="flex items-center space-x-2 text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors"
-          >
-            <Settings size={18} />
-            <span>Admin</span>
-          </a>
+          <div className="relative admin-dropdown">
+            <button
+              onClick={() => setShowAdminDropdown(!showAdminDropdown)}
+              className="flex items-center space-x-2 text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors"
+            >
+              <Settings size={18} />
+              <span>Admin</span>
+              <ChevronDown size={14} className={`transition-transform ${showAdminDropdown ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {showAdminDropdown && (
+              <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-2 z-50">
+                <a
+                  href="/admin"
+                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  onClick={() => setShowAdminDropdown(false)}
+                >
+                  <div className="flex items-center space-x-2">
+                    <Settings size={16} />
+                    <span>Dashboard</span>
+                  </div>
+                </a>
+                <a
+                  href="/admin/surveys"
+                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  onClick={() => setShowAdminDropdown(false)}
+                >
+                  <div className="flex items-center space-x-2">
+                    <BarChart3 size={16} />
+                    <span>Survey Results</span>
+                  </div>
+                </a>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
@@ -207,16 +236,26 @@ function NavigationContent() {
               )
             })}
 
-            {/* Admin Link - Show only when user is admin */}
+            {/* Admin Links - Show only when user is admin */}
             {isAdmin && (
-              <a
-                href="/admin"
-                className="flex items-center space-x-2 text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors p-2"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                <Settings size={18} />
-                <span>Admin</span>
-              </a>
+              <>
+                <a
+                  href="/admin"
+                  className="flex items-center space-x-2 text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors p-2"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <Settings size={18} />
+                  <span>Admin Dashboard</span>
+                </a>
+                <a
+                  href="/admin/surveys"
+                  className="flex items-center space-x-2 text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors p-2"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <BarChart3 size={18} />
+                  <span>Survey Results</span>
+                </a>
+              </>
             )}
 
             {session?.user ? (

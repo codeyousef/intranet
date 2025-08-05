@@ -50,14 +50,14 @@ export default function PlatformLinks() {
 
   return (
     <GlassmorphismContainer className="p-4 mb-8">
-      <h2 className="text-lg font-semibold text-gray-800 mb-4">Platform Links</h2>
+      <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Platform Links</h2>
 
       {isLoading ? (
         <div className="flex justify-center py-4">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-flyadeal-yellow"></div>
         </div>
       ) : error ? (
-        <div className="text-red-500 text-center py-2">{error}</div>
+        <div className="text-red-500 dark:text-red-400 text-center py-2">{error}</div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
           {links.map((link) => (
@@ -72,7 +72,7 @@ export default function PlatformLinks() {
                 <DynamicIcon name={link.icon} />
               </div>
               <span className="text-sm text-center font-medium">{link.title}</span>
-              <ExternalLink className="h-3 w-3 mt-1 text-gray-400" />
+              <ExternalLink className="h-3 w-3 mt-1 text-gray-400 dark:text-gray-500" />
             </a>
           ))}
         </div>

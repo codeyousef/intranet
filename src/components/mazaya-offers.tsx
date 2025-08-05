@@ -185,7 +185,7 @@ export default function MazayaOffers({
   }
 
   if (error) {
-    return <div className="text-red-500 p-4">{error}</div>;
+    return <div className="text-red-500 dark:text-red-400 p-4">{error}</div>;
   }
 
   if (offers.length === 0) {

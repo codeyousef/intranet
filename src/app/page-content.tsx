@@ -17,6 +17,7 @@ import { UpcomingEvents } from '@/components/upcoming-events'
 import { CompanyNews } from '@/components/company-news'
 import { RaiseYourVoice } from '@/components/raise-your-voice'
 import { AllIdeasMatter } from '@/components/all-ideas-matter'
+import { Survey } from '@/components/survey'
 import { 
   Calendar, 
   MapPin, 
@@ -90,10 +91,10 @@ function LoginPage() {
         <div className="w-16 h-16 mx-auto mb-4 bg-flyadeal-yellow rounded-full flex items-center justify-center">
           <Plane className="w-8 h-8 text-flyadeal-purple" />
         </div>
-        <h1 className="text-3xl font-bold text-gray-800 mb-2 font-raleway">
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2 font-raleway">
           Welcome to Flyadeal Intranet
         </h1>
-        <p className="text-gray-600">
+        <p className="text-gray-600 dark:text-gray-300">
           Sign in with your Microsoft account to access the portal
         </p>
 
@@ -1518,10 +1519,10 @@ function DashboardPage() {
             <GlassmorphismContainer className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-800 mb-2">
+                  <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
                     Welcome back{session?.user?.name ? `, ${session.user.name.split(' ')[0]}` : ''}! 👋
                   </h1>
-                  <p className="text-gray-600">
+                  <p className="text-gray-600 dark:text-gray-300">
                     Here's what's happening at Flyadeal today
                   </p>
                 </div>
@@ -1529,23 +1530,23 @@ function DashboardPage() {
                   <div className="flex items-center space-x-2">
                     <Thermometer className="w-6 h-6 text-orange-400/60" />
                     <div>
-                      <div className="text-gray-800 font-semibold">
+                      <div className="text-gray-800 dark:text-white font-semibold">
                         {weatherLoading ? '...' : `${weather.temp}°C`}
                       </div>
-                      <div className="text-gray-600 text-xs">
+                      <div className="text-gray-600 dark:text-gray-300 text-xs">
                         {weatherLoading ? 'Loading weather...' : `${weather.condition}, ${weather.location}`}
                       </div>
                     </div>
                   </div>
                   <div>
-                    <div className="text-gray-800 text-lg font-semibold">
+                    <div className="text-gray-800 dark:text-white text-lg font-semibold">
                       {currentTime ? currentTime.toLocaleTimeString('en-US', { 
                         hour: '2-digit', 
                         minute: '2-digit',
                         hour12: true 
                       }) : '--:--'}
                     </div>
-                    <div className="text-gray-600 text-sm">
+                    <div className="text-gray-600 dark:text-gray-300 text-sm">
                       {currentTime ? currentTime.toLocaleDateString('en-US', { 
                         weekday: 'long',
                         year: 'numeric',
@@ -1567,9 +1568,9 @@ function DashboardPage() {
             <GlassmorphismContainer className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 text-sm">On-Time Performance</p>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm">On-Time Performance</p>
                   <p className="text-2xl font-bold text-flyadeal-bright-green">{flightMetrics ? `${flightMetrics.onTimePerformance}%` : '...'}</p>
-                  <p className="text-xs text-gray-500 mt-1">{getDateRangeText()}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{getDateRangeText()}</p>
                 </div>
                 <TrendingUp className="w-8 h-8 text-flyadeal-bright-green/60" />
               </div>
@@ -1578,9 +1579,9 @@ function DashboardPage() {
             <GlassmorphismContainer className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 text-sm">Flying Hours</p>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm">Flying Hours</p>
                   <p className="text-2xl font-bold text-flyadeal-yellow">{flightMetrics ? flightMetrics.flyingHours.toLocaleString() : '...'}</p>
-                  <p className="text-xs text-gray-500 mt-1">{getDateRangeText()}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{getDateRangeText()}</p>
                 </div>
                 <Clock className="w-8 h-8 text-flyadeal-yellow/60" />
               </div>
@@ -1589,9 +1590,9 @@ function DashboardPage() {
             <GlassmorphismContainer className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 text-sm">Avg Load Factor</p>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm">Avg Load Factor</p>
                   <p className="text-2xl font-bold text-flyadeal-bright-green">{flightMetrics ? `${flightMetrics.loadFactor}%` : '...'}</p>
-                  <p className="text-xs text-gray-500 mt-1">{getDateRangeText()}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{getDateRangeText()}</p>
                 </div>
                 <BarChart3 className="w-8 h-8 text-flyadeal-bright-green/60" />
               </div>
@@ -1600,9 +1601,9 @@ function DashboardPage() {
             <GlassmorphismContainer className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 text-sm">Guests Carried</p>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm">Guests Carried</p>
                   <p className="text-2xl font-bold text-flyadeal-yellow">{flightMetrics ? `${flightMetrics.guestsCarried}K` : '...'}</p>
-                  <p className="text-xs text-gray-500 mt-1">{getDateRangeText()}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{getDateRangeText()}</p>
                 </div>
                 <Users className="w-8 h-8 text-flyadeal-yellow/60" />
               </div>
@@ -1611,9 +1612,9 @@ function DashboardPage() {
             <GlassmorphismContainer className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 text-sm">Total Flights</p>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm">Total Flights</p>
                   <p className="text-2xl font-bold text-flyadeal-yellow">{flightMetrics ? flightMetrics.totalFlights.toLocaleString() : '...'}</p>
-                  <p className="text-xs text-gray-500 mt-1">{getDateRangeText()}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{getDateRangeText()}</p>
                 </div>
                 <Plane className="w-8 h-8 text-flyadeal-yellow/60" />
               </div>
@@ -1627,7 +1628,7 @@ function DashboardPage() {
               {/* CEO Newsletter */}
               <GlassmorphismContainer className="p-4 sm:p-6 h-[calc(32rem+1.5rem)] sm:h-[calc(36rem+1.5rem)]">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg sm:text-xl font-bold text-gray-800 flex items-center">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-white flex items-center">
                     <Mail className="w-5 h-5 mr-2 text-flyadeal-yellow" />
                     <span className="hidden sm:inline">CEO Newsletter</span>
                     <span className="sm:hidden">Newsletter</span>
@@ -1662,7 +1663,7 @@ function DashboardPage() {
                 <div className="bg-white rounded-lg overflow-hidden h-[calc(100%-2.5rem)] w-full">
                   {newsletterError ? (
                     // Error state - show error message with retry button
-                    <div className="h-full flex items-center justify-center text-gray-500">
+                    <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
                       <div className="text-center p-6 max-w-md">
                         <X className="w-12 h-12 mx-auto mb-4 text-red-400" />
                         <p className="mb-2 text-red-500 font-medium">Error loading newsletter</p>
@@ -1670,7 +1671,7 @@ function DashboardPage() {
                         {/* Split error message and troubleshooting into separate elements */}
                         {newsletterError && (
                           <>
-                            <div className="mb-4 text-sm text-gray-600 bg-gray-100 p-3 rounded-md text-left">
+                            <div className="mb-4 text-sm text-gray-600 dark:text-gray-300 bg-gray-100 p-3 rounded-md text-left">
                               {newsletterError.split('\n\n').map((part, index) => (
                                 <div key={index} className={index === 1 ? 'mt-3 pt-3 border-t border-gray-200' : ''}>
                                   {part}
@@ -1850,10 +1851,10 @@ function DashboardPage() {
                               console.error('Newsletter rendering error:', error);
                               return (
                                 <div className="newsletter-render-error p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                                  <h4 className="text-lg font-semibold text-yellow-800 mb-2">
+                                  <h4 className="text-lg font-semibold text-yellow-800 dark:text-yellow-300 mb-2">
                                     Newsletter Display Issue
                                   </h4>
-                                  <p className="text-yellow-700 mb-4">
+                                  <p className="text-yellow-700 dark:text-yellow-400 mb-4">
                                     The newsletter content could not be displayed due to formatting issues.
                                   </p>
                                   <Button
@@ -1876,7 +1877,7 @@ function DashboardPage() {
                     </div>
                   ) : (
                     // Loading state
-                    <div className="h-full flex items-center justify-center text-gray-500">
+                    <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
                       <div className="text-center">
                         <Mail className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                         <p>Loading newsletter...</p>
@@ -1899,7 +1900,7 @@ function DashboardPage() {
               {/* Viva Engage - COMMENTED OUT */}
               {/* <GlassmorphismContainer className="p-6 mt-6 h-[calc(24rem+1.5rem)]">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                  <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center">
                     <MessageSquare className="w-5 h-5 mr-2 text-flyadeal-yellow" />
                     Viva Engage
                   </h2>
@@ -1928,7 +1929,7 @@ function DashboardPage() {
               {/* Employee Offers */}
               <GlassmorphismContainer className="p-6">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                  <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center">
                     <Gift className="w-5 h-5 mr-2 text-flyadeal-yellow" />
                     New Offers
                   </h2>
@@ -1943,9 +1944,12 @@ function DashboardPage() {
               {/* Upcoming Events */}
               <UpcomingEvents />
 
+              {/* Survey */}
+              <Survey />
+
               {/* Birthdays & Anniversaries */}
               <GlassmorphismContainer className="p-6">
-                <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4 flex items-center">
                   <Users className="w-5 h-5 mr-2 text-flyadeal-yellow" />
                   Celebrations
                 </h2>
@@ -1984,7 +1988,7 @@ function DashboardPage() {
                   <h4 className="text-xl font-medium text-red-500 mb-4">Error loading newsletter</h4>
 
                   {/* Split error message and troubleshooting into separate elements */}
-                  <div className="w-full max-w-lg mb-6 text-sm text-gray-600 bg-gray-100 p-4 rounded-md text-left">
+                  <div className="w-full max-w-lg mb-6 text-sm text-gray-600 dark:text-gray-300 bg-gray-100 p-4 rounded-md text-left">
                     {newsletterError.split('\n\n').map((part, index) => (
                       <div key={index} className={index === 1 ? 'mt-4 pt-4 border-t border-gray-200' : ''}>
                         {part}
@@ -2081,10 +2085,10 @@ function DashboardPage() {
                         console.error('Newsletter rendering error:', error);
                         return (
                           <div className="newsletter-render-error p-6 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <h4 className="text-lg font-semibold text-yellow-800 mb-2">
+                            <h4 className="text-lg font-semibold text-yellow-800 dark:text-yellow-300 mb-2">
                               Newsletter Display Issue
                             </h4>
-                            <p className="text-yellow-700 mb-4">
+                            <p className="text-yellow-700 dark:text-yellow-400 mb-4">
                               The newsletter content could not be displayed due to formatting issues. 
                               This is likely due to complex HTML in the original newsletter.
                             </p>
@@ -2114,7 +2118,7 @@ function DashboardPage() {
                       }
                     })()}
                   </NewsletterErrorBoundary>
-                  <div className="mt-6 p-4 bg-gray-50 rounded-lg text-sm text-gray-600">
+                  <div className="mt-6 p-4 bg-gray-50 rounded-lg text-sm text-gray-600 dark:text-gray-300">
                     <p><strong>Last updated:</strong> {new Date(newsletter.lastUpdated).toLocaleString()}</p>
                   </div>
                 </>
@@ -2122,7 +2126,7 @@ function DashboardPage() {
                 // Loading state in modal
                 <div className="flex flex-col items-center justify-center py-12">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-flyadeal-yellow mb-4"></div>
-                  <p className="text-gray-500">Loading newsletter...</p>
+                  <p className="text-gray-500 dark:text-gray-400">Loading newsletter...</p>
                 </div>
               )}
             </div>
@@ -2146,7 +2150,7 @@ export default function PageContent() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-flyadeal-yellow"></div>
-          <p className="mt-2 text-gray-600">Loading...</p>
+          <p className="mt-2 text-gray-600 dark:text-gray-300">Loading...</p>
         </div>
       </div>
     )

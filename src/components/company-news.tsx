@@ -49,11 +49,11 @@ export function CompanyNews() {
   if (loading) {
     return (
       <GlassmorphismContainer className="p-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-8 flex items-center">
+        <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-8 flex items-center">
           <Newspaper className="w-5 h-5 mr-2 text-flyadeal-yellow" />
           Company News
         </h2>
-        <div className="text-gray-500 text-center py-4">
+        <div className="text-gray-500 dark:text-gray-400 dark:text-gray-500 text-center py-4">
           <p>Loading company news...</p>
         </div>
       </GlassmorphismContainer>
@@ -63,11 +63,11 @@ export function CompanyNews() {
   if (error) {
     return (
       <GlassmorphismContainer className="p-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-8 flex items-center">
+        <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-8 flex items-center">
           <Newspaper className="w-5 h-5 mr-2 text-flyadeal-yellow" />
           Company News
         </h2>
-        <div className="text-red-500 text-center py-4">
+        <div className="text-red-500 dark:text-red-400 text-center py-4">
           <p>{error}</p>
         </div>
       </GlassmorphismContainer>
@@ -83,7 +83,7 @@ export function CompanyNews() {
 
   return (
     <GlassmorphismContainer className="p-6">
-      <h2 className="text-xl font-bold text-gray-800 mb-8 flex items-center">
+      <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-8 flex items-center">
         <Newspaper className="w-5 h-5 mr-2 text-flyadeal-yellow" />
         Company News
       </h2>
@@ -93,19 +93,19 @@ export function CompanyNews() {
             <Link href={`/news/${newsItem.id}`} key={newsItem.id}>
               <div className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors cursor-pointer">
                 <div className="flex-1">
-                  <div className="text-gray-800 font-medium">{newsItem.title}</div>
-                  <div className="text-gray-600 text-sm">
+                  <div className="text-gray-800 dark:text-white font-medium">{newsItem.title}</div>
+                  <div className="text-gray-600 dark:text-gray-300 text-sm">
                     {newsItem.published_at ? 
                       (isClient ? new Date(newsItem.published_at).toLocaleDateString() : 'Loading date...') 
                       : 'Date unavailable'} • {getCategory(newsItem)}
                   </div>
                 </div>
-                <ChevronRight className="w-5 h-5 text-gray-400" />
+                <ChevronRight className="w-5 h-5 text-gray-400 dark:text-gray-500" />
               </div>
             </Link>
           ))
         ) : (
-          <div className="text-gray-500 text-center py-4">
+          <div className="text-gray-500 dark:text-gray-400 dark:text-gray-500 text-center py-4">
             <p>No company news available</p>
           </div>
         )}
