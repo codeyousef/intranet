@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
       voteCounts.map((vc) => [vc.optionId, vc._count])
     )
 
-    const totalVotes = voteCounts.reduce((sum, vc) => sum + vc._count, 0)
+    const totalVotes = voteCounts.reduce((sum: number, vc) => sum + vc._count, 0)
 
     // Get all options with updated stats
     const options = await prisma.surveyOption.findMany({

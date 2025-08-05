@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     )
 
     // Calculate total votes
-    const totalVotes = voteCounts.reduce((sum, vc) => sum + vc._count, 0)
+    const totalVotes = voteCounts.reduce((sum: number, vc) => sum + vc._count, 0)
 
     // Transform options to include vote counts and percentages
     const optionsWithStats = activeSurvey.options.map(option => ({
