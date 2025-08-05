@@ -3,12 +3,16 @@ import { getAuthSession } from '@/lib/auth'
 
 // Only import Prisma if not in build mode
 let prisma: any;
-if (process.env.NODE_ENV !== 'production' || process.env.NEXT_PHASE !== 'phase-production-build') {
-  try {
+try {
+  // Skip Prisma import only during build phase
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    prisma = null;
+  } else {
     prisma = require('@/lib/prisma').prisma;
-  } catch (error) {
-    console.warn('Prisma not available during build:', error.message);
   }
+} catch (error) {
+  console.warn('Prisma not available:', error.message);
+  prisma = null;
 }
 
 export async function GET(request: NextRequest) {
