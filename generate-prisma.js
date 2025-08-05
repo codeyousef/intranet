@@ -37,14 +37,5 @@ if (!fs.existsSync(prismaClientPath)) {
     }
   }
 } else {
-  console.log('Prisma client already exists.');
-  
-  // Also regenerate to ensure it's up to date
-  try {
-    console.log('Regenerating Prisma client to ensure it\'s current...');
-    execSync('npx prisma generate', { stdio: 'inherit' });
-    console.log('Prisma client regenerated successfully!');
-  } catch (error) {
-    console.log('Could not regenerate, but existing client should work.');
-  }
+  console.log('Prisma client already exists. Skipping generation.');
 }
