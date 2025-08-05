@@ -443,7 +443,7 @@ export async function GET(request: NextRequest) {
     terminalLog('INFO', '====== VIVA ENGAGE RESPONSE RECEIVED ======');
     terminalLog('INFO', `Fetch completed in ${fetchDuration}ms`);
     terminalLog('INFO', 'Response status', `${response.status} ${response.statusText}`);
-    terminalLog('INFO', 'Response headers', Object.fromEntries(Array.from(response.headers.entries())));
+    terminalLog('INFO', 'Response headers', Object.fromEntries(Array.from(response.headers.entries()) as [string, string][]));
 
     // Log timing information
     const responseTime = new Date();
