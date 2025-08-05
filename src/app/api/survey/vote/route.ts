@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     })
 
     const voteCountMap = new Map(
-      voteCounts.map(vc => [vc.optionId, vc._count])
+      voteCounts.map((vc) => [vc.optionId, vc._count])
     )
 
     const totalVotes = voteCounts.reduce((sum, vc) => sum + vc._count, 0)

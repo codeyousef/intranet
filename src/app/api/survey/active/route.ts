@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     // Create a map of optionId to count
     const voteCountMap = new Map(
-      voteCounts.map(vc => [vc.optionId, vc._count])
+      voteCounts.map((vc) => [vc.optionId, vc._count])
     )
 
     // Calculate total votes

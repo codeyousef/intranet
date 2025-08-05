@@ -45,11 +45,11 @@ export async function GET(request: NextRequest) {
 
       // Calculate statistics
       const totalResponses = survey.options.reduce(
-        (sum: number, option: any) => sum + option.responses.length,
+        (sum, option) => sum + option.responses.length,
         0
       )
 
-      const optionsWithStats = survey.options.map((option: any) => ({
+      const optionsWithStats = survey.options.map((option) => ({
         id: option.id,
         text: option.text,
         displayOrder: option.displayOrder,
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
         percentage: totalResponses > 0 
           ? Math.round((option.responses.length / totalResponses) * 100)
           : 0,
-        responses: option.responses.map((response: any) => ({
+        responses: option.responses.map((response) => ({
           id: response.id,
           userEmail: response.userEmail,
           userName: response.user.name || response.userEmail,
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
       })
 
       return NextResponse.json({
-        surveys: surveys.map((survey: any) => ({
+        surveys: surveys.map((survey) => ({
           id: survey.id,
           title: survey.title,
           question: survey.question,
