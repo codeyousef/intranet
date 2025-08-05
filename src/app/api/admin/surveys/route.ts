@@ -1,9 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthSession } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+
+// Only import Prisma if not in build mode
+let prisma: any;
+if (process.env.NODE_ENV !== 'production' || process.env.NEXT_PHASE !== 'phase-production-build') {
+  try {
+    prisma = require('@/lib/prisma').prisma;
+  } catch (error) {
+    console.warn('Prisma not available during build:', error.message);
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
+    // Check if Prisma is available
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database not available during build' }, { status: 503 })
+    }
+
     const session = await getAuthSession()
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -114,6 +128,11 @@ export async function GET(request: NextRequest) {
 // Create new survey
 export async function POST(request: NextRequest) {
   try {
+    // Check if Prisma is available
+    if (!prisma) {
+      return NextResponse.json({ error: 'Database not available during build' }, { status: 503 })
+    }
+
     const session = await getAuthSession()
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
