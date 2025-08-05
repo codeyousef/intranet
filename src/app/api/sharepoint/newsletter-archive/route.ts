@@ -309,8 +309,7 @@ export async function GET(request: NextRequest) {
         processedContent = processedContent.replace(/<font([^>]*)>([\s\S]*?)<\/font>/gi, '<span$1>$2</span>');
         processedContent = processedContent.replace(/<center>([\s\S]*?)<\/center>/gi, '<div style="text-align:center">$1</div>');
 
-        // Ensure all attributes have values and are properly quoted
-        processedContent = processedContent.replace(/(\s)([a-z][a-z0-9\-_]*)(?=[\s>])(?!\s*=)/gi, '$1$2=""');
+        // Ensure attributes are properly quoted (but don't add empty values)
         processedContent = processedContent.replace(/=([^\s"][^\s>]*)/gi, '="$1"');
 
         // Make all images responsive and prevent lazy loading
@@ -328,6 +327,12 @@ export async function GET(request: NextRequest) {
         // Extract body content if it's a full HTML document
         const bodyContentMatch = processedContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
         const contentToWrap = bodyContentMatch ? bodyContentMatch[1] : processedContent;
+        
+        // Final cleanup pass to ensure no ="" patterns remain after all processing
+        let finalContent = contentToWrap;
+        finalContent = finalContent.replace(/\s+=""(?=[\s>])/g, '');
+        finalContent = finalContent.replace(/([a-zA-Z0-9\s,;:\-–—\.\!\?\'\"]+)=""/g, '$1');
+        finalContent = finalContent.replace(/>([^<]+)""/g, '>$1');
 
         // Always wrap content in proper HTML structure for iframe display
         processedContent = `<!DOCTYPE html>
@@ -375,7 +380,7 @@ export async function GET(request: NextRequest) {
 </head>
 <body>
   <div class="newsletter-content">
-    ${contentToWrap}
+    ${finalContent}
   </div>
 </body>
 </html>`;
