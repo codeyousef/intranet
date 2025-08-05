@@ -39,14 +39,14 @@ export async function GET(request: NextRequest) {
 
     // Create a map of optionId to count
     const voteCountMap = new Map(
-      voteCounts.map((vc) => [vc.optionId, vc._count])
+      voteCounts.map((vc: any) => [vc.optionId, vc._count])
     )
 
     // Calculate total votes
-    const totalVotes = voteCounts.reduce((sum: number, vc) => sum + vc._count, 0)
+    const totalVotes = voteCounts.reduce((sum: number, vc: any) => sum + vc._count, 0)
 
     // Transform options to include vote counts and percentages
-    const optionsWithStats = activeSurvey.options.map(option => ({
+    const optionsWithStats = activeSurvey.options.map((option: any) => ({
       ...option,
       voteCount: voteCountMap.get(option.id) || 0,
       percentage: totalVotes > 0 
