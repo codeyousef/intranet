@@ -325,6 +325,10 @@ export async function GET(request: NextRequest) {
           return `<iframe${attributes} sandbox="allow-same-origin allow-scripts" loading="eager">`;
         });
 
+        // Extract body content if it's a full HTML document
+        const bodyContentMatch = processedContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+        const contentToWrap = bodyContentMatch ? bodyContentMatch[1] : processedContent;
+
         // Always wrap content in proper HTML structure for iframe display
         processedContent = `<!DOCTYPE html>
 <html>
@@ -371,7 +375,7 @@ export async function GET(request: NextRequest) {
 </head>
 <body>
   <div class="newsletter-content">
-    ${processedContent}
+    ${contentToWrap}
   </div>
 </body>
 </html>`;

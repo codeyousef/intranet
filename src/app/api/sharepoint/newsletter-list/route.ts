@@ -306,6 +306,16 @@ export async function GET(request: NextRequest) {
       newsletterContent = bodyMatch[1];
     }
     
+    // Fix malformed HTML attributes from SharePoint
+    // Remove empty attributes like =""
+    newsletterContent = newsletterContent.replace(/\s+=""(?=[\s>])/g, '');
+    
+    // Fix malformed attributes where text has ="" appended
+    newsletterContent = newsletterContent.replace(/([a-zA-Z0-9\s,;:\-–—\.\!\?\'\"]+)=""/g, '$1');
+    
+    // Clean up any remaining double quotes that shouldn't be there
+    newsletterContent = newsletterContent.replace(/>([^<]+)""/g, '>$1');
+    
     console.log(`[NEWSLETTER-LIST] Minimal cleanup complete: ${newsletterContent.substring(0, 500)} [${effectiveRequestId}]`);
     
     // Wrap content in proper HTML structure for iframe display
