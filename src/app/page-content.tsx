@@ -17,7 +17,7 @@ import { UpcomingEvents } from '@/components/upcoming-events'
 import { CompanyNews } from '@/components/company-news'
 import { RaiseYourVoice } from '@/components/raise-your-voice'
 import { AllIdeasMatter } from '@/components/all-ideas-matter'
-import { Survey } from '@/components/survey'
+// import { Survey } from '@/components/survey' // Temporarily disabled
 import { 
   Calendar, 
   MapPin, 
@@ -1945,7 +1945,7 @@ function DashboardPage() {
               <UpcomingEvents />
 
               {/* Survey */}
-              <Survey />
+              {/* <Survey /> */} {/* Temporarily disabled - causing infinite reload */}
 
               {/* Birthdays & Anniversaries */}
               <GlassmorphismContainer className="p-6">
