@@ -1,3 +1,8 @@
+/*
+// VIVA ENGAGE FUNCTIONALITY - CURRENTLY DISABLED
+// This entire route is commented out as Viva Engage functionality is not currently in use
+// Uncomment when needed in the future
+
 // app/api/viva-engage/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
@@ -3186,4 +3191,18 @@ ${JSON.stringify({
       },
     });
   }
+}
+
+// End of commented out Viva Engage functionality
+*/
+
+// Placeholder exports to keep the route file valid
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function GET() {
+  return NextResponse.json({ message: 'Viva Engage functionality is currently disabled' }, { status: 503 });
+}
+
+export async function POST() {
+  return NextResponse.json({ message: 'Viva Engage functionality is currently disabled' }, { status: 503 });
 }
