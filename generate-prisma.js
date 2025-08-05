@@ -26,8 +26,10 @@ if (!fs.existsSync(prismaClientPath)) {
         execSync(`${prismaBin} generate`, { stdio: 'inherit' });
         console.log('Prisma client generated successfully!');
       } else {
-        console.error('Prisma binary not found. Please install Prisma first.');
-        process.exit(1);
+        console.error('Prisma binary not found. Using backup installation...');
+        // Use our backup installation script
+        execSync('./install-prisma-local.sh', { stdio: 'inherit' });
+        console.log('Prisma client installed from backup!');
       }
     } catch (error2) {
       console.error('Failed to generate Prisma client:', error2.message);
@@ -36,4 +38,13 @@ if (!fs.existsSync(prismaClientPath)) {
   }
 } else {
   console.log('Prisma client already exists.');
+  
+  // Also regenerate to ensure it's up to date
+  try {
+    console.log('Regenerating Prisma client to ensure it\'s current...');
+    execSync('npx prisma generate', { stdio: 'inherit' });
+    console.log('Prisma client regenerated successfully!');
+  } catch (error) {
+    console.log('Could not regenerate, but existing client should work.');
+  }
 }
