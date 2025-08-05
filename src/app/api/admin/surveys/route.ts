@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
 
       // Calculate statistics
       const totalResponses = survey.options.reduce(
-        (sum, option) => sum + option.responses.length,
+        (sum: number, option) => sum + option.responses.length,
         0
       )
 
