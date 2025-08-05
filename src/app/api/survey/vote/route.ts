@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
       ...opt,
       voteCount: voteCountMap.get(opt.id) || 0,
       percentage: totalVotes > 0 
-        ? Math.round(((voteCountMap.get(opt.id) || 0) / totalVotes) * 100)
+        ? Math.round((((voteCountMap.get(opt.id) || 0) as number) / totalVotes) * 100)
         : 0
     }))
 

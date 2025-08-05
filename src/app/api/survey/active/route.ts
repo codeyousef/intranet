@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       ...option,
       voteCount: voteCountMap.get(option.id) || 0,
       percentage: totalVotes > 0 
-        ? Math.round(((voteCountMap.get(option.id) || 0) / totalVotes) * 100)
+        ? Math.round((((voteCountMap.get(option.id) || 0) as number) / totalVotes) * 100)
         : 0
     }))
 
