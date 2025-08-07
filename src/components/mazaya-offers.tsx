@@ -104,12 +104,14 @@ export default function MazayaOffers({
   isNewOnly = false, 
   selectedCategory = '',
   selectedCompany = '',
+  searchQuery = '',
   onCategoriesLoaded,
   onCompaniesLoaded
 }: { 
   isNewOnly?: boolean, 
   selectedCategory?: string,
   selectedCompany?: string,
+  searchQuery?: string,
   onCategoriesLoaded?: (categories: string[]) => void,
   onCompaniesLoaded?: (companies: string[]) => void
 }) {
@@ -163,9 +165,20 @@ export default function MazayaOffers({
     fetchOffers();
   }, [isNewOnly, onCategoriesLoaded, onCompaniesLoaded]);
 
-  // Filter offers when selectedCategory or selectedCompany changes or offers change
+  // Filter offers when selectedCategory, selectedCompany, or searchQuery changes or offers change
   useEffect(() => {
     let filtered = offers;
+
+    // Apply search filter if query exists
+    if (searchQuery && searchQuery.trim() !== '') {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(offer => 
+        offer.title.toLowerCase().includes(query) ||
+        offer.description.toLowerCase().includes(query) ||
+        offer.offer_type.toLowerCase().includes(query) ||
+        offer.category.toLowerCase().includes(query)
+      );
+    }
 
     // Apply category filter if selected
     if (selectedCategory && selectedCategory !== '') {
@@ -178,7 +191,7 @@ export default function MazayaOffers({
     }
 
     setFilteredOffers(filtered);
-  }, [selectedCategory, selectedCompany, offers]);
+  }, [selectedCategory, selectedCompany, searchQuery, offers]);
 
   if (loading) {
     return <div className="flex justify-center p-8">Loading offers...</div>;
@@ -192,16 +205,32 @@ export default function MazayaOffers({
     return <div className="p-4">No offers available at this time.</div>;
   }
 
-  if (filteredOffers.length === 0 && (selectedCategory || selectedCompany)) {
-    let message = "No offers available";
-    if (selectedCategory && selectedCompany) {
-      message += ` in the selected category and company`;
-    } else if (selectedCategory) {
-      message += ` in the selected category`;
-    } else if (selectedCompany) {
-      message += ` from the selected company`;
+  if (filteredOffers.length === 0 && (selectedCategory || selectedCompany || searchQuery)) {
+    let message = "No offers found";
+    const filters = [];
+    
+    if (searchQuery) {
+      filters.push(`matching "${searchQuery}"`);
     }
-    return <div className="p-4">{message}.</div>;
+    if (selectedCategory) {
+      filters.push(`in the selected category`);
+    }
+    if (selectedCompany) {
+      filters.push(`from the selected company`);
+    }
+    
+    if (filters.length > 0) {
+      message += ` ${filters.join(' and ')}`;
+    }
+    
+    return (
+      <div className="p-8 text-center">
+        <div className="text-gray-500 dark:text-gray-400 text-lg">{message}.</div>
+        <p className="text-gray-400 dark:text-gray-500 text-sm mt-2">
+          Try adjusting your search terms or filters.
+        </p>
+      </div>
+    );
   }
 
   // Helper function to truncate text
