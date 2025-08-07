@@ -128,15 +128,15 @@ export function Survey() {
               onClick={() => setSelectedOption(option.id)}
               className={`w-full p-3 rounded-lg border-2 transition-all duration-200 text-left ${
                 selectedOption === option.id
-                  ? 'border-[#00539f] bg-[#00539f]/5'
-                  : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-[#00539f] bg-[#00539f]/5 dark:bg-[#00539f]/10'
+                  : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
               }`}
             >
               <div className="flex items-center gap-3">
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                   selectedOption === option.id
                     ? 'border-[#00539f]'
-                    : 'border-gray-300'
+                    : 'border-gray-300 dark:border-gray-600'
                 }`}>
                   {selectedOption === option.id && (
                     <div className="w-3 h-3 rounded-full bg-[#00539f]" />
@@ -177,7 +177,7 @@ export function Survey() {
                   {option.percentage}% ({option.voteCount})
                 </span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-6 overflow-hidden">
                 <div
                   className={`h-full transition-all duration-500 ${
                     option.id === selectedOption
@@ -190,7 +190,7 @@ export function Survey() {
             </div>
           ))}
           
-          <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
             <p className="text-sm text-gray-600 dark:text-gray-300 text-center">
               Total votes: {survey.totalVotes}
             </p>
