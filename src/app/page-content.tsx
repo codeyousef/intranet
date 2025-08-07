@@ -18,6 +18,7 @@ import { CompanyNews } from '@/components/company-news'
 import { RaiseYourVoice } from '@/components/raise-your-voice'
 import { AllIdeasMatter } from '@/components/all-ideas-matter'
 import { Survey } from '@/components/survey'
+import { AskCEO } from '@/components/ask-ceo'
 import { 
   Calendar, 
   MapPin, 
@@ -1897,6 +1898,12 @@ function DashboardPage() {
                 <AllIdeasMatter />
               </div>
 
+              {/* Survey and Ask CEO Components - Side by Side */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                <Survey />
+                <AskCEO />
+              </div>
+
               {/* Viva Engage - COMMENTED OUT */}
               {/* <GlassmorphismContainer className="p-6 mt-6 h-[calc(24rem+1.5rem)]">
                 <div className="flex items-center justify-between mb-4">
@@ -1943,9 +1950,6 @@ function DashboardPage() {
 
               {/* Upcoming Events */}
               <UpcomingEvents />
-
-              {/* Survey */}
-              <Survey />
 
               {/* Birthdays & Anniversaries */}
               <GlassmorphismContainer className="p-6">

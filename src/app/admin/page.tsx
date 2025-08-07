@@ -29,7 +29,8 @@ import {
   FileText,
   Download,
   MessageSquareWarning,
-  Lightbulb
+  Lightbulb,
+  Crown
 } from 'lucide-react'
 
 import { ClientOnly } from '@/lib/client-only'
@@ -118,6 +119,7 @@ function AdminPageContent() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [isPeopleAdmin, setIsPeopleAdmin] = useState(false)
   const [isAuditAdmin, setIsAuditAdmin] = useState(false)
+  const [isCEOAdmin, setIsCEOAdmin] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
 
@@ -125,10 +127,12 @@ function AdminPageContent() {
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([])
   const [peopleAdminUsers, setPeopleAdminUsers] = useState<AdminUser[]>([])
   const [auditAdminUsers, setAuditAdminUsers] = useState<AdminUser[]>([])
+  const [ceoAdminUsers, setCEOAdminUsers] = useState<AdminUser[]>([])
   const [events, setEvents] = useState<Event[]>([])
   const [companyNews, setCompanyNews] = useState<NewsItem[]>([])
   const [complaints, setComplaints] = useState<Complaint[]>([])
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
+  const [ceoQuestions, setCEOQuestions] = useState<any[]>([])
 
   const [newLink, setNewLink] = useState({
     title: '',
@@ -141,6 +145,7 @@ function AdminPageContent() {
   const [newAdminEmail, setNewAdminEmail] = useState('')
   const [newPeopleAdminEmail, setNewPeopleAdminEmail] = useState('')
   const [newAuditAdminEmail, setNewAuditAdminEmail] = useState('')
+  const [newCEOAdminEmail, setNewCEOAdminEmail] = useState('')
 
   const [newEvent, setNewEvent] = useState({
     title: '',
@@ -205,6 +210,14 @@ function AdminPageContent() {
         setIsAuditAdmin(auditAdminData.isAuditAdmin)
         console.log('Setting isAuditAdmin to:', auditAdminData.isAuditAdmin);
 
+        // Also check if user is a CEO admin
+        const ceoAdminResponse = await fetch('/api/ceo-admin/check')
+        const ceoAdminData = await ceoAdminResponse.json()
+        console.log('CEO admin check response:', ceoAdminData);
+        
+        setIsCEOAdmin(ceoAdminData.isCEOAdmin)
+        console.log('Setting isCEOAdmin to:', ceoAdminData.isCEOAdmin);
+
         if (!adminData.isAdmin) {
           console.log('User not admin, redirecting to homepage');
           router.push('/')
@@ -218,6 +231,7 @@ function AdminPageContent() {
           if (adminData.isAdmin) {
             fetchPeopleAdminUsers()
             fetchAuditAdminUsers()
+            fetchCEOAdminUsers()
           }
 
           // If user is a people admin, load events and company news
@@ -230,6 +244,11 @@ function AdminPageContent() {
           if (auditAdminData.isAuditAdmin || adminData.isAdmin) {
             fetchComplaints()
             fetchSuggestions()
+          }
+
+          // If user is a CEO admin or regular admin, load CEO questions
+          if (ceoAdminData.isCEOAdmin || adminData.isAdmin) {
+            fetchCEOQuestions()
           }
         }
 
@@ -311,6 +330,36 @@ function AdminPageContent() {
       setError('Failed to fetch audit admin users')
       // Set empty array on error
       setAuditAdminUsers([])
+    }
+  }
+
+  // Fetch CEO admin users
+  const fetchCEOAdminUsers = async () => {
+    try {
+      const response = await fetch('/api/ceo-admin/users')
+      const data = await response.json()
+      // Ensure data is an array before setting state
+      setCEOAdminUsers(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('Error fetching CEO admin users:', error)
+      setError('Failed to fetch CEO admin users')
+      // Set empty array on error
+      setCEOAdminUsers([])
+    }
+  }
+
+  // Fetch CEO questions
+  const fetchCEOQuestions = async () => {
+    try {
+      const response = await fetch('/api/ceo-questions')
+      const data = await response.json()
+      // Ensure data.questions is an array before setting state
+      setCEOQuestions(Array.isArray(data.questions) ? data.questions : [])
+    } catch (error) {
+      console.error('Error fetching CEO questions:', error)
+      setError('Failed to fetch CEO questions')
+      // Set empty array on error
+      setCEOQuestions([])
     }
   }
 
@@ -578,6 +627,64 @@ function AdminPageContent() {
     }
   }
 
+  // Add new CEO admin user
+  const addCEOAdminUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+
+    if (!newCEOAdminEmail) {
+      setError('Email is required')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/ceo-admin/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email: newCEOAdminEmail })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to add CEO admin user')
+      }
+
+      // Reset form and refresh CEO admin users
+      setNewCEOAdminEmail('')
+      fetchCEOAdminUsers()
+      setSuccess('CEO admin user added successfully')
+    } catch (error) {
+      console.error('Error adding CEO admin user:', error)
+      setError(error instanceof Error ? error.message : 'Failed to add CEO admin user')
+    }
+  }
+
+  // Remove CEO admin user
+  const removeCEOAdminUser = async (email: string) => {
+    setError('')
+    setSuccess('')
+
+    try {
+      const response = await fetch(`/api/ceo-admin/users/${encodeURIComponent(email)}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to remove CEO admin user')
+      }
+
+      fetchCEOAdminUsers()
+      setSuccess('CEO admin user removed successfully')
+    } catch (error) {
+      console.error('Error removing CEO admin user:', error)
+      setError(error instanceof Error ? error.message : 'Failed to remove CEO admin user')
+    }
+  }
+
   // Add new event
   const addEvent = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -780,6 +887,30 @@ function AdminPageContent() {
     }
   }
 
+  // Update CEO question status
+  const updateCEOQuestionStatus = async (id: number, status: string, admin_response?: string) => {
+    try {
+      const response = await fetch('/api/ceo-questions', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id, status, admin_response })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update CEO question')
+      }
+
+      fetchCEOQuestions()
+      setSuccess('CEO question updated successfully')
+    } catch (error) {
+      console.error('Error updating CEO question:', error)
+      setError(error instanceof Error ? error.message : 'Failed to update CEO question')
+    }
+  }
+
   // For server-side rendering, we need to ensure the initial state matches what will be rendered
   // We'll use a combination of CSS classes and client-side JS to handle the transitions
   // This approach avoids hydration mismatches by ensuring server and client render the same initial HTML
@@ -830,12 +961,8 @@ function AdminPageContent() {
             <Tabs defaultValue="platform-links">
               <TabsList className="mb-6">
                 <TabsTrigger value="platform-links">Platform Links</TabsTrigger>
-                <TabsTrigger value="admin-users">Admin Users</TabsTrigger>
                 {isAdmin && (
-                  <>
-                    <TabsTrigger value="people-admin-users">People Admin Users</TabsTrigger>
-                    <TabsTrigger value="audit-admin-users">Audit Admin Users</TabsTrigger>
-                  </>
+                  <TabsTrigger value="admin-groups">Admin Groups</TabsTrigger>
                 )}
                 {isPeopleAdmin && (
                   <>
@@ -848,6 +975,9 @@ function AdminPageContent() {
                     <TabsTrigger value="complaints">Complaints</TabsTrigger>
                     <TabsTrigger value="suggestions">Suggestions</TabsTrigger>
                   </>
+                )}
+                {(isCEOAdmin || isAdmin) && (
+                  <TabsTrigger value="ceo-questions">CEO Questions</TabsTrigger>
                 )}
               </TabsList>
 
@@ -978,206 +1108,274 @@ function AdminPageContent() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="admin-users">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Add new admin user */}
+              <TabsContent value="admin-groups">
+                <div className="space-y-8">
+                  {/* Admin Users Section */}
                   <Card>
                     <CardHeader>
-                      <CardTitle>Add New Admin User</CardTitle>
+                      <CardTitle className="flex items-center">
+                        <Users className="h-5 w-5 mr-2 text-blue-500" />
+                        Admin Users
+                      </CardTitle>
                       <CardDescription>
-                        Grant admin access to a user by email
+                        Manage users with full administrative access
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <form onSubmit={addAdminUser} className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="admin-email">Email</Label>
-                          <Input 
-                            id="admin-email" 
-                            value={newAdminEmail} 
-                            onChange={(e) => setNewAdminEmail(e.target.value)}
-                            placeholder="e.g. user@flyadeal.com"
-                            type="email"
-                            required
-                          />
-                        </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Add new admin user */}
+                        <Card>
+                          <CardContent className="pt-6">
+                            <form onSubmit={addAdminUser} className="space-y-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="admin-email">Email</Label>
+                                <Input 
+                                  id="admin-email" 
+                                  value={newAdminEmail} 
+                                  onChange={(e) => setNewAdminEmail(e.target.value)}
+                                  placeholder="e.g. user@flyadeal.com"
+                                  type="email"
+                                  required
+                                />
+                              </div>
+                              <Button type="submit" className="w-full">
+                                <UserPlus className="h-4 w-4 mr-2" />
+                                Add Admin
+                              </Button>
+                            </form>
+                          </CardContent>
+                        </Card>
 
-                        <Button type="submit" className="w-full">
-                          <UserPlus className="h-4 w-4 mr-2" />
-                          Add Admin
-                        </Button>
-                      </form>
+                        {/* Existing admin users */}
+                        <Card className="md:col-span-2">
+                          <CardContent className="pt-6">
+                            {adminUsers.length === 0 ? (
+                              <p className="text-gray-500 text-center py-4">No admin users found</p>
+                            ) : (
+                              <div className="space-y-4">
+                                {adminUsers.map((user) => (
+                                  <div key={user.email} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div>
+                                      <p className="font-medium">{user.email}</p>
+                                      <p className="text-xs text-gray-500">Added: {new Date(user.created_at).toLocaleDateString()}</p>
+                                    </div>
+                                    <Button 
+                                      variant="destructive" 
+                                      size="sm" 
+                                      onClick={() => removeAdminUser(user.email)}
+                                    >
+                                      <UserMinus className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
                     </CardContent>
                   </Card>
 
-                  {/* Existing admin users */}
-                  <Card className="md:col-span-2">
+                  {/* People Admin Users Section */}
+                  <Card>
                     <CardHeader>
-                      <CardTitle>Existing Admin Users</CardTitle>
+                      <CardTitle className="flex items-center">
+                        <Users className="h-5 w-5 mr-2 text-green-500" />
+                        People Admin Users
+                      </CardTitle>
                       <CardDescription>
-                        Manage users with admin access
+                        Manage users with people admin access for events and company news
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      {adminUsers.length === 0 ? (
-                        <p className="text-gray-500 text-center py-4">No admin users found</p>
-                      ) : (
-                        <div className="space-y-4">
-                          {adminUsers.map((user) => (
-                            <div key={user.email} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                              <div>
-                                <p className="font-medium">{user.email}</p>
-                                <p className="text-xs text-gray-500">Added: {new Date(user.created_at).toLocaleDateString()}</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Add new people admin user */}
+                        <Card>
+                          <CardContent className="pt-6">
+                            <form onSubmit={addPeopleAdminUser} className="space-y-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="people-admin-email">Email</Label>
+                                <Input 
+                                  id="people-admin-email" 
+                                  value={newPeopleAdminEmail} 
+                                  onChange={(e) => setNewPeopleAdminEmail(e.target.value)}
+                                  placeholder="e.g. user@flyadeal.com"
+                                  type="email"
+                                  required
+                                />
                               </div>
-                              <Button 
-                                variant="destructive" 
-                                size="sm" 
-                                onClick={() => removeAdminUser(user.email)}
-                              >
-                                <UserMinus className="h-4 w-4" />
+                              <Button type="submit" className="w-full">
+                                <UserPlus className="h-4 w-4 mr-2" />
+                                Add People Admin
                               </Button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                            </form>
+                          </CardContent>
+                        </Card>
+
+                        {/* Existing people admin users */}
+                        <Card className="md:col-span-2">
+                          <CardContent className="pt-6">
+                            {peopleAdminUsers.length === 0 ? (
+                              <p className="text-gray-500 text-center py-4">No people admin users found</p>
+                            ) : (
+                              <div className="space-y-4">
+                                {peopleAdminUsers.map((user) => (
+                                  <div key={user.email} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div>
+                                      <p className="font-medium">{user.email}</p>
+                                      <p className="text-xs text-gray-500">Added: {new Date(user.created_at).toLocaleDateString()}</p>
+                                    </div>
+                                    <Button 
+                                      variant="destructive" 
+                                      size="sm" 
+                                      onClick={() => removePeopleAdminUser(user.email)}
+                                    >
+                                      <UserMinus className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Audit Admin Users Section */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <MessageSquareWarning className="h-5 w-5 mr-2 text-red-500" />
+                        Audit Admin Users
+                      </CardTitle>
+                      <CardDescription>
+                        Manage users with access to anonymous complaints and suggestions
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Add new audit admin user */}
+                        <Card>
+                          <CardContent className="pt-6">
+                            <form onSubmit={addAuditAdminUser} className="space-y-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="audit-admin-email">Email</Label>
+                                <Input 
+                                  id="audit-admin-email" 
+                                  value={newAuditAdminEmail} 
+                                  onChange={(e) => setNewAuditAdminEmail(e.target.value)}
+                                  placeholder="e.g. user@flyadeal.com"
+                                  type="email"
+                                  required
+                                />
+                              </div>
+                              <Button type="submit" className="w-full">
+                                <UserPlus className="h-4 w-4 mr-2" />
+                                Add Audit Admin
+                              </Button>
+                            </form>
+                          </CardContent>
+                        </Card>
+
+                        {/* Existing audit admin users */}
+                        <Card className="md:col-span-2">
+                          <CardContent className="pt-6">
+                            {auditAdminUsers.length === 0 ? (
+                              <p className="text-gray-500 text-center py-4">No audit admin users found</p>
+                            ) : (
+                              <div className="space-y-4">
+                                {auditAdminUsers.map((user) => (
+                                  <div key={user.email} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div>
+                                      <p className="font-medium">{user.email}</p>
+                                      <p className="text-xs text-gray-500">Added: {new Date(user.created_at).toLocaleDateString()}</p>
+                                    </div>
+                                    <Button 
+                                      variant="destructive" 
+                                      size="sm" 
+                                      onClick={() => removeAuditAdminUser(user.email)}
+                                    >
+                                      <UserMinus className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* CEO Admin Users Section */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <Crown className="h-5 w-5 mr-2 text-flyadeal-yellow" />
+                        CEO Admin Users
+                      </CardTitle>
+                      <CardDescription>
+                        Manage users with access to CEO questions and responses
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Add new CEO admin user */}
+                        <Card>
+                          <CardContent className="pt-6">
+                            <form onSubmit={addCEOAdminUser} className="space-y-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="ceo-admin-email">Email</Label>
+                                <Input 
+                                  id="ceo-admin-email" 
+                                  value={newCEOAdminEmail} 
+                                  onChange={(e) => setNewCEOAdminEmail(e.target.value)}
+                                  placeholder="e.g. user@flyadeal.com"
+                                  type="email"
+                                  required
+                                />
+                              </div>
+                              <Button type="submit" className="w-full">
+                                <UserPlus className="h-4 w-4 mr-2" />
+                                Add CEO Admin
+                              </Button>
+                            </form>
+                          </CardContent>
+                        </Card>
+
+                        {/* Existing CEO admin users */}
+                        <Card className="md:col-span-2">
+                          <CardContent className="pt-6">
+                            {ceoAdminUsers.length === 0 ? (
+                              <p className="text-gray-500 text-center py-4">No CEO admin users found</p>
+                            ) : (
+                              <div className="space-y-4">
+                                {ceoAdminUsers.map((user) => (
+                                  <div key={user.email} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div>
+                                      <p className="font-medium">{user.email}</p>
+                                      <p className="text-xs text-gray-500">Added: {new Date(user.created_at).toLocaleDateString()}</p>
+                                    </div>
+                                    <Button 
+                                      variant="destructive" 
+                                      size="sm" 
+                                      onClick={() => removeCEOAdminUser(user.email)}
+                                    >
+                                      <UserMinus className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
               </TabsContent>
 
-              <TabsContent value="people-admin-users">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Add new people admin user */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Add New People Admin</CardTitle>
-                      <CardDescription>
-                        Grant people admin access to a user by email
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <form onSubmit={addPeopleAdminUser} className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="people-admin-email">Email</Label>
-                          <Input 
-                            id="people-admin-email" 
-                            value={newPeopleAdminEmail} 
-                            onChange={(e) => setNewPeopleAdminEmail(e.target.value)}
-                            placeholder="e.g. user@flyadeal.com"
-                            type="email"
-                            required
-                          />
-                        </div>
-
-                        <Button type="submit" className="w-full">
-                          <UserPlus className="h-4 w-4 mr-2" />
-                          Add People Admin
-                        </Button>
-                      </form>
-                    </CardContent>
-                  </Card>
-
-                  {/* Existing people admin users */}
-                  <Card className="md:col-span-2">
-                    <CardHeader>
-                      <CardTitle>Existing People Admins</CardTitle>
-                      <CardDescription>
-                        Manage users with people admin access
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {peopleAdminUsers.length === 0 ? (
-                        <p className="text-gray-500 text-center py-4">No people admin users found</p>
-                      ) : (
-                        <div className="space-y-4">
-                          {peopleAdminUsers.map((user) => (
-                            <div key={user.email} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                              <div>
-                                <p className="font-medium">{user.email}</p>
-                                <p className="text-xs text-gray-500">Added: {new Date(user.created_at).toLocaleDateString()}</p>
-                              </div>
-                              <Button 
-                                variant="destructive" 
-                                size="sm" 
-                                onClick={() => removePeopleAdminUser(user.email)}
-                              >
-                                <UserMinus className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="audit-admin-users">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Add new audit admin user */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Add New Audit Admin</CardTitle>
-                      <CardDescription>
-                        Grant audit admin access to view anonymous reports
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <form onSubmit={addAuditAdminUser} className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="audit-admin-email">Email</Label>
-                          <Input 
-                            id="audit-admin-email" 
-                            value={newAuditAdminEmail} 
-                            onChange={(e) => setNewAuditAdminEmail(e.target.value)}
-                            placeholder="e.g. user@flyadeal.com"
-                            type="email"
-                            required
-                          />
-                        </div>
-
-                        <Button type="submit" className="w-full">
-                          <UserPlus className="h-4 w-4 mr-2" />
-                          Add Audit Admin
-                        </Button>
-                      </form>
-                    </CardContent>
-                  </Card>
-
-                  {/* Existing audit admin users */}
-                  <Card className="md:col-span-2">
-                    <CardHeader>
-                      <CardTitle>Existing Audit Admins</CardTitle>
-                      <CardDescription>
-                        Manage users with access to anonymous reports
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {auditAdminUsers.length === 0 ? (
-                        <p className="text-gray-500 text-center py-4">No audit admin users found</p>
-                      ) : (
-                        <div className="space-y-4">
-                          {auditAdminUsers.map((user) => (
-                            <div key={user.email} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                              <div>
-                                <p className="font-medium">{user.email}</p>
-                                <p className="text-xs text-gray-500">Added: {new Date(user.created_at).toLocaleDateString()}</p>
-                              </div>
-                              <Button 
-                                variant="destructive" 
-                                size="sm" 
-                                onClick={() => removeAuditAdminUser(user.email)}
-                              >
-                                <UserMinus className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
 
               <TabsContent value="events">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1500,6 +1698,106 @@ function AdminPageContent() {
                               <div className="bg-gray-50 p-3 rounded-lg">
                                 <p className="text-xs font-medium text-gray-600 mb-1">Admin Notes:</p>
                                 <p className="text-sm text-gray-700">{suggestion.admin_notes}</p>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="ceo-questions">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Crown className="h-5 w-5 mr-2 text-flyadeal-yellow" />
+                      CEO Questions
+                    </CardTitle>
+                    <CardDescription>
+                      Review and respond to questions submitted to the CEO
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {ceoQuestions.length === 0 ? (
+                      <p className="text-gray-500 text-center py-4">No CEO questions found</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {ceoQuestions.map((question) => (
+                          <div key={question.id} className="border rounded-lg p-4 space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  {question.is_anonymous ? (
+                                    <span className="text-sm font-medium text-gray-500">Anonymous</span>
+                                  ) : (
+                                    <span className="text-sm font-medium text-gray-700">
+                                      {question.user_name || question.user_email}
+                                    </span>
+                                  )}
+                                  {question.category && (
+                                    <span className="text-xs bg-flyadeal-yellow/20 text-flyadeal-purple px-2 py-1 rounded capitalize">
+                                      {question.category.replace('_', ' ')}
+                                    </span>
+                                  )}
+                                  <span className={`text-xs px-2 py-1 rounded ${
+                                    question.status === 'new' ? 'bg-blue-100 text-blue-800' : 
+                                    question.status === 'under_review' ? 'bg-yellow-100 text-yellow-800' : 
+                                    question.status === 'answered' ? 'bg-green-100 text-green-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {question.status.replace('_', ' ')}
+                                  </span>
+                                </div>
+                                <p className="text-gray-700 whitespace-pre-wrap mb-3">{question.content}</p>
+                                {question.admin_response && (
+                                  <div className="bg-flyadeal-yellow/10 p-3 rounded-lg">
+                                    <p className="text-xs font-medium text-flyadeal-purple mb-1">CEO Response:</p>
+                                    <p className="text-sm text-gray-700">{question.admin_response}</p>
+                                  </div>
+                                )}
+                                <p className="text-xs text-gray-500 mt-2">
+                                  Submitted: {new Date(question.created_at).toLocaleString()}
+                                </p>
+                                {question.answered_at && (
+                                  <p className="text-xs text-gray-500">
+                                    Answered: {new Date(question.answered_at).toLocaleString()}
+                                  </p>
+                                )}
+                              </div>
+                              <Select
+                                value={question.status}
+                                onValueChange={(value) => updateCEOQuestionStatus(question.id, value)}
+                              >
+                                <SelectTrigger className="w-40 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                                  <SelectItem value="new">New</SelectItem>
+                                  <SelectItem value="under_review">Under Review</SelectItem>
+                                  <SelectItem value="answered">Answered</SelectItem>
+                                  <SelectItem value="dismissed">Dismissed</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            {/* Admin Response Form */}
+                            {(question.status === 'under_review' || question.status === 'answered') && (
+                              <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                <Label htmlFor={`response-${question.id}`} className="text-sm font-medium">
+                                  CEO Response:
+                                </Label>
+                                <Textarea
+                                  id={`response-${question.id}`}
+                                  placeholder="Enter CEO response here..."
+                                  defaultValue={question.admin_response || ''}
+                                  className="mt-1"
+                                  onBlur={(e) => {
+                                    if (e.target.value !== question.admin_response) {
+                                      updateCEOQuestionStatus(question.id, question.status, e.target.value);
+                                    }
+                                  }}
+                                />
                               </div>
                             )}
                           </div>
