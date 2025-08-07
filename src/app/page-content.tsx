@@ -121,6 +121,7 @@ function DashboardPage() {
   const { theme } = useTheme()
   const { data: session, status } = useSession()
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
+  const [mounted, setMounted] = useState(false)
   const [weather, setWeather] = useState({ temp: 25, condition: 'Loading...', location: 'Fetching...' })
   const [weatherLoading, setWeatherLoading] = useState(true)
   const [newsletterModalOpen, setNewsletterModalOpen] = useState(false)
@@ -132,7 +133,6 @@ function DashboardPage() {
   const fetchNewsletter = () => {
     // Only proceed if we have a session
     if (!session) {
-      console.log('[NEWSLETTER] Skipping fetch - no session');
       return;
     }
 
@@ -385,11 +385,9 @@ function DashboardPage() {
 
   // Fetch flight metrics when component mounts
   useEffect(() => {
-    console.log('[FLIGHT-DATA] Fetching flight metrics');
 
     // Only fetch if we have a session
     if (!session) {
-      console.log('[FLIGHT-DATA] Skipping fetch - no session');
       return;
     }
 
@@ -401,7 +399,6 @@ function DashboardPage() {
       }
     })
       .then(response => {
-        console.log('[FLIGHT-DATA] Response status:', response.status);
 
         if (!response.ok) {
           // Try to get more detailed error information
@@ -411,10 +408,8 @@ function DashboardPage() {
               // Try to parse as JSON
               const errorData = JSON.parse(text);
               errorMessage = errorData.error || errorMessage;
-              console.error('[FLIGHT-DATA] Error details:', errorData);
             } catch (e) {
               // If not JSON, use the text directly
-              console.error('[FLIGHT-DATA] Error response text:', text);
             }
             throw new Error(errorMessage);
           });
@@ -422,23 +417,14 @@ function DashboardPage() {
         return response.json();
       })
       .then(data => {
-        console.log('[FLIGHT-DATA] Data received:', {
-          success: data.success,
-          hasMetrics: !!data.metrics,
-          recordCount: data.recordCount
-        });
 
         if (data.success && data.metrics) {
           setFlightMetrics(data.metrics);
-          console.log('[FLIGHT-DATA] Metrics set successfully');
         } else {
-          console.error('[FLIGHT-DATA] Response missing metrics:', data);
           throw new Error('Response missing metrics data');
         }
       })
       .catch(error => {
-        console.error('[FLIGHT-DATA] Error fetching flight data:', error instanceof Error ? error.message : String(error));
-        console.error('[FLIGHT-DATA] Error stack:', error instanceof Error ? error.stack : 'No stack trace available');
 
         // Check if it's a network error
         const isNetworkError = 
@@ -450,7 +436,6 @@ function DashboardPage() {
            error.message.includes('network timeout'));
 
         if (isNetworkError) {
-          console.error('[FLIGHT-DATA] Network error detected - connectivity issue');
           // We could set a state here to show a network error message to the user
           // For now, we'll just log it, but in a real app, you might want to show a toast or error message
         }
@@ -622,30 +607,27 @@ function DashboardPage() {
   }
 
   useEffect(() => {
-    // Only set time on client side
-    if (typeof window !== 'undefined') {
-      // Set initial time
-      setCurrentTime(new Date())
-      // Update time every second
-      const timer = setInterval(() => setCurrentTime(new Date()), 1000)
-      return () => clearInterval(timer)
-    }
+    // Mark component as mounted
+    setMounted(true)
+    
+    // Set initial time
+    setCurrentTime(new Date())
+    // Update time every second
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000)
+    return () => clearInterval(timer)
   }, [])
 
   // Fetch weather data with geolocation
   useEffect(() => {
     const fetchWeatherData = async () => {
       try {
-        console.log('Starting weather fetch...');
         setWeatherLoading(true);
 
         // Try to get user's location
         if ('geolocation' in navigator) {
-          console.log('Geolocation available, requesting permission...');
           navigator.geolocation.getCurrentPosition(
             async (position) => {
               const { latitude, longitude } = position.coords;
-              console.log('Got location:', latitude, longitude);
 
               try {
                 const response = await fetch('/api/weather', {
@@ -658,11 +640,9 @@ function DashboardPage() {
                   credentials: 'same-origin'
                 });
 
-                console.log('Weather API response status:', response.status);
 
                 if (response.ok) {
                   const data = await response.json();
-                  console.log('Weather data received:', data);
 
                   if (data.weatherData) {
                     const newWeather = {
@@ -670,25 +650,14 @@ function DashboardPage() {
                       condition: data.weatherData.current.condition.text,
                       location: data.weatherData.location.name
                     };
-                    console.log('Setting weather to:', newWeather);
                     setWeather(newWeather);
                   } else {
-                    console.error('Weather API response missing weatherData:', data);
                     throw new Error('Weather API response missing weatherData');
                   }
                 } else {
-                  console.error('Weather API error:', response.status, response.statusText);
-                  // Try to get more detailed error information
-                  try {
-                    const errorData = await response.text();
-                    console.error('Weather API error details:', errorData);
-                  } catch (textError) {
-                    console.error('Could not read error response text:', textError);
-                  }
                   throw new Error(`Weather API returned status ${response.status}`);
                 }
               } catch (error: any) {
-                console.error('Error fetching weather:', error);
 
                 // Check if it's a network error
                 const isNetworkError = 
@@ -699,7 +668,6 @@ function DashboardPage() {
                    error.message.includes('network timeout'));
 
                 if (isNetworkError) {
-                  console.error('Weather API network error detected - connectivity issue');
                 }
 
                 // Use fallback if primary request fails
@@ -710,7 +678,6 @@ function DashboardPage() {
             },
             async (error) => {
               // Geolocation failed, use fallback (Jeddah)
-              console.log('Geolocation error:', error, 'using fallback location');
               await fetchFallbackWeather();
             },
             {
@@ -720,11 +687,9 @@ function DashboardPage() {
           );
         } else {
           // Geolocation not available, use fallback
-          console.log('Geolocation not available in this browser, using fallback location');
           await fetchFallbackWeather();
         }
       } catch (error) {
-        console.error('Weather fetch error:', error);
         setWeather({ temp: 25, condition: 'Clear', location: 'Jeddah' });
         setWeatherLoading(false);
       }
@@ -732,7 +697,6 @@ function DashboardPage() {
 
     // Helper function to fetch fallback weather for Jeddah
     const fetchFallbackWeather = async () => {
-      console.log('Fetching fallback weather for Jeddah');
       try {
         const response = await fetch('/api/weather', {
           method: 'POST',
@@ -744,7 +708,6 @@ function DashboardPage() {
           credentials: 'same-origin'
         });
 
-        console.log('Fallback weather API response status:', response.status);
 
         if (response.ok) {
           const data = await response.json();
@@ -754,27 +717,16 @@ function DashboardPage() {
               condition: data.weatherData.current.condition.text,
               location: data.weatherData.location.name
             };
-            console.log('Setting fallback weather to:', fallbackWeather);
             setWeather(fallbackWeather);
           } else {
-            console.error('Fallback weather API response missing weatherData:', data);
             // Use hardcoded values as last resort
             setWeather({ temp: 25, condition: 'Clear', location: 'Jeddah' });
           }
         } else {
-          console.error('Fallback weather API error:', response.status, response.statusText);
-          // Try to get more detailed error information
-          try {
-            const errorData = await response.text();
-            console.error('Fallback weather API error details:', errorData);
-          } catch (textError) {
-            console.error('Could not read fallback error response text:', textError);
-          }
           // Use hardcoded values as last resort
           setWeather({ temp: 25, condition: 'Clear', location: 'Jeddah' });
         }
       } catch (error: any) {
-        console.error('Error fetching fallback weather:', error);
 
         // Check if it's a network error
         const isNetworkError = 
@@ -785,7 +737,6 @@ function DashboardPage() {
            error.message.includes('network timeout'));
 
         if (isNetworkError) {
-          console.error('Fallback weather API network error detected - connectivity issue');
         }
 
         // Set default values if all fails
@@ -796,7 +747,6 @@ function DashboardPage() {
     };
 
     // Only fetch weather after component is mounted and user is authenticated
-    console.log('Weather useEffect triggered. Session:', !!session);
     if (session && typeof window !== 'undefined') {
       fetchWeatherData();
     }
@@ -804,21 +754,17 @@ function DashboardPage() {
 
   // Newsletter loading effect - only runs on client side
   useEffect(() => {
-    console.log('[NEWSLETTER] useEffect triggered');
 
     // Skip this effect during server-side rendering
     if (typeof window === 'undefined') {
-      console.log('[NEWSLETTER] Skipped - server-side rendering');
       return;
     }
 
     // Also skip if no session
     if (!session) {
-      console.log('[NEWSLETTER] Skipped - no session');
       return;
     }
 
-    console.log('[NEWSLETTER] Effect running with session:', session?.user?.email);
 
     // Set up context with user information if available
     const logContext = session?.user ? {
@@ -1541,14 +1487,14 @@ function DashboardPage() {
                   </div>
                   <div>
                     <div className="text-gray-800 dark:text-white text-lg font-semibold">
-                      {currentTime ? currentTime.toLocaleTimeString('en-US', { 
+                      {mounted && currentTime ? currentTime.toLocaleTimeString('en-US', { 
                         hour: '2-digit', 
                         minute: '2-digit',
                         hour12: true 
                       }) : '--:--'}
                     </div>
                     <div className="text-gray-600 dark:text-gray-300 text-sm">
-                      {currentTime ? currentTime.toLocaleDateString('en-US', { 
+                      {mounted && currentTime ? currentTime.toLocaleDateString('en-US', { 
                         weekday: 'long',
                         year: 'numeric',
                         month: 'long',
@@ -1849,7 +1795,6 @@ function DashboardPage() {
                                 </div>
                               );
                             } catch (error) {
-                              console.error('Newsletter rendering error:', error);
                               return (
                                 <div className="newsletter-render-error p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                                   <h4 className="text-lg font-semibold text-yellow-800 dark:text-yellow-300 mb-2">
@@ -2086,7 +2031,6 @@ function DashboardPage() {
                           </div>
                         );
                       } catch (error) {
-                        console.error('Newsletter rendering error:', error);
                         return (
                           <div className="newsletter-render-error p-6 bg-yellow-50 border border-yellow-200 rounded-lg">
                             <h4 className="text-lg font-semibold text-yellow-800 dark:text-yellow-300 mb-2">

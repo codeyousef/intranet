@@ -69,7 +69,6 @@ export function RaiseYourVoice() {
         setMessage(data.error || 'Failed to submit feedback')
       }
     } catch (error) {
-      console.error('Error submitting complaint:', error)
       setSubmitStatus('error')
       setMessage('Failed to submit feedback. Please try again.')
     } finally {

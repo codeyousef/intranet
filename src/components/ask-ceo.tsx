@@ -75,7 +75,6 @@ export function AskCEO() {
         setMessage(data.error || 'Failed to submit question')
       }
     } catch (error) {
-      console.error('Error submitting CEO question:', error)
       setSubmitStatus('error')
       setMessage('Failed to submit question. Please try again.')
     } finally {

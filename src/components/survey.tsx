@@ -48,7 +48,7 @@ export function Survey() {
         }
       }
     } catch (error) {
-      console.error('Error fetching survey:', error)
+      // Silently handle survey fetch error
     } finally {
       setLoading(false)
     }
@@ -84,7 +84,6 @@ export function Survey() {
         alert(error.error || 'Failed to submit vote')
       }
     } catch (error) {
-      console.error('Error voting:', error)
       alert('Failed to submit vote')
     } finally {
       setVoting(false)

@@ -10,8 +10,6 @@ import Image from 'next/image'
 
 // Custom signout function
 const handleSignOut = () => {
-  console.log('Sign out button clicked')
-
   // Use the NextAuth signOut function
   signOut({ callbackUrl: '/' })
 }
@@ -86,7 +84,7 @@ function NavigationContent() {
         const data = await response.json()
         setIsAdmin(data.isAdmin)
       } catch (error) {
-        console.error('Error checking admin status:', error)
+        // Silently handle error - admin check is not critical
       }
     }
 

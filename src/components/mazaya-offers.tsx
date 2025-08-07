@@ -155,7 +155,6 @@ export default function MazayaOffers({
           onCompaniesLoaded(uniqueCompanies as string[]);
         }
       } catch (err) {
-        console.error('Failed to fetch offers:', err);
         setError('Failed to load offers. Please try again later.');
       } finally {
         setLoading(false);

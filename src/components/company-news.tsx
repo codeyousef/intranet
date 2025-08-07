@@ -36,7 +36,6 @@ export function CompanyNews() {
         const data = await response.json()
         setNews(Array.isArray(data) ? data : [])
       } catch (err) {
-        console.error('Error fetching company news data:', err)
         setError('Failed to load company news data')
       } finally {
         setLoading(false)

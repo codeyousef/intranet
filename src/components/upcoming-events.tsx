@@ -36,7 +36,6 @@ export function UpcomingEvents() {
         const data = await response.json()
         setEvents(Array.isArray(data) ? data : [])
       } catch (err) {
-        console.error('Error fetching events data:', err)
         setError('Failed to load events data')
       } finally {
         setLoading(false)

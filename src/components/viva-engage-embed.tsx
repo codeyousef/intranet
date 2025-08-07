@@ -98,7 +98,6 @@ export function VivaEngageEmbed({
       } catch (err) {
         if (!isMounted) return; // Don't update state if component is unmounted
 
-        console.error('Error fetching Viva Engage content:', err)
         setError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
         if (isMounted) {
@@ -143,7 +142,6 @@ export function VivaEngageEmbed({
           }
         } catch (e) {
           // Ignore any errors that might occur during cleanup
-          console.error('Error during iframe cleanup:', e);
         }
 
         // Clear HTML content state

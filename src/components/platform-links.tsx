@@ -28,7 +28,6 @@ export default function PlatformLinks() {
         setLinks(activeLinks)
         setIsLoading(false)
       } catch (error) {
-        console.error('Error fetching platform links:', error)
         setError('Failed to load platform links')
         setIsLoading(false)
       }

@@ -58,7 +58,6 @@ const NewsletterArchive: React.FC<INewsletterArchiveProps> = (props) => {
       }
       setFiles(generatedFiles);
     } catch (error) {
-      console.error("Error generating file list:", error);
       setErrorMessage("Error preparing file list.");
     }
   }, [folderServerRelativeUrl]); // Rerun effect if folder path changes
@@ -78,8 +77,6 @@ const NewsletterArchive: React.FC<INewsletterArchiveProps> = (props) => {
       const encodedFilePath = encodeURIComponent(fileItemPath);
       const apiUrl = `/api/sharepoint/newsletter-archive?path=${encodedFilePath}`;
 
-      console.log("Fetching newsletter archive file:", apiUrl);
-
       // Fetch content using fetch API
       const response = await fetch(apiUrl);
 
@@ -93,7 +90,6 @@ const NewsletterArchive: React.FC<INewsletterArchiveProps> = (props) => {
       } else {
         // Handle non-successful responses
         const errorText = await response.text();
-        console.error(`Error fetching file: ${response.status} ${response.statusText}`, errorText);
         let specificError = `Could not load file content (${response.status}). Check permissions and file path.`;
         if (response.status === 404) {
           specificError = "File not found at the specified path. Check configuration.";
@@ -104,7 +100,6 @@ const NewsletterArchive: React.FC<INewsletterArchiveProps> = (props) => {
         setSelectedFileContent(null);
       }
     } catch (error: any) {
-      console.error("Error fetching file content:", error);
       setErrorMessage("An unexpected error occurred while loading file content.");
       setSelectedFileContent(null);
     } finally {

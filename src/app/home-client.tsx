@@ -150,21 +150,6 @@ function DashboardPage() {
     setIsClient(true)
   }, [])
 
-  // Log component render state for debugging (only in development and only on client)
-  const renderState = {
-    hasSession: !!session,
-    hasNewsletter: !!newsletter,
-    hasNewsletterError: !!newsletterError,
-    newsletterModalOpen,
-    isClient
-  };
-
-  // Only run this on the client side
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined' && localStorage.getItem('debug') === 'true') {
-      console.log('🔄 DashboardPage rendering with:', renderState)
-    }
-  }, [renderState]);
 
   // Function to reset newsletter loading state and force a fresh fetch
   // This clears the localStorage flag, resets the debounce timestamp,
@@ -177,9 +162,6 @@ function DashboardPage() {
       setNewsletterError(null) // Clear any error state
 
       localStorage.removeItem('newsletterLoaded')
-      if (process.env.NODE_ENV === 'development' && localStorage.getItem('debug') === 'true') {
-        console.log('🔄 Newsletter loading state and debounce timestamp reset')
-      }
 
       // Reload the page with force_fetch parameter to ensure a fresh fetch
       const url = new URL(window.location.href)
@@ -200,16 +182,13 @@ function DashboardPage() {
   useEffect(() => {
     const fetchWeatherData = async () => {
       try {
-        console.log('Starting weather fetch...');
         setWeatherLoading(true);
 
         // Try to get user's location
         if ('geolocation' in navigator) {
-          console.log('Geolocation available, requesting permission...');
           navigator.geolocation.getCurrentPosition(
             async (position) => {
               const { latitude, longitude } = position.coords;
-              console.log('Got location:', latitude, longitude);
 
               try {
                 const response = await fetch('/api/weather', {
@@ -222,11 +201,9 @@ function DashboardPage() {
                   credentials: 'same-origin'
                 });
 
-                console.log('Weather API response status:', response.status);
 
                 if (response.ok) {
                   const data = await response.json();
-                  console.log('Weather data received:', data);
 
                   if (data.weatherData) {
                     const newWeather = {
@@ -234,12 +211,10 @@ function DashboardPage() {
                       condition: data.weatherData.current.condition.text,
                       location: data.weatherData.location.name
                     };
-                    console.log('Setting weather to:', newWeather);
                     setWeather(newWeather);
 
                     // Check if this is fallback data
                     if (data.isFallback) {
-                      console.log('Using fallback weather data:', data.fallbackReason || 'Unknown reason');
                       setIsWeatherFallback(true);
                       setWeatherFallbackReason(data.fallbackReason || 'Connectivity issue');
                     } else {
@@ -247,34 +222,12 @@ function DashboardPage() {
                       setWeatherFallbackReason(null);
                     }
                   } else {
-                    console.error('Weather API response missing weatherData:', data);
                     throw new Error('Weather API response missing weatherData');
                   }
                 } else {
-                  console.error('Weather API error:', response.status, response.statusText);
-                  // Try to get more detailed error information
-                  try {
-                    const errorData = await response.text();
-                    console.error('Weather API error details:', errorData);
-                  } catch (textError) {
-                    console.error('Could not read error response text:', textError);
-                  }
                   throw new Error(`Weather API returned status ${response.status}`);
                 }
               } catch (error: any) {
-                console.error('Error fetching weather:', error);
-
-                // Check if it's a network error
-                const isNetworkError = 
-                  error.name === 'TypeError' && 
-                  (error.message.includes('Failed to fetch') || 
-                   error.message.includes('Network request failed') ||
-                   error.message.includes('Network error') ||
-                   error.message.includes('network timeout'));
-
-                if (isNetworkError) {
-                  console.error('Weather API network error detected - connectivity issue');
-                }
 
                 // Use fallback if primary request fails
                 await fetchFallbackWeather();
@@ -284,7 +237,6 @@ function DashboardPage() {
             },
             async (error) => {
               // Geolocation failed, use fallback (Jeddah)
-              console.log('Geolocation error:', error, 'using fallback location');
               await fetchFallbackWeather();
             },
             {
@@ -294,11 +246,9 @@ function DashboardPage() {
           );
         } else {
           // Geolocation not available, use fallback
-          console.log('Geolocation not available in this browser, using fallback location');
           await fetchFallbackWeather();
         }
       } catch (error) {
-        console.error('Weather fetch error:', error);
         setWeather({ temp: 25, condition: 'Clear', location: 'Jeddah' });
         setWeatherLoading(false);
       }
@@ -306,7 +256,6 @@ function DashboardPage() {
 
     // Helper function to fetch fallback weather for Jeddah
     const fetchFallbackWeather = async () => {
-      console.log('Fetching fallback weather for Jeddah');
       try {
         const response = await fetch('/api/weather', {
           method: 'POST',
@@ -318,7 +267,6 @@ function DashboardPage() {
           credentials: 'same-origin'
         });
 
-        console.log('Fallback weather API response status:', response.status);
 
         if (response.ok) {
           const data = await response.json();
@@ -328,12 +276,10 @@ function DashboardPage() {
               condition: data.weatherData.current.condition.text,
               location: data.weatherData.location.name
             };
-            console.log('Setting fallback weather to:', fallbackWeather);
             setWeather(fallbackWeather);
 
             // Check if this is fallback data from the API
             if (data.isFallback) {
-              console.log('Using API-provided fallback weather data:', data.fallbackReason || 'Unknown reason');
               setIsWeatherFallback(true);
               setWeatherFallbackReason(data.fallbackReason || 'Connectivity issue');
             } else {
@@ -342,40 +288,18 @@ function DashboardPage() {
               setWeatherFallbackReason('Using Jeddah weather data');
             }
           } else {
-            console.error('Fallback weather API response missing weatherData:', data);
             // Use hardcoded values as last resort
             setWeather({ temp: 25, condition: 'Clear', location: 'Jeddah' });
             setIsWeatherFallback(true);
             setWeatherFallbackReason('Using default weather data');
           }
         } else {
-          console.error('Fallback weather API error:', response.status, response.statusText);
-          // Try to get more detailed error information
-          try {
-            const errorData = await response.text();
-            console.error('Fallback weather API error details:', errorData);
-          } catch (textError) {
-            console.error('Could not read fallback error response text:', textError);
-          }
           // Use hardcoded values as last resort
           setWeather({ temp: 25, condition: 'Clear', location: 'Jeddah' });
           setIsWeatherFallback(true);
           setWeatherFallbackReason('Using default weather data');
         }
       } catch (error: any) {
-        console.error('Error fetching fallback weather:', error);
-
-        // Check if it's a network error
-        const isNetworkError = 
-          error.name === 'TypeError' && 
-          (error.message.includes('Failed to fetch') || 
-           error.message.includes('Network request failed') ||
-           error.message.includes('Network error') ||
-           error.message.includes('network timeout'));
-
-        if (isNetworkError) {
-          console.error('Fallback weather API network error detected - connectivity issue');
-        }
 
         // Set default values if all fails
         setWeather({ temp: 25, condition: 'Clear', location: 'Jeddah' });
@@ -387,8 +311,6 @@ function DashboardPage() {
     };
 
     // Only fetch weather after component is mounted and user is authenticated
-    console.log('Weather useEffect triggered. Session:', !!session, 'isClient:', isClient);
-    // Use session.status instead of undefined status variable
     if (session && isClient) {
       fetchWeatherData();
     }
@@ -396,83 +318,19 @@ function DashboardPage() {
 
   // Newsletter loading effect - only runs on client side
   useEffect(() => {
-    // ULTRA-AGGRESSIVE LOGGING - Log absolutely everything at the start
-    console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] useEffect ENTRY POINT - ${new Date().toISOString()}`);
-    console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] Window check: ${typeof window !== 'undefined' ? 'CLIENT' : 'SERVER'}`);
-    console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] Dependencies: status="${status}", isClient=${isClient}`);
-    console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] Session: hasSession=${!!session}, email=${session?.user?.email || 'none'}`);
-    console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] Newsletter state: title="${newsletter?.title || 'none'}"`);
-    console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] Global loaded: ${globalNewsletterLoaded.current}`);
-
     // Skip this effect during server-side rendering
     if (typeof window === 'undefined') {
-      console.error('🚨 [NEWSLETTER-ULTRA-CRITICAL] EXITING - server-side rendering detected');
       return;
     }
-
-    console.error('🚨 [NEWSLETTER-ULTRA-CRITICAL] PASSED window check - proceeding');
-
-    // Log when the useEffect runs and why
-    console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] Newsletter useEffect triggered at ${new Date().toISOString()}`, {
-      sessionStatus: status,
-      hasSession: !!session,
-      userEmail: session?.user?.email || 'none',
-      isClient,
-      dependencies: { status, isClient },
-      currentNewsletterTitle: newsletter?.title || 'none',
-      globalNewsletterLoaded: globalNewsletterLoaded.current,
-      localStorage: {
-        newsletterLoaded: typeof window !== 'undefined' ? localStorage.getItem('newsletterLoaded') : 'unavailable',
-        hasNewsletterData: typeof window !== 'undefined' ? !!localStorage.getItem('newsletterData') : false
-      }
-    });
 
     // Check if user is authenticated before proceeding
     if (status === 'loading') {
-      console.error('🚨 [NEWSLETTER-ULTRA-CRITICAL] EXITING - Session still loading');
       return;
     }
-
-    console.error('🚨 [NEWSLETTER-ULTRA-CRITICAL] PASSED loading check - status is not loading');
 
     if (status === 'unauthenticated' || !session) {
-      console.error('🚨 [NEWSLETTER-ULTRA-CRITICAL] EXITING - User not authenticated', {
-        status,
-        hasSession: !!session
-      });
       return;
     }
-
-    console.error('🚨 [NEWSLETTER-ULTRA-CRITICAL] PASSED authentication check - user is authenticated');
-
-    console.error('[NEWSLETTER-CRITICAL] User authenticated - proceeding with newsletter logic', {
-      status,
-      userEmail: session.user?.email || 'none'
-    });
-
-    console.error('[NEWSLETTER-CRITICAL] About to create logging functions');
-
-    // Create enhanced logging functions with actual implementation for debugging
-    const debugLog = (message: any, ...args: any[]) => {
-      console.debug(`[NEWSLETTER-DEBUG] ${message}`, ...args);
-    };
-
-    // Critical logs are always shown regardless of log level
-    const criticalLog = (message: any, ...args: any[]) => {
-      console.error(`[NEWSLETTER-CRITICAL] ${message}`, ...args);
-    };
-
-    // Info logs for important information
-    const infoLog = (message: any, ...args: any[]) => {
-      console.log(`[NEWSLETTER-INFO] ${message}`, ...args);
-    };
-
-    // Error logs are always shown
-    const errorLog = (message: any, ...args: any[]) => {
-      console.error(`[NEWSLETTER-ERROR] ${message}`, ...args);
-    };
-
-    console.error('[NEWSLETTER-CRITICAL] About to check newsletter loading state');
     
     // CRITICAL: First check if we have fallback content cached and clear it
     const cachedNewsletterData = localStorage.getItem('newsletterData');
@@ -480,18 +338,15 @@ function DashboardPage() {
       try {
         const parsedData = JSON.parse(cachedNewsletterData);
         if (parsedData.isFallback || parsedData.source === 'system') {
-          console.error('[NEWSLETTER-CRITICAL] Found cached fallback content - CLEARING IT');
           localStorage.removeItem('newsletterData');
           localStorage.removeItem('newsletterLoaded');
           globalNewsletterLoaded.current = false;
-          criticalLog('Cleared cached fallback content to force fresh fetch', {
-            title: parsedData.title,
-            source: parsedData.source,
-            isFallback: parsedData.isFallback
-          });
         }
       } catch (e) {
-        console.error('[NEWSLETTER-CRITICAL] Error parsing cached newsletter data', e);
+        // Error parsing cached data - silently clear it
+        localStorage.removeItem('newsletterData');
+        localStorage.removeItem('newsletterLoaded');
+        globalNewsletterLoaded.current = false;
       }
     }
 
@@ -499,18 +354,7 @@ function DashboardPage() {
     const newsletterLoaded = localStorage.getItem('newsletterLoaded') === 'true';
     globalNewsletterLoaded.current = newsletterLoaded;
 
-    console.error('[NEWSLETTER-CRITICAL] Newsletter loading state checked', {
-      newsletterLoaded,
-      globalNewsletterLoaded: globalNewsletterLoaded.current,
-      localStorageValue: localStorage.getItem('newsletterLoaded')
-    });
-
-    infoLog(`Newsletter loading state check: ${newsletterLoaded ? 'Already loaded' : 'Not loaded yet'}`);
-
     if (newsletterLoaded) {
-      console.error('[NEWSLETTER-CRITICAL] Newsletter marked as loaded - checking localStorage data');
-      debugLog('🔍 Newsletter already loaded in this session, checking localStorage for data');
-      infoLog('Attempting to load newsletter from localStorage');
 
       // Try to get newsletter data from localStorage
       const storedNewsletter = localStorage.getItem('newsletterData');
@@ -521,14 +365,6 @@ function DashboardPage() {
           // Check if the stored newsletter is valid (not an error or loading state)
           // FIXED: Removed system source check to allow fallback content to be displayed
 
-          // 🚨 ULTRA-CRITICAL DEBUGGING - Log every single validation step
-          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] Starting validation - ${new Date().toISOString()}`);
-          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] parsedNewsletter exists: ${!!parsedNewsletter}`);
-          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] has content: ${!!parsedNewsletter?.content}`);
-          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] title: "${parsedNewsletter?.title}"`);
-          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] source: "${parsedNewsletter?.source}"`);
-          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] isFallback: ${parsedNewsletter?.isFallback}`);
-
           const hasNewsletter = !!parsedNewsletter;
           const hasContent = !!parsedNewsletter?.content;
           const notLoadingTitle = parsedNewsletter?.title !== "Loading Newsletter";
@@ -536,77 +372,15 @@ function DashboardPage() {
           const notTempUnavailableTitle = parsedNewsletter?.title !== "Newsletter Temporarily Unavailable";
           const notServiceUnavailableTitle = parsedNewsletter?.title !== "Newsletter Service Temporarily Unavailable";
 
-          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] Validation checks:`);
-          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   hasNewsletter: ${hasNewsletter}`);
-          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   hasContent: ${hasContent}`);
-          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   notLoadingTitle: ${notLoadingTitle}`);
-          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   notErrorTitle: ${notErrorTitle}`);
-          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   notTempUnavailableTitle: ${notTempUnavailableTitle}`);
-          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL]   notServiceUnavailableTitle: ${notServiceUnavailableTitle}`);
-
           // FIXED: Only reject based on specific error titles, not the source
           // This allows system-generated fallback content to be displayed properly
           // CRITICAL: Also check for fallback content to force fresh fetch
           const notFallbackContent = !parsedNewsletter?.isFallback;
           const isValidNewsletter = hasNewsletter && hasContent && notLoadingTitle && notErrorTitle && notTempUnavailableTitle && notServiceUnavailableTitle && notFallbackContent;
 
-          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] FINAL RESULT: isValidNewsletter = ${isValidNewsletter}`);
-          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] Content source: ${parsedNewsletter?.source || 'unknown'}`);
-          console.error(`🚨 [NEWSLETTER-VALIDATION-ULTRA-CRITICAL] Is fallback: ${parsedNewsletter?.isFallback || false}`);
-
-          // Log detailed validation information to help debug issues
-          criticalLog('Validating stored newsletter - DETAILED CHECK', {
-            isValid: isValidNewsletter,
-            title: parsedNewsletter?.title || 'unknown',
-            hasContent: !!parsedNewsletter?.content,
-            contentLength: parsedNewsletter?.content?.length || 0,
-            source: parsedNewsletter?.source || 'unknown',
-            lastUpdated: parsedNewsletter?.lastUpdated || 'unknown',
-            failedChecks: {
-              noNewsletter: !parsedNewsletter,
-              noContent: !parsedNewsletter?.content,
-              loadingTitle: parsedNewsletter?.title === "Loading Newsletter",
-              errorTitle: parsedNewsletter?.title === "Newsletter Error",
-              tempUnavailableTitle: parsedNewsletter?.title === "Newsletter Temporarily Unavailable",
-              serviceUnavailableTitle: parsedNewsletter?.title === "Newsletter Service Temporarily Unavailable"
-            },
-            isFallback: parsedNewsletter?.isFallback || false
-          });
-
-          debugLog('🔍 Validating stored newsletter', {
-            isValid: isValidNewsletter,
-            title: parsedNewsletter?.title || 'unknown',
-            hasContent: !!parsedNewsletter?.content,
-            source: parsedNewsletter?.source || 'unknown'
-          });
-
           if (isValidNewsletter) {
             setNewsletter(parsedNewsletter);
-
-            // Log the state change with critical level to ensure it's always displayed
-            criticalLog('Newsletter state set from localStorage - SUCCESS', {
-              title: parsedNewsletter.title,
-              contentLength: parsedNewsletter.content?.length || 0,
-              lastUpdated: parsedNewsletter.lastUpdated,
-              source: parsedNewsletter.source,
-              stateChange: `${newsletter?.title || 'none'} -> ${parsedNewsletter.title}`,
-              timestamp: new Date().toISOString()
-            });
-
-            debugLog('✅ Loaded newsletter data from localStorage', parsedNewsletter);
-            infoLog('Successfully loaded newsletter from localStorage', {
-              title: parsedNewsletter.title,
-              contentLength: parsedNewsletter.content?.length || 0,
-              lastUpdated: parsedNewsletter.lastUpdated,
-              source: parsedNewsletter.source
-            });
           } else {
-            debugLog('⚠️ Stored newsletter is in error/loading state - forcing fresh fetch', {
-              title: parsedNewsletter?.title || 'unknown',
-              source: parsedNewsletter?.source || 'unknown'
-            });
-            infoLog('Stored newsletter is in error/loading state - forcing fresh fetch');
-
             // Clear the flag since we have invalid data
             localStorage.removeItem('newsletterLoaded');
             localStorage.removeItem('newsletterData');
@@ -622,56 +396,35 @@ function DashboardPage() {
 
             setNewsletter(loadingNewsletter);
 
-            // Log the state change with critical level to ensure it's always displayed
-            criticalLog('Newsletter state set to loading - INVALID STORED DATA', {
-              title: loadingNewsletter.title,
-              stateChange: `${newsletter?.title || 'none'} -> ${loadingNewsletter.title}`,
-              reason: 'invalid stored data detected',
-              timestamp: new Date().toISOString()
-            });
-
             // Trigger a fetch with a slight delay to ensure UI updates first
-            infoLog('Triggering fetch due to invalid stored data');
             setTimeout(() => {
               // Continue with the fetch logic below (outside this if/else)
               const now = Date.now();
               lastFetchAttempt.timestamp = now;
-              debugLog('🔄 Fetching newsletter from API');
-              criticalLog(`Initiating newsletter fetch from API at ${new Date().toISOString()}`);
 
               fetch('/api/sharepoint/newsletter')
                 .then(response => {
-                  criticalLog(`Newsletter API response received - Status: ${response.status} ${response.statusText}`);
-
                   if (!response.ok) {
                     throw new Error(`API returned ${response.status}: ${response.statusText}`);
                   }
                   return response.json();
                 })
                 .then(data => {
-                  console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] API Response received: ${JSON.stringify(data, null, 2)}`);
-
                   if (data.success && data.newsletter) {
-                    debugLog('✅ Newsletter fetched successfully', data.newsletter);
-                    console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] SUCCESS - Setting newsletter from API response`);
                     setNewsletter(data.newsletter);
                     localStorage.setItem('newsletterData', JSON.stringify(data.newsletter));
                     localStorage.setItem('newsletterLoaded', 'true');
                     globalNewsletterLoaded.current = true;
                   } else if (!data.success && data.fallbackContent) {
                     // API returned error but provided fallback content
-                    console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] API ERROR with fallback - Using fallback content but NOT caching it`);
-                    debugLog('⚠️ Newsletter API returned error, using fallback content', data.fallbackContent);
                     setNewsletter(data.fallbackContent);
                     // Don't cache fallback content - this allows retry on next visit
                     // Don't set newsletterLoaded flag either
                   } else {
-                    console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] API ERROR without fallback - Throwing error`);
                     throw new Error(data.error || 'Unknown error fetching newsletter');
                   }
                 })
                 .catch(error => {
-                  errorLog(`Newsletter fetch failed: ${error.message}`);
                   setNewsletterError(`Failed to load the newsletter. ${error.message}\n\nPlease try again later or contact IT support if the issue persists.`);
                 });
             }, 100);
@@ -680,12 +433,8 @@ function DashboardPage() {
             return;
           }
         } catch (error) {
-          debugLog('❌ Error parsing newsletter data from localStorage', error);
-          errorLog('Failed to parse newsletter data from localStorage', error);
           setNewsletterError('Error loading saved newsletter data. Please try refreshing the page.');
         }
-      } else {
-        infoLog('No newsletter data found in localStorage despite loaded flag being set');
       }
 
       return;
@@ -694,71 +443,16 @@ function DashboardPage() {
     // Check URL parameters for force_fetch flag and other parameters
     const urlParams = new URLSearchParams(window.location.search);
     const forceFetch = urlParams.get('force_fetch') === 'true';
-    const clearCache = urlParams.get('clear_cache') === 'true';
-    const debugMode = urlParams.get('debug_newsletter') === 'true';
-    const fetchTimestamp = parseInt(urlParams.get('fetch_ts') || '0', 10);
-    const currentTimestamp = Date.now();
-    const timeSinceLastFetch = currentTimestamp - lastFetchAttempt.timestamp;
-
-    // Log detailed information about URL parameters and fetch decision
-    criticalLog('URL parameters and fetch decision - DETAILED CHECK', {
-      forceFetch,
-      clearCache,
-      debugMode,
-      fetchTimestamp: fetchTimestamp > 0 ? new Date(fetchTimestamp).toISOString() : 'none',
-      currentTimestamp: new Date(currentTimestamp).toISOString(),
-      lastFetchTimestamp: lastFetchAttempt.timestamp > 0 ? new Date(lastFetchAttempt.timestamp).toISOString() : 'never',
-      timeSinceLastFetch: `${Math.round(timeSinceLastFetch / 1000)} seconds`,
-      newsletterLoaded: globalNewsletterLoaded.current,
-      shouldFetch: !globalNewsletterLoaded.current || forceFetch,
-      localStorage: {
-        newsletterLoaded: localStorage.getItem('newsletterLoaded'),
-        hasNewsletterData: !!localStorage.getItem('newsletterData'),
-        newsletterDataSize: localStorage.getItem('newsletterData')?.length || 0
-      }
-    });
-
-    infoLog(`Force fetch parameter check: ${forceFetch ? 'Force fetch requested' : 'Normal fetch flow'}`);
-
-    console.error('[NEWSLETTER-CRITICAL] About to check if should fetch newsletter', {
-      globalNewsletterLoaded: globalNewsletterLoaded.current,
-      forceFetch,
-      shouldFetch: !globalNewsletterLoaded.current || forceFetch
-    });
 
     // If newsletter hasn't been loaded or force_fetch is true, fetch it
     if (!globalNewsletterLoaded.current || forceFetch) {
-      console.error('[NEWSLETTER-CRITICAL] Decided to fetch newsletter - entering fetch logic');
       // Implement debounce to prevent rapid successive fetches
       const now = Date.now();
       if (now - lastFetchAttempt.timestamp < lastFetchAttempt.minInterval) {
-        debugLog('🔒 Fetch attempt too soon after previous attempt, skipping');
-        infoLog(`Debounce protection triggered - last attempt was ${now - lastFetchAttempt.timestamp}ms ago (minimum interval: ${lastFetchAttempt.minInterval}ms)`);
         return;
       }
 
       lastFetchAttempt.timestamp = now;
-      debugLog('🔄 Fetching newsletter from API');
-      criticalLog(`Initiating newsletter fetch from API at ${new Date().toISOString()}`);
-
-      // Log browser and environment information for troubleshooting
-      criticalLog('Environment information - DETAILED CHECK', {
-        userAgent: navigator.userAgent,
-        language: navigator.language,
-        cookiesEnabled: navigator.cookieEnabled,
-        windowDimensions: `${window.innerWidth}x${window.innerHeight}`,
-        timestamp: new Date().toISOString(),
-        endpoint: '/api/sharepoint/newsletter',
-        sessionInfo: {
-          hasSession: !!session,
-          userEmail: session?.user?.email || 'unknown'
-        },
-        fetchAttemptInfo: {
-          lastAttemptTimestamp: lastFetchAttempt.timestamp,
-          timeSinceLastAttempt: now - lastFetchAttempt.timestamp,
-          minInterval: lastFetchAttempt.minInterval
-        }
-      });
 
       // Fetch the newsletter
       fetch('/api/sharepoint/newsletter-list')
@@ -804,11 +498,8 @@ function DashboardPage() {
               });
 
               // Still log the error for monitoring
-              console.warn("Newsletter service is in maintenance mode (503)");
-
               // Don't save this fallback to localStorage for 503 errors
               // This will allow it to try fetching again on the next visit when the service might be available
-              console.log('[NEWSLETTER] Not setting loaded flag for 503 error - allowing retry on next visit');
 
               // Return early to avoid the error path
               return;
@@ -907,76 +598,11 @@ function DashboardPage() {
               localStorageLoaded: localStorage.getItem('newsletterLoaded')
             });
 
-            infoLog('Newsletter data saved to localStorage');
           } else if (!data.success && data.fallbackContent) {
             // API returned error but provided fallback content
-            console.error(`🚨 [NEWSLETTER-ULTRA-CRITICAL] API ERROR with fallback - Using fallback content but NOT caching it`);
-
-            criticalLog('API returned error with fallback content - FALLBACK PATH', {
-              success: data.success,
-              error: data.error || 'Unknown error',
-              details: data.details || 'No details provided',
-              hasFallbackContent: !!data.fallbackContent,
-              fallbackTitle: data.fallbackContent?.title || 'unknown',
-              fallbackSource: data.fallbackContent?.source || 'unknown',
-              dataKeys: Object.keys(data || {}),
-              currentNewsletterTitle: newsletter?.title || 'none'
-            });
-
-            debugLog('⚠️ Newsletter API returned error, using fallback content', data.fallbackContent);
-
-            // Log state change for fallback content
-            criticalLog('Setting newsletter state - FALLBACK CONTENT PATH', {
-              previousTitle: newsletter?.title || 'none',
-              newTitle: data.fallbackContent.title,
-              stateChange: `${newsletter?.title || 'none'} -> ${data.fallbackContent.title}`,
-              reason: 'API error with fallback content',
-              willCache: false
-            });
-
             setNewsletter(data.fallbackContent);
-
             // 🚨 CRITICAL: Don't cache fallback content - this allows retry on next visit
-            // Don't set newsletterLoaded flag either
-            criticalLog('NOT caching fallback content - RETRY STRATEGY', {
-              reason: 'fallback content should not prevent fresh fetch attempts',
-              globalLoaded: globalNewsletterLoaded.current,
-              localStorageLoaded: localStorage.getItem('newsletterLoaded')
-            });
           } else {
-            // Log detailed error information
-            criticalLog('API returned success:false or missing newsletter data - ERROR PATH', {
-              success: data.success,
-              error: data.error || 'Unknown error',
-              details: data.details || 'No details provided',
-              hasNewsletter: !!data.newsletter,
-              hasFallbackContent: !!data.fallbackContent,
-              dataKeys: Object.keys(data || {}),
-              currentNewsletterTitle: newsletter?.title || 'none'
-            });
-
-            errorLog('API returned success:false or missing newsletter data', {
-              success: data.success,
-              error: data.error || 'Unknown error',
-              details: data.details || 'No details provided'
-            });
-
-            // If there's a newsletter object in the error response, log its details
-            if (data.newsletter) {
-              criticalLog('Error response included newsletter fallback content - FALLBACK CHECK', {
-                title: data.newsletter.title,
-                contentLength: data.newsletter.content?.length || 0,
-                source: data.newsletter.source,
-                allKeys: Object.keys(data.newsletter || {})
-              });
-
-              infoLog('Error response included newsletter fallback content', {
-                title: data.newsletter.title,
-                contentLength: data.newsletter.content?.length || 0,
-                source: data.newsletter.source
-              });
-            }
-
             throw new Error(data.error || 'Unknown error fetching newsletter');
           }
         })
@@ -1030,7 +656,6 @@ function DashboardPage() {
               localStorageLoaded: localStorage.getItem('newsletterLoaded')
             });
 
-            console.log('[NEWSLETTER] Not setting loaded flag for network error - allowing retry on next visit');
 
             // Return early to avoid setting the error state
             return;
@@ -1070,36 +695,8 @@ function DashboardPage() {
             localStorageLoaded: localStorage.getItem('newsletterLoaded')
           });
 
-          console.log('[NEWSLETTER] Not setting loaded flag for error - allowing retry on next visit');
         });
     } else {
-      console.error('[NEWSLETTER-CRITICAL] Newsletter fetch skipped - already loaded', {
-        globalLoaded: globalNewsletterLoaded.current,
-        forceFetch,
-        currentNewsletterTitle: newsletter?.title || 'none',
-        localStorage: {
-          newsletterLoaded: localStorage.getItem('newsletterLoaded'),
-          hasNewsletterData: !!localStorage.getItem('newsletterData'),
-          newsletterDataSize: localStorage.getItem('newsletterData')?.length || 0
-        },
-        skipReason: 'already loaded in this session'
-      });
-
-      // Log detailed information about why the fetch is being skipped
-      criticalLog('Newsletter fetch skipped - ALREADY LOADED CHECK', {
-        globalLoaded: globalNewsletterLoaded.current,
-        forceFetch,
-        currentNewsletterTitle: newsletter?.title || 'none',
-        localStorage: {
-          newsletterLoaded: localStorage.getItem('newsletterLoaded'),
-          hasNewsletterData: !!localStorage.getItem('newsletterData'),
-          newsletterDataSize: localStorage.getItem('newsletterData')?.length || 0
-        },
-        skipReason: 'already loaded in this session'
-      });
-
-      debugLog('🔍 Newsletter already loaded in this session, skipping fetch');
-      infoLog('Newsletter fetch skipped - already loaded in this session');
     }
   }, [status, isClient]) // Add isClient as a dependency to ensure this only runs on the client
 

@@ -65,7 +65,6 @@ export function FlightStats() {
       setIsFallbackData(false)
       setFallbackReason(null)
 
-      console.log('[FlightStats] Fetching flight data...')
       const response = await fetch('/api/flight-data', {
         // Add credentials to ensure cookies are sent with the request
         credentials: 'same-origin',
@@ -73,7 +72,6 @@ export function FlightStats() {
           'Content-Type': 'application/json'
         }
       })
-      console.log('[FlightStats] Response status:', response.status)
 
       if (!response.ok) {
         // Try to get more detailed error information
@@ -84,27 +82,18 @@ export function FlightStats() {
           try {
             // Try to parse as JSON
             errorData = JSON.parse(responseText);
-            console.error('[FlightStats] API error details:', errorData);
             throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
           } catch (parseError) {
             // If not JSON, use the text directly
-            console.error('[FlightStats] API error text:', responseText);
             throw new Error(`HTTP ${response.status}: ${response.statusText}. ${responseText.substring(0, 100)}`);
           }
         } catch (textError) {
           // If we can't get the response text, use a generic error
-          console.error('[FlightStats] Failed to get error details:', textError);
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
       }
 
       const data = await response.json()
-      console.log('[FlightStats] Data received:', {
-        success: data.success,
-        hasMetrics: !!data.metrics,
-        recordCount: data.recordCount || 'N/A',
-        isFallback: !!data.isFallback
-      })
 
       if (data.success && data.metrics) {
         setMetrics(data.metrics)
@@ -112,22 +101,16 @@ export function FlightStats() {
 
         // Check if this is fallback data
         if (data.isFallback) {
-          console.log('[FlightStats] Using fallback data:', data.fallbackReason || 'Unknown reason');
           setIsFallbackData(true)
           setFallbackReason(data.fallbackReason || 'Connectivity issue')
         } else {
           setIsFallbackData(false)
           setFallbackReason(null)
         }
-
-        console.log('[FlightStats] Metrics updated successfully');
       } else {
-        console.error('[FlightStats] API returned success:false or missing metrics:', data);
         throw new Error(data.error || 'Failed to load flight data: Missing metrics');
       }
     } catch (err: any) {
-      console.error('[FlightStats] Error fetching flight data:', err.message);
-      console.error('[FlightStats] Error stack:', err.stack);
 
       // Check if it's a network error
       const isNetworkError = 
@@ -138,7 +121,6 @@ export function FlightStats() {
          err.message.includes('network timeout'));
 
       if (isNetworkError) {
-        console.error('[FlightStats] Network error detected');
         setError('Network error: Unable to connect to the server. Please check your internet connection and try again.');
       } else {
         // Server error or other error
