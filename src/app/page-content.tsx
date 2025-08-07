@@ -1507,7 +1507,7 @@ function DashboardPage() {
     return () => {
       clearInterval(periodicRefreshTimer);
     };
-  }, [status]) // Session dependency to re-run when auth changes
+  }, [session?.user?.email]) // Only re-run when user email changes (i.e., user logs in/out)
 
   return (
     <div>
