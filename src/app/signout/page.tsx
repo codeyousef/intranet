@@ -6,14 +6,11 @@ import { signOut } from 'next-auth/react'
 export default function SignOutPage() {
   useEffect(() => {
     const performSignOut = async () => {
-      console.log('[SignOut Page] Starting sign out process...')
-      
       try {
         // Clear sessionStorage and localStorage
         if (typeof window !== 'undefined') {
           sessionStorage.clear()
           localStorage.clear()
-          console.log('[SignOut Page] Cleared browser storage')
         }
         
         // Sign out from NextAuth
@@ -21,14 +18,12 @@ export default function SignOutPage() {
           redirect: false,
           callbackUrl: '/' 
         })
-        console.log('[SignOut Page] NextAuth signOut complete')
       } catch (error) {
-        console.error('[SignOut Page] Error during signOut:', error)
+        // Handle error silently
       }
       
       // Force redirect after a short delay
       setTimeout(() => {
-        console.log('[SignOut Page] Redirecting to home...')
         window.location.href = '/'
       }, 500)
     }

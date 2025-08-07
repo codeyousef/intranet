@@ -457,35 +457,10 @@ function DashboardPage() {
       // Fetch the newsletter
       fetch('/api/sharepoint/newsletter-list')
         .then(response => {
-          criticalLog(`Newsletter API response received - Status: ${response.status} ${response.statusText}`);
 
-          // Log detailed response information
-          criticalLog('Response details - DETAILED CHECK', {
-            status: response.status,
-            statusText: response.statusText,
-            ok: response.ok,
-            url: response.url,
-            type: response.type,
-            redirected: response.redirected,
-            headers: {
-              contentType: response.headers.get('content-type'),
-              contentLength: response.headers.get('content-length'),
-              cacheControl: response.headers.get('cache-control'),
-              etag: response.headers.get('etag'),
-              server: response.headers.get('server'),
-              date: response.headers.get('date')
-            }
-          });
 
-          infoLog('Response headers', {
-            contentType: response.headers.get('content-type'),
-            contentLength: response.headers.get('content-length'),
-            cacheControl: response.headers.get('cache-control'),
-            etag: response.headers.get('etag')
-          });
 
           if (!response.ok) {
-            errorLog(`API returned error status: ${response.status} ${response.statusText}`);
 
             // Special handling for 503 Service Unavailable (temporary maintenance)
             if (response.status === 503) {
@@ -511,67 +486,18 @@ function DashboardPage() {
         })
         .then(data => {
           // Log detailed information about the response data
-          criticalLog('Newsletter API response data - DETAILED CHECK', {
-            success: data.success,
-            hasNewsletter: !!data.newsletter,
-            error: data.error || 'none',
-            details: data.details || 'none',
-            dataKeys: Object.keys(data || {}),
-            dataType: typeof data,
-            isDataNull: data === null,
-            isDataUndefined: data === undefined,
-            rawDataSize: JSON.stringify(data || {}).length
-          });
 
-          infoLog('Newsletter API response data', {
-            success: data.success,
-            hasNewsletter: !!data.newsletter,
-            error: data.error || 'none',
-            details: data.details || 'none'
-          });
 
           if (data.success && data.newsletter) {
-            debugLog('✅ Newsletter fetched successfully', data.newsletter);
-            criticalLog(`Newsletter fetch successful - Content length: ${data.newsletter.content?.length || 0} characters`);
 
             // Log detailed newsletter metadata
-            criticalLog('Newsletter metadata - DETAILED CHECK', {
-              title: data.newsletter.title,
-              lastUpdated: data.newsletter.lastUpdated,
-              source: data.newsletter.source,
-              type: data.newsletter.type,
-              sharePointUrl: data.newsletter.sharePointUrl || 'none',
-              contentLength: data.newsletter.content?.length || 0,
-              contentPreview: data.newsletter.content?.substring(0, 200) || 'no content',
-              allKeys: Object.keys(data.newsletter || {})
-            });
 
-            infoLog('Newsletter metadata', {
-              title: data.newsletter.title,
-              lastUpdated: data.newsletter.lastUpdated,
-              source: data.newsletter.source,
-              type: data.newsletter.type,
-              sharePointUrl: data.newsletter.sharePointUrl || 'none'
-            });
 
             // Log state change before updating
-            criticalLog('Setting newsletter state - SUCCESS PATH', {
-              previousTitle: newsletter?.title || 'none',
-              newTitle: data.newsletter.title,
-              stateChange: `${newsletter?.title || 'none'} -> ${data.newsletter.title}`
-            });
 
             setNewsletter(data.newsletter);
 
             // Log the state change with critical level to ensure it's always displayed
-            criticalLog('Newsletter state set from API fetch - SUCCESS', {
-              title: data.newsletter.title,
-              contentLength: data.newsletter.content?.length || 0,
-              lastUpdated: data.newsletter.lastUpdated,
-              source: data.newsletter.source,
-              stateChange: `${newsletter?.title || 'none'} -> ${data.newsletter.title}`,
-              timestamp: new Date().toISOString()
-            });
 
             // Save to localStorage to avoid refetching - but ONLY if it's not fallback content
             if (!data.newsletter.isFallback && data.newsletter.source !== 'system') {
@@ -579,24 +505,9 @@ function DashboardPage() {
               localStorage.setItem('newsletterLoaded', 'true');
               globalNewsletterLoaded.current = true;
               
-              criticalLog('Newsletter is NOT fallback content - SAVING to localStorage', {
-                isFallback: data.newsletter.isFallback,
-                source: data.newsletter.source
-              });
             } else {
-              criticalLog('Newsletter IS fallback content - NOT saving to localStorage', {
-                isFallback: data.newsletter.isFallback,
-                source: data.newsletter.source,
-                reason: 'Preventing fallback content from blocking future fetches'
-              });
             }
 
-            criticalLog('Newsletter data saved to localStorage - SUCCESS COMPLETE', {
-              title: data.newsletter.title,
-              dataSize: JSON.stringify(data.newsletter).length,
-              globalLoaded: globalNewsletterLoaded.current,
-              localStorageLoaded: localStorage.getItem('newsletterLoaded')
-            });
 
           } else if (!data.success && data.fallbackContent) {
             // API returned error but provided fallback content
@@ -608,37 +519,12 @@ function DashboardPage() {
         })
         .catch(error => {
           // Log detailed error information
-          criticalLog('Newsletter fetch failed - CATCH BLOCK', {
-            errorName: error.name,
-            errorMessage: error.message,
-            errorStack: error.stack,
-            errorType: typeof error,
-            isNetworkError: error.name === 'TypeError' && error.message.includes('Failed to fetch'),
-            currentNewsletterTitle: newsletter?.title || 'none',
-            timestamp: new Date().toISOString(),
-            fetchAttemptInfo: {
-              lastAttemptTimestamp: lastFetchAttempt.timestamp,
-              timeSinceAttempt: Date.now() - lastFetchAttempt.timestamp
-            }
-          });
 
-          debugLog('❌ Error fetching newsletter', error);
-          errorLog(`Newsletter fetch failed: ${error.message}`, {
-            stack: error.stack,
-            timestamp: new Date().toISOString()
-          });
 
           // Check if it's a network error
           if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-            criticalLog('Network error detected - possible connectivity issue or CORS problem');
 
             // Log state change for network error
-            criticalLog('Setting newsletter state - NETWORK ERROR PATH', {
-              previousTitle: newsletter?.title || 'none',
-              newTitle: "Newsletter Temporarily Unavailable",
-              stateChange: `${newsletter?.title || 'none'} -> Newsletter Temporarily Unavailable`,
-              reason: 'network error'
-            });
 
             // Provide a fallback for network errors too
             setNewsletter({
@@ -650,11 +536,6 @@ function DashboardPage() {
 
             // Don't save this fallback to localStorage for network errors
             // This will allow it to try fetching again on the next visit when SharePoint might be unblocked
-            criticalLog('Not setting loaded flag for network error - RETRY STRATEGY', {
-              reason: 'network error - allowing retry on next visit',
-              globalLoaded: globalNewsletterLoaded.current,
-              localStorageLoaded: localStorage.getItem('newsletterLoaded')
-            });
 
 
             // Return early to avoid setting the error state
@@ -662,13 +543,6 @@ function DashboardPage() {
           }
 
           // Log state change for general error
-          criticalLog('Setting newsletter state - GENERAL ERROR PATH', {
-            previousTitle: newsletter?.title || 'none',
-            newTitle: "Newsletter Error",
-            stateChange: `${newsletter?.title || 'none'} -> Newsletter Error`,
-            reason: 'general error',
-            errorMessage: error.message
-          });
 
           // For other errors, show a more user-friendly error message
           // but also provide a fallback newsletter content
@@ -688,12 +562,6 @@ function DashboardPage() {
 
           // Don't save this fallback to localStorage for errors
           // This will allow it to try fetching again on the next visit when the issue might be resolved
-          criticalLog('Not setting loaded flag for general error - RETRY STRATEGY', {
-            reason: 'general error - allowing retry on next visit',
-            errorMessage: error.message,
-            globalLoaded: globalNewsletterLoaded.current,
-            localStorageLoaded: localStorage.getItem('newsletterLoaded')
-          });
 
         });
     } else {

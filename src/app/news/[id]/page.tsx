@@ -39,7 +39,6 @@ export default function NewsDetailsPage() {
         const data = await response.json()
         setNewsItem(data)
       } catch (err) {
-        console.error('Error fetching news item:', err)
         setError('Failed to load news item')
       } finally {
         setLoading(false)

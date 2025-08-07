@@ -7,12 +7,10 @@ export default function DebugSignOut() {
   const { data: session, status } = useSession()
   
   const testDirectSignOut = () => {
-    console.log('Direct sign out clicked')
     window.location.href = '/api/auth/custom-signout'
   }
   
   const testFetchSignOut = async () => {
-    console.log('Fetch sign out clicked')
     try {
       const response = await fetch('/api/auth/custom-signout', {
         method: 'POST',
@@ -21,18 +19,15 @@ export default function DebugSignOut() {
         }
       })
       
-      console.log('Response status:', response.status)
       const data = await response.json()
-      console.log('Response data:', data)
       
       if (response.ok) {
-        console.log('Sign out successful, redirecting...')
         setTimeout(() => {
           window.location.href = '/'
         }, 100)
       }
     } catch (error) {
-      console.error('Sign out error:', error)
+      // Handle error silently or show user-friendly message
     }
   }
   

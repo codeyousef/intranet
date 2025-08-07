@@ -77,7 +77,7 @@ export default function SurveyAdminPage() {
         }
       }
     } catch (error) {
-      console.error('Error fetching surveys:', error)
+      // Handle error silently or show user-friendly message
     } finally {
       setLoading(false)
     }
@@ -93,7 +93,7 @@ export default function SurveyAdminPage() {
         setSelectedSurvey(data.survey)
       }
     } catch (error) {
-      console.error('Error fetching survey details:', error)
+      // Handle error silently or show user-friendly message
     } finally {
       setLoading(false)
     }

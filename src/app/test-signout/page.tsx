@@ -4,8 +4,6 @@ import { Button } from '@/components/ui/button'
 
 export default function TestSignOut() {
   const testSignOut = async () => {
-    console.log('Test sign out clicked')
-    
     try {
       const response = await fetch('/api/auth/custom-signout', {
         method: 'POST',
@@ -14,16 +12,13 @@ export default function TestSignOut() {
         }
       })
       
-      console.log('Response:', response)
       const data = await response.json()
-      console.log('Data:', data)
       
       if (response.ok) {
-        console.log('Sign out successful, redirecting...')
         window.location.href = '/'
       }
     } catch (error) {
-      console.error('Sign out error:', error)
+      // Handle error silently or show user-friendly message
     }
   }
   

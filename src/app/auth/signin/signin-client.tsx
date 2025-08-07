@@ -39,7 +39,6 @@ export function SignInClient() {
           window.location.href = callbackUrl;
         }
       } catch (error) {
-        console.error('Session check error:', error);
         // Don't retry on error to prevent request spam
       }
     };
@@ -55,7 +54,6 @@ export function SignInClient() {
     // Implement debouncing to prevent rapid clicks
     const now = Date.now();
     if (now - lastSignInAttempt.current < 2000) {
-      console.log('Sign-in debounced - too rapid');
       return;
     }
     lastSignInAttempt.current = now;

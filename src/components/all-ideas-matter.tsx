@@ -72,7 +72,6 @@ export function AllIdeasMatter() {
         setMessage(data.error || 'Failed to submit suggestion')
       }
     } catch (error) {
-      console.error('Error submitting suggestion:', error)
       setSubmitStatus('error')
       setMessage('Failed to submit suggestion. Please try again.')
     } finally {

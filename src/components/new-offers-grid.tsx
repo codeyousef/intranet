@@ -44,7 +44,6 @@ export default function NewOffersGrid() {
         const limitedOffers = allOffers.slice(0, 9);
         setOffers(limitedOffers);
       } catch (err) {
-        console.error('Failed to fetch offers:', err);
         setError('Failed to load offers. Please try again later.');
       } finally {
         setLoading(false);

@@ -180,49 +180,37 @@ function AdminPageContent() {
   useEffect(() => {
     const checkAdminStatus = async () => {
       try {
-        console.log('Checking admin status, session:', session);
         const adminResponse = await fetch('/api/admin/check')
         const adminData = await adminResponse.json()
-        console.log('Admin check response:', adminData);
 
         if (!adminData.authenticated) {
-          console.log('User not authenticated, redirecting to homepage');
           router.push('/')
           return
         }
 
         setIsAdmin(adminData.isAdmin)
-        console.log('Setting isAdmin to:', adminData.isAdmin);
 
         // Also check if user is a people admin
         const peopleAdminResponse = await fetch('/api/people-admin/check')
         const peopleAdminData = await peopleAdminResponse.json()
-        console.log('People admin check response:', peopleAdminData);
 
         setIsPeopleAdmin(peopleAdminData.isPeopleAdmin)
-        console.log('Setting isPeopleAdmin to:', peopleAdminData.isPeopleAdmin);
 
         // Also check if user is an audit admin
         const auditAdminResponse = await fetch('/api/audit-admin/check')
         const auditAdminData = await auditAdminResponse.json()
-        console.log('Audit admin check response:', auditAdminData);
         
         setIsAuditAdmin(auditAdminData.isAuditAdmin)
-        console.log('Setting isAuditAdmin to:', auditAdminData.isAuditAdmin);
 
         // Also check if user is a CEO admin
         const ceoAdminResponse = await fetch('/api/ceo-admin/check')
         const ceoAdminData = await ceoAdminResponse.json()
-        console.log('CEO admin check response:', ceoAdminData);
         
         setIsCEOAdmin(ceoAdminData.isCEOAdmin)
-        console.log('Setting isCEOAdmin to:', ceoAdminData.isCEOAdmin);
 
         if (!adminData.isAdmin) {
-          console.log('User not admin, redirecting to homepage');
           router.push('/')
         } else {
-          console.log('User is admin, loading data');
           // Load platform links and admin users
           fetchPlatformLinks()
           fetchAdminUsers()
@@ -254,22 +242,16 @@ function AdminPageContent() {
 
         setIsLoading(false)
       } catch (error) {
-        console.error('Error checking admin status:', error)
         setError('Failed to verify admin status')
         setIsLoading(false)
       }
     }
 
     if (status === 'authenticated') {
-      console.log('User authenticated, checking admin status');
       checkAdminStatus()
     } else if (status === 'unauthenticated') {
-      console.log('User not authenticated, redirecting to homepage');
       setIsLoading(false)
       router.push('/')
-    } else {
-      console.log('Auth status:', status);
-      // If status is still loading, keep isLoading true
     }
   }, [status, router, session])
 
@@ -281,7 +263,6 @@ function AdminPageContent() {
       // Ensure data is an array before setting state
       setPlatformLinks(Array.isArray(data) ? data : [])
     } catch (error) {
-      console.error('Error fetching platform links:', error)
       setError('Failed to fetch platform links')
       // Set empty array on error
       setPlatformLinks([])
@@ -296,7 +277,6 @@ function AdminPageContent() {
       // Ensure data is an array before setting state
       setAdminUsers(Array.isArray(data) ? data : [])
     } catch (error) {
-      console.error('Error fetching admin users:', error)
       setError('Failed to fetch admin users')
       // Set empty array on error
       setAdminUsers([])
@@ -311,7 +291,6 @@ function AdminPageContent() {
       // Ensure data is an array before setting state
       setPeopleAdminUsers(Array.isArray(data) ? data : [])
     } catch (error) {
-      console.error('Error fetching people admin users:', error)
       setError('Failed to fetch people admin users')
       // Set empty array on error
       setPeopleAdminUsers([])
@@ -326,7 +305,6 @@ function AdminPageContent() {
       // Ensure data is an array before setting state
       setAuditAdminUsers(Array.isArray(data) ? data : [])
     } catch (error) {
-      console.error('Error fetching audit admin users:', error)
       setError('Failed to fetch audit admin users')
       // Set empty array on error
       setAuditAdminUsers([])
@@ -341,7 +319,6 @@ function AdminPageContent() {
       // Ensure data is an array before setting state
       setCEOAdminUsers(Array.isArray(data) ? data : [])
     } catch (error) {
-      console.error('Error fetching CEO admin users:', error)
       setError('Failed to fetch CEO admin users')
       // Set empty array on error
       setCEOAdminUsers([])
@@ -356,7 +333,6 @@ function AdminPageContent() {
       // Ensure data.questions is an array before setting state
       setCEOQuestions(Array.isArray(data.questions) ? data.questions : [])
     } catch (error) {
-      console.error('Error fetching CEO questions:', error)
       setError('Failed to fetch CEO questions')
       // Set empty array on error
       setCEOQuestions([])
@@ -371,7 +347,6 @@ function AdminPageContent() {
       // Ensure data is an array before setting state
       setEvents(Array.isArray(data) ? data : [])
     } catch (error) {
-      console.error('Error fetching events:', error)
       setError('Failed to fetch events')
       // Set empty array on error
       setEvents([])
@@ -386,7 +361,6 @@ function AdminPageContent() {
       // Ensure data is an array before setting state
       setCompanyNews(Array.isArray(data) ? data : [])
     } catch (error) {
-      console.error('Error fetching company news:', error)
       setError('Failed to fetch company news')
       // Set empty array on error
       setCompanyNews([])
@@ -425,7 +399,6 @@ function AdminPageContent() {
       fetchPlatformLinks()
       setSuccess('Platform link added successfully')
     } catch (error) {
-      console.error('Error adding platform link:', error)
       setError(error instanceof Error ? error.message : 'Failed to add platform link')
     }
   }
@@ -448,7 +421,6 @@ function AdminPageContent() {
       fetchPlatformLinks()
       setSuccess('Platform link deleted successfully')
     } catch (error) {
-      console.error('Error deleting platform link:', error)
       setError(error instanceof Error ? error.message : 'Failed to delete platform link')
     }
   }
@@ -483,7 +455,6 @@ function AdminPageContent() {
       fetchAdminUsers()
       setSuccess('Admin user added successfully')
     } catch (error) {
-      console.error('Error adding admin user:', error)
       setError(error instanceof Error ? error.message : 'Failed to add admin user')
     }
   }
@@ -506,7 +477,6 @@ function AdminPageContent() {
       fetchAdminUsers()
       setSuccess('Admin user removed successfully')
     } catch (error) {
-      console.error('Error removing admin user:', error)
       setError(error instanceof Error ? error.message : 'Failed to remove admin user')
     }
   }
@@ -541,7 +511,6 @@ function AdminPageContent() {
       fetchPeopleAdminUsers()
       setSuccess('People admin user added successfully')
     } catch (error) {
-      console.error('Error adding people admin user:', error)
       setError(error instanceof Error ? error.message : 'Failed to add people admin user')
     }
   }
@@ -564,7 +533,6 @@ function AdminPageContent() {
       fetchPeopleAdminUsers()
       setSuccess('People admin user removed successfully')
     } catch (error) {
-      console.error('Error removing people admin user:', error)
       setError(error instanceof Error ? error.message : 'Failed to remove people admin user')
     }
   }
@@ -599,7 +567,6 @@ function AdminPageContent() {
       fetchAuditAdminUsers()
       setSuccess('Audit admin user added successfully')
     } catch (error) {
-      console.error('Error adding audit admin user:', error)
       setError(error instanceof Error ? error.message : 'Failed to add audit admin user')
     }
   }
@@ -622,7 +589,6 @@ function AdminPageContent() {
       fetchAuditAdminUsers()
       setSuccess('Audit admin user removed successfully')
     } catch (error) {
-      console.error('Error removing audit admin user:', error)
       setError(error instanceof Error ? error.message : 'Failed to remove audit admin user')
     }
   }
@@ -657,7 +623,6 @@ function AdminPageContent() {
       fetchCEOAdminUsers()
       setSuccess('CEO admin user added successfully')
     } catch (error) {
-      console.error('Error adding CEO admin user:', error)
       setError(error instanceof Error ? error.message : 'Failed to add CEO admin user')
     }
   }
@@ -680,7 +645,6 @@ function AdminPageContent() {
       fetchCEOAdminUsers()
       setSuccess('CEO admin user removed successfully')
     } catch (error) {
-      console.error('Error removing CEO admin user:', error)
       setError(error instanceof Error ? error.message : 'Failed to remove CEO admin user')
     }
   }
@@ -719,7 +683,6 @@ function AdminPageContent() {
       fetchEvents()
       setSuccess('Event added successfully')
     } catch (error) {
-      console.error('Error adding event:', error)
       setError(error instanceof Error ? error.message : 'Failed to add event')
     }
   }
@@ -742,7 +705,6 @@ function AdminPageContent() {
       fetchEvents()
       setSuccess('Event deleted successfully')
     } catch (error) {
-      console.error('Error deleting event:', error)
       setError(error instanceof Error ? error.message : 'Failed to delete event')
     }
   }
@@ -781,7 +743,6 @@ function AdminPageContent() {
       fetchCompanyNews()
       setSuccess('News item added successfully')
     } catch (error) {
-      console.error('Error adding news item:', error)
       setError(error instanceof Error ? error.message : 'Failed to add news item')
     }
   }
@@ -804,7 +765,6 @@ function AdminPageContent() {
       fetchCompanyNews()
       setSuccess('News item deleted successfully')
     } catch (error) {
-      console.error('Error deleting news item:', error)
       setError(error instanceof Error ? error.message : 'Failed to delete news item')
     }
   }
@@ -817,7 +777,6 @@ function AdminPageContent() {
       // Ensure data.complaints is an array before setting state
       setComplaints(Array.isArray(data.complaints) ? data.complaints : [])
     } catch (error) {
-      console.error('Error fetching complaints:', error)
       setError('Failed to fetch complaints')
       // Set empty array on error
       setComplaints([])
@@ -832,7 +791,6 @@ function AdminPageContent() {
       // Ensure data.suggestions is an array before setting state
       setSuggestions(Array.isArray(data.suggestions) ? data.suggestions : [])
     } catch (error) {
-      console.error('Error fetching suggestions:', error)
       setError('Failed to fetch suggestions')
       // Set empty array on error
       setSuggestions([])
@@ -858,7 +816,6 @@ function AdminPageContent() {
       fetchComplaints()
       setSuccess('Complaint status updated successfully')
     } catch (error) {
-      console.error('Error updating complaint:', error)
       setError(error instanceof Error ? error.message : 'Failed to update complaint')
     }
   }
@@ -882,7 +839,6 @@ function AdminPageContent() {
       fetchSuggestions()
       setSuccess('Suggestion status updated successfully')
     } catch (error) {
-      console.error('Error updating suggestion:', error)
       setError(error instanceof Error ? error.message : 'Failed to update suggestion')
     }
   }
@@ -906,7 +862,6 @@ function AdminPageContent() {
       fetchCEOQuestions()
       setSuccess('CEO question updated successfully')
     } catch (error) {
-      console.error('Error updating CEO question:', error)
       setError(error instanceof Error ? error.message : 'Failed to update CEO question')
     }
   }

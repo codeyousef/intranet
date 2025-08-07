@@ -51,7 +51,6 @@ export default function OfferDetailsPage() {
         const data = await response.json();
         setOffer(data.offer);
       } catch (err) {
-        console.error('Failed to fetch offer:', err);
         setError(err instanceof Error ? err.message : 'Failed to load offer details');
       } finally {
         setLoading(false);

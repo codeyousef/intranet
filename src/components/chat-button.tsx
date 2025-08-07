@@ -42,7 +42,6 @@ export function ChatButton() {
           }
         } catch (e) {
           // Ignore any errors that might occur during cleanup
-          console.error('Error during iframe cleanup:', e);
         }
       }
     };

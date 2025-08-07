@@ -39,7 +39,6 @@ export function CelebrationsComponent() {
         const celebrationsData = await response.json()
         setData(celebrationsData)
       } catch (err) {
-        console.error('Error fetching celebrations data:', err)
         setError('Failed to load celebrations data')
       } finally {
         setLoading(false)
