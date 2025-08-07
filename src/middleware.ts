@@ -5,23 +5,24 @@ import { rateLimit } from '@/lib/rate-limit';
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // Determine rate limit type based on path
-  let rateLimitType: 'api' | 'auth' | 'weather' | 'admin' | 'general' = 'general';
+  // Only apply rate limiting to API routes, not page routes
+  if (pathname.startsWith('/api')) {
+    // Determine rate limit type based on path
+    let rateLimitType: 'api' | 'auth' | 'weather' | 'admin' = 'api';
 
-  if (pathname.startsWith('/api/auth')) {
-    rateLimitType = 'auth';
-  } else if (pathname.startsWith('/api/weather')) {
-    rateLimitType = 'weather';
-  } else if (pathname.startsWith('/api/admin')) {
-    rateLimitType = 'admin';
-  } else if (pathname.startsWith('/api')) {
-    rateLimitType = 'api';
-  }
+    if (pathname.startsWith('/api/auth')) {
+      rateLimitType = 'auth';
+    } else if (pathname.startsWith('/api/weather')) {
+      rateLimitType = 'weather';
+    } else if (pathname.startsWith('/api/admin')) {
+      rateLimitType = 'admin';
+    }
 
-  // Apply rate limiting
-  const rateLimitResponse = await rateLimit(request, rateLimitType);
-  if (rateLimitResponse) {
-    return rateLimitResponse;
+    // Apply rate limiting only to API routes
+    const rateLimitResponse = await rateLimit(request, rateLimitType);
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
   }
 
   // Add security headers for API responses
@@ -50,9 +51,7 @@ export async function middleware(request: NextRequest) {
 // Configure which routes the middleware should run on
 export const config = {
   matcher: [
-    // Match all API routes
+    // Only match API routes for rate limiting and security headers
     '/api/:path*',
-    // Only match specific routes, explicitly excluding _next paths and admin pages
-    '/((?!_next|favicon.ico|images/|admin/).*)',
   ],
 };

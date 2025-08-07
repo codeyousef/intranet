@@ -1889,9 +1889,6 @@ function DashboardPage() {
               </GlassmorphismContainer>
 
 
-              {/* Company News */}
-              <CompanyNews />
-
               {/* Feedback Components - Side by Side */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                 <RaiseYourVoice />
@@ -1947,6 +1944,9 @@ function DashboardPage() {
                 </div>
                 <NewOffersGrid />
               </GlassmorphismContainer>
+
+              {/* Company News */}
+              <CompanyNews />
 
               {/* Upcoming Events */}
               <UpcomingEvents />

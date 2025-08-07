@@ -1076,15 +1076,15 @@ function AdminPageContent() {
                       ) : (
                         <div className="space-y-4">
                           {platformLinks.map((link) => (
-                            <div key={link.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div key={link.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                               <div>
-                                <p className="font-medium">{link.title}</p>
-                                <p className="text-sm text-gray-500">{link.url}</p>
+                                <p className="font-medium text-gray-900 dark:text-white">{link.title}</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-300">{link.url}</p>
                                 <div className="flex items-center mt-1">
-                                  <span className="text-xs bg-gray-200 px-2 py-0.5 rounded mr-2">
+                                  <span className="text-xs bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 px-2 py-0.5 rounded mr-2">
                                     Icon: {link.icon}
                                   </span>
-                                  <span className="text-xs bg-gray-200 px-2 py-0.5 rounded mr-2">
+                                  <span className="text-xs bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 px-2 py-0.5 rounded mr-2">
                                     Order: {link.display_order}
                                   </span>
                                   <span className={`text-xs px-2 py-0.5 rounded ${link.is_active ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
@@ -1154,7 +1154,7 @@ function AdminPageContent() {
                             ) : (
                               <div className="space-y-4">
                                 {adminUsers.map((user) => (
-                                  <div key={user.email} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                  <div key={user.email} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                                     <div>
                                       <p className="font-medium">{user.email}</p>
                                       <p className="text-xs text-gray-500">Added: {new Date(user.created_at).toLocaleDateString()}</p>
@@ -1220,7 +1220,7 @@ function AdminPageContent() {
                             ) : (
                               <div className="space-y-4">
                                 {peopleAdminUsers.map((user) => (
-                                  <div key={user.email} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                  <div key={user.email} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                                     <div>
                                       <p className="font-medium">{user.email}</p>
                                       <p className="text-xs text-gray-500">Added: {new Date(user.created_at).toLocaleDateString()}</p>
@@ -1286,7 +1286,7 @@ function AdminPageContent() {
                             ) : (
                               <div className="space-y-4">
                                 {auditAdminUsers.map((user) => (
-                                  <div key={user.email} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                  <div key={user.email} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                                     <div>
                                       <p className="font-medium">{user.email}</p>
                                       <p className="text-xs text-gray-500">Added: {new Date(user.created_at).toLocaleDateString()}</p>
@@ -1352,7 +1352,7 @@ function AdminPageContent() {
                             ) : (
                               <div className="space-y-4">
                                 {ceoAdminUsers.map((user) => (
-                                  <div key={user.email} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                  <div key={user.email} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                                     <div>
                                       <p className="font-medium">{user.email}</p>
                                       <p className="text-xs text-gray-500">Added: {new Date(user.created_at).toLocaleDateString()}</p>
@@ -1444,7 +1444,7 @@ function AdminPageContent() {
                       ) : (
                         <div className="space-y-4">
                           {events.map((event) => (
-                            <div key={event.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div key={event.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                               <div>
                                 <p className="font-medium">{event.title}</p>
                                 <p className="text-sm text-gray-500">{event.description}</p>
@@ -1535,7 +1535,7 @@ function AdminPageContent() {
                       ) : (
                         <div className="space-y-4">
                           {companyNews.map((news) => (
-                            <div key={news.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div key={news.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                               <div>
                                 <p className="font-medium">{news.title}</p>
                                 <p className="text-sm text-gray-500">{news.content && news.content.length > 100 ? `${news.content.substring(0, 100)}...` : news.content || ''}</p>
@@ -1618,9 +1618,9 @@ function AdminPageContent() {
                               </Select>
                             </div>
                             {complaint.admin_notes && (
-                              <div className="bg-gray-50 p-3 rounded-lg">
-                                <p className="text-xs font-medium text-gray-600 mb-1">Admin Notes:</p>
-                                <p className="text-sm text-gray-700">{complaint.admin_notes}</p>
+                              <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                                <p className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Admin Notes:</p>
+                                <p className="text-sm text-gray-700 dark:text-gray-200">{complaint.admin_notes}</p>
                               </div>
                             )}
                           </div>
@@ -1695,9 +1695,9 @@ function AdminPageContent() {
                               </Select>
                             </div>
                             {suggestion.admin_notes && (
-                              <div className="bg-gray-50 p-3 rounded-lg">
-                                <p className="text-xs font-medium text-gray-600 mb-1">Admin Notes:</p>
-                                <p className="text-sm text-gray-700">{suggestion.admin_notes}</p>
+                              <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                                <p className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Admin Notes:</p>
+                                <p className="text-sm text-gray-700 dark:text-gray-200">{suggestion.admin_notes}</p>
                               </div>
                             )}
                           </div>
