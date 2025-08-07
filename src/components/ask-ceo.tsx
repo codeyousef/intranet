@@ -16,7 +16,7 @@ export function AskCEO() {
   const { data: session } = useSession()
   const [content, setContent] = useState('')
   const [category, setCategory] = useState('')
-  const [isAnonymous, setIsAnonymous] = useState(false)
+  const [isAnonymous, setIsAnonymous] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
