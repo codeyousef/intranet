@@ -11,10 +11,10 @@
     "dev:https": "next dev -p 3443",
     "dev:https-alt": "NODE_TLS_REJECT_UNAUTHORIZED=0 node server.js",
     "dev:tunnel": "next dev -p 3001 & npx ngrok http 3001",
-    "build": "node generate-prisma.js && next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "node generate-prisma.js",
+    "postinstall": "prisma generate",
     "generate-prisma": "node generate-prisma.js"
   },
   "keywords": [],

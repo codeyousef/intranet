@@ -1,27 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthSession } from '@/lib/auth'
-
-// Only import Prisma if not in build mode
-let prisma: any;
-try {
-  // Skip Prisma import only during build phase
-  if (process.env.NEXT_PHASE === 'phase-production-build') {
-    prisma = null;
-  } else {
-    prisma = require('@/lib/prisma').prisma;
-  }
-} catch (error) {
-  console.warn('Prisma not available:', error.message);
-  prisma = null;
-}
+import { prisma } from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
   try {
-    // Check if Prisma is available
-    if (!prisma) {
-      return NextResponse.json({ error: 'Database not available during build' }, { status: 503 })
-    }
-
     const session = await getAuthSession()
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
