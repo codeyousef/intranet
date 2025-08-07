@@ -12,7 +12,7 @@ export async function middleware(request: NextRequest) {
     rateLimitType = 'auth';
   } else if (pathname.startsWith('/api/weather')) {
     rateLimitType = 'weather';
-  } else if (pathname.startsWith('/api/admin') || pathname.startsWith('/admin')) {
+  } else if (pathname.startsWith('/api/admin')) {
     rateLimitType = 'admin';
   } else if (pathname.startsWith('/api')) {
     rateLimitType = 'api';
@@ -52,9 +52,7 @@ export const config = {
   matcher: [
     // Match all API routes
     '/api/:path*',
-    // Match admin pages
-    '/admin/:path*',
-    // Only match specific routes, explicitly excluding _next paths
-    '/((?!_next|favicon.ico|images/).*)',
+    // Only match specific routes, explicitly excluding _next paths and admin pages
+    '/((?!_next|favicon.ico|images/|admin/).*)',
   ],
 };

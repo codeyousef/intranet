@@ -33,11 +33,11 @@ const rateLimiterConfigs: Record<string, RateLimiterConfig> = {
     blockDuration: 300, // Block for 5 minutes
   },
 
-  // Admin endpoints - moderate limits
+  // Admin endpoints - increased limits for testing
   admin: {
-    points: 50,
+    points: 200,
     duration: 60,
-    blockDuration: 120,
+    blockDuration: 30,
   },
 
   // General pages - relaxed limits
