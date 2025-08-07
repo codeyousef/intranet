@@ -93,13 +93,13 @@ export function Survey() {
 
   if (loading) {
     return (
-      <Card className="p-6 bg-white/90 backdrop-blur-sm shadow-lg">
+      <Card className="p-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm shadow-lg">
         <div className="animate-pulse">
-          <div className="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-full mb-4"></div>
+          <div className="h-6 bg-gray-200 dark:bg-gray-600 rounded w-3/4 mb-4"></div>
+          <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-full mb-4"></div>
           <div className="space-y-3">
-            <div className="h-10 bg-gray-200 rounded"></div>
-            <div className="h-10 bg-gray-200 rounded"></div>
+            <div className="h-10 bg-gray-200 dark:bg-gray-600 rounded"></div>
+            <div className="h-10 bg-gray-200 dark:bg-gray-600 rounded"></div>
           </div>
         </div>
       </Card>
@@ -111,7 +111,7 @@ export function Survey() {
   }
 
   return (
-    <Card className="p-6 bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-xl transition-shadow duration-300">
+    <Card className="p-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm shadow-lg hover:shadow-xl transition-shadow duration-300">
       <div className="mb-4">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white flex items-center gap-2">
           <BarChart3 className="w-5 h-5 text-[#00539f]" />
